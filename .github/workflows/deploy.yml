@@ -8,31 +8,25 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.1.0
+        uses: appleboy/ssh-action@master
         with:
           host: veheys.online
           username: flexdrrexar
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -e
-            cd /opt/flex
-
             echo "=== Pulling latest code ==="
-            git pull
+            cd /opt/flex && git pull
 
             echo "=== Building server ==="
             cd /opt/flex/server
-            npm install
+            npm install --silent
             npx prisma generate
             npm run build
 
             echo "=== Building client ==="
             cd /opt/flex/client
-            npm install
+            npm install --silent
             npm run build
             sudo cp -r dist/* /var/www/html/
 
