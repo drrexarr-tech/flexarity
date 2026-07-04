@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Trash2, Edit3, GripVertical, Calendar } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -32,6 +33,8 @@ const priorityColors = {
 const priorityLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
 
 export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
+  const currentUser = useAuthStore((s) => s.user);
+  const isObserver = task.assignee && task.assignee.id !== currentUser?.id && task.userId === currentUser?.id;
   const [editing, setEditing] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -111,6 +114,7 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
                     {task.assignee.name[0]?.toUpperCase()}
                   </div>
                   {task.assignee.name}
+                  {isObserver && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-amber-600 border-amber-300">Наблюдаю</Badge>}
                 </span>
               )}
               {task.visibility && task.visibility !== 'private' && (

@@ -223,47 +223,32 @@ chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
 
   await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } });
 
-  // Re-add any participant who left the chat
-  const chatParticipants = await prisma.chat.findUnique({
-    where: { id: chatId },
-    include: { participants: true },
+  // Re-add any participant who left (has messages but no ChatParticipant row)
+  const participants = await prisma.chatParticipant.findMany({
+    where: { chatId },
+    select: { userId: true },
   });
+  const existingIds = participants.map((p) => p.userId);
 
-  const otherUserIds: string[] = [];
-  if (chatParticipants) {
-    const existingIds = chatParticipants.participants.map((p) => p.userId);
-    // Find all users who have ever been participants (based on messages)
-    const allMessageUsers = await prisma.message.findMany({
-      where: { chatId, userId: { not: req.userId } },
-      distinct: ['userId'],
-      select: { userId: true },
-    });
-    for (const mu of allMessageUsers) {
-      if (!existingIds.includes(mu.userId)) {
-        await prisma.chatParticipant.create({
-          data: { chatId, userId: mu.userId },
-        });
-        otherUserIds.push(mu.userId);
-      }
-    }
-    // Also include existing participants
-    for (const p of chatParticipants.participants) {
-      if (p.userId !== req.userId && !otherUserIds.includes(p.userId)) {
-        otherUserIds.push(p.userId);
-      }
-    }
-  }
+  const allMessageUsers = await prisma.message.findMany({
+    where: { chatId, userId: { not: req.userId } },
+    distinct: ['userId'],
+    select: { userId: true },
+  });
 
   const me = await prisma.user.findUnique({ where: { id: req.userId } });
 
-  for (const userId of otherUserIds) {
+  for (const mu of allMessageUsers) {
+    if (!existingIds.includes(mu.userId)) {
+      await prisma.chatParticipant.create({ data: { chatId, userId: mu.userId } });
+    }
     await prisma.notification.create({
       data: {
         type: 'message',
         title: `Новое сообщение от ${me?.name}`,
         message: content.slice(0, 100),
         link: `/chats/${chatId}`,
-        userId,
+        userId: mu.userId,
       },
     });
   }

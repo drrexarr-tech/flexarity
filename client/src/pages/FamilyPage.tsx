@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Users, Plus, Mail, Check, X, LogOut, UserMinus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Plus, Mail, Check, X, LogOut, UserMinus, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import {
 import toast from 'react-hot-toast';
 
 export function FamilyPage() {
+  const navigate = useNavigate();
   const [families, setFamilies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -40,6 +42,13 @@ export function FamilyPage() {
     } catch (err: any) {
       toast.error(err.message);
     }
+  }
+
+  async function handleChat(userId: string) {
+    try {
+      const chat = await api.chat.create(userId);
+      navigate(`/chats/${chat.id}`);
+    } catch (err: any) { toast.error(err.message); }
   }
 
   async function handleInvite(familyId: string) {
@@ -164,6 +173,11 @@ export function FamilyPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {m.role === 'admin' && <Badge variant="secondary">Админ</Badge>}
+                          {m.userId !== localStorage.getItem('userId') && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleChat(m.userId)} title="Написать">
+                              <MessageSquare className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {isAdmin && m.role !== 'admin' && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveMember(family.id, m.userId)}>
                               <UserMinus className="h-3.5 w-3.5" />
