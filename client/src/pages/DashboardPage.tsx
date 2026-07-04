@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, CheckSquare, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
 const apps = [
   {
@@ -30,9 +29,13 @@ export function DashboardPage() {
         <p className="text-sm text-muted-foreground lg:text-base">Выберите приложение для работы</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         {apps.map((app) => (
-          <Card key={app.path} className="group relative overflow-hidden transition-shadow hover:shadow-lg">
+          <Card
+            key={app.path}
+            className="group relative cursor-pointer overflow-hidden transition-shadow hover:shadow-lg active:scale-[0.98]"
+            onClick={() => navigate(app.path)}
+          >
             <div className={`absolute inset-0 opacity-5 bg-gradient-to-br ${app.color}`} />
             <CardHeader className="p-4 lg:p-6">
               <div className={`mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${app.color} lg:h-12 lg:w-12`}>
@@ -42,15 +45,10 @@ export function DashboardPage() {
               <CardDescription className="text-xs lg:text-sm">{app.description}</CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 lg:p-6 lg:pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="group/btn lg:h-10 lg:px-4"
-                onClick={() => navigate(app.path)}
-              >
+              <div className="flex items-center gap-1 text-sm font-medium text-primary">
                 Открыть
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-              </Button>
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </div>
             </CardContent>
           </Card>
         ))}

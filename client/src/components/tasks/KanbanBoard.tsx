@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -9,7 +9,6 @@ import {
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
-  type DragOverEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -40,8 +39,13 @@ interface Props {
 }
 
 export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask, onReorder, onRefresh }: Props) {
+  const [localColumns, setLocalColumns] = useState<TaskColumn[]>(columns);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [createDialog, setCreateDialog] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalColumns(columns);
+  }, [columns]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -49,8 +53,8 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
   );
 
   function findColumn(id: string): TaskColumn | undefined {
-    if (columns.some((c) => c.id === id)) return columns.find((c) => c.id === id);
-    for (const col of columns) {
+    for (const col of localColumns) {
+      if (col.id === id) return col;
       if (col.tasks.some((t) => t.id === id)) return col;
     }
     return undefined;
@@ -65,21 +69,6 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
     }
   }
 
-  function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeCol = findColumn(active.id as string);
-    const overCol = findColumn(over.id as string);
-    if (!activeCol || !overCol || activeCol.id === overCol.id) return;
-
-    const task = activeCol.tasks.find((t) => t.id === active.id);
-    if (task) {
-      activeCol.tasks = activeCol.tasks.filter((t) => t.id !== active.id);
-      overCol.tasks = [...overCol.tasks, { ...task, columnId: overCol.id }];
-    }
-  }
-
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveTask(null);
@@ -90,32 +79,42 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
     const overCol = findColumn(over.id as string);
     if (!activeCol || !overCol) return;
 
+    if (active.id === over.id && activeCol.id === overCol.id) return;
+
     const task = activeCol.tasks.find((t) => t.id === active.id);
     if (!task) return;
 
     const newColumnId = overCol.id;
     const items: { id: string; order: number; columnId: string }[] = [];
 
-    const targetTasks = overCol.tasks.map((t) => ({ ...t }));
-    const activeIndex = targetTasks.findIndex((t) => t.id === active.id);
+    const updatedColumns = localColumns.map((col) => ({
+      ...col,
+      tasks: [...col.tasks],
+    }));
 
-    if (over.id === overCol.id) {
-      if (activeIndex >= 0) targetTasks.splice(activeIndex, 1);
-      targetTasks.push({ ...task, columnId: newColumnId });
-    } else {
-      const overIndex = targetTasks.findIndex((t) => t.id === over.id);
-      if (activeIndex >= 0) targetTasks.splice(activeIndex, 1);
-      const newOverIndex = targetTasks.findIndex((t) => t.id === over.id);
-      targetTasks.splice(newOverIndex >= 0 ? newOverIndex : targetTasks.length, 0, {
-        ...task,
-        columnId: newColumnId,
-      });
+    const srcCol = updatedColumns.find((c) => c.id === activeCol.id)!;
+    const dstCol = updatedColumns.find((c) => c.id === overCol.id)!;
+
+    const taskIndex = srcCol.tasks.findIndex((t) => t.id === active.id);
+    if (taskIndex >= 0) {
+      const [moved] = srcCol.tasks.splice(taskIndex, 1);
+      moved.columnId = newColumnId;
+
+      if (over.id === overCol.id) {
+        dstCol.tasks.push(moved);
+      } else {
+        const overIndex = dstCol.tasks.findIndex((t) => t.id === over.id);
+        dstCol.tasks.splice(overIndex >= 0 ? overIndex : dstCol.tasks.length, 0, moved);
+      }
     }
 
-    targetTasks.forEach((t, i) => {
-      items.push({ id: t.id, order: i, columnId: t.columnId });
+    updatedColumns.forEach((col) => {
+      col.tasks.forEach((t, i) => {
+        items.push({ id: t.id, order: i, columnId: t.columnId });
+      });
     });
 
+    setLocalColumns(updatedColumns);
     await onReorder(items);
     onRefresh();
   }
@@ -125,11 +124,10 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((column) => (
+        {localColumns.map((column) => (
           <div
             key={column.id}
             className="flex w-[85vw] sm:w-80 shrink-0 flex-col rounded-xl border bg-muted/30"
@@ -193,7 +191,7 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
 
       <DragOverlay>
         {activeTask && (
-          <Card className="w-72 opacity-90">
+          <Card className="w-72 opacity-90 shadow-xl">
             <CardContent className="p-3">
               <p className="text-sm font-medium">{activeTask.title}</p>
             </CardContent>

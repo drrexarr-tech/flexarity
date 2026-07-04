@@ -22,6 +22,7 @@ export function RecipeDetailPage() {
   const navigate = useNavigate();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   async function load() {
     if (!id) return;
@@ -69,9 +70,9 @@ export function RecipeDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Назад
         </Button>
         <div className="flex gap-2">
-          <Dialog>
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
                 <Edit3 className="mr-2 h-4 w-4" /> Редактировать
               </Button>
             </DialogTrigger>
@@ -79,7 +80,7 @@ export function RecipeDetailPage() {
               <DialogHeader>
                 <DialogTitle>Редактировать рецепт</DialogTitle>
               </DialogHeader>
-              <RecipeForm recipe={recipe} onSuccess={load} />
+              <RecipeForm recipe={recipe} onSuccess={() => { setEditDialogOpen(false); load(); }} />
             </DialogContent>
           </Dialog>
           <Button variant="destructive" size="sm" onClick={handleDelete}>
