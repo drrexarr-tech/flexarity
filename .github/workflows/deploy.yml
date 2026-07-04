@@ -13,6 +13,7 @@ jobs:
         with:
           host: veheys.online
           username: flexdrrexar
+          port: 8833
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "=== Pulling latest code ==="
