@@ -25,7 +25,6 @@ function VoiceRecorder({ onSend }: { onSend: (audioBase64: string) => void }) {
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunks.current, { type: 'audio/webm' });
-        new FileReader().onload = (ev) => onSend((ev.target!.result as string).split(',')[1]);
         const reader = new FileReader();
         reader.onload = (ev) => onSend((ev.target!.result as string).split(',')[1]);
         reader.readAsDataURL(blob);
@@ -81,10 +80,12 @@ export function NotesPage() {
   async function handleSave() {
     if (!title.trim()) return;
     try {
+      const data: any = { title, content };
+      if (audio) data.audio = audio;
       if (editing) {
-        await api.notes.update(editing.id, { title, content, audio });
+        await api.notes.update(editing.id, data);
       } else {
-        await api.notes.create({ title, content, audio });
+        await api.notes.create(data);
       }
       setDialogOpen(false);
       load();

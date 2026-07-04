@@ -1,39 +1,36 @@
 import { useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import toast from 'react-hot-toast';
 
-function parseTgResult(hash: string) {
-  const params = new URLSearchParams(hash);
-  let raw = params.get('tgAuthResult');
-  if (!raw) return null;
-  try {
-    const json = atob(raw);
-    return JSON.parse(json);
-  } catch {
-    try {
-      return JSON.parse(decodeURIComponent(raw));
-    } catch {
-      return null;
-    }
-  }
+let savedHash = '';
+const match = window.location.hash.match(/[#&]tgAuthResult=([^&]+)/);
+if (match) {
+  savedHash = match[1];
+  window.location.hash = '';
 }
 
 export function OAuthHandler() {
-  const location = useLocation();
+  const navigate = useNavigate();
   const done = useRef(false);
 
   useEffect(() => {
-    if (done.current) return;
-    const hash = window.location.hash.slice(1);
-    if (!hash) return;
-
-    const data = parseTgResult(hash);
-    if (!data || !data.id) return;
-
+    if (done.current || !savedHash) return;
     done.current = true;
-    window.location.hash = '';
+
+    let data: any;
+    try {
+      const json = atob(savedHash.replace(/-/g, '+').replace(/_/g, '/'));
+      data = JSON.parse(json);
+    } catch {
+      try {
+        data = JSON.parse(decodeURIComponent(savedHash));
+      } catch {
+        return;
+      }
+    }
+    if (!data || !data.id) return;
 
     if (localStorage.getItem('token')) {
       api.auth.link('telegram', { id: String(data.id) })
@@ -41,10 +38,10 @@ export function OAuthHandler() {
         .catch((err: any) => toast.error(err.message));
     } else {
       api.auth.oauth('telegram', data)
-        .then((res) => { useAuthStore.getState().setAuth(res.user, res.token); })
+        .then((res) => { useAuthStore.getState().setAuth(res.user, res.token); navigate('/', { replace: true }); })
         .catch((err: any) => toast.error(err.message));
     }
-  }, [location]);
+  }, [navigate]);
 
   return null;
 }

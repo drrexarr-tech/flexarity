@@ -26,7 +26,7 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
         chat: {
           include: {
             participants: {
-              include: { user: { select: { id: true, name: true, email: true } } },
+              include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
             },
             keys: {
               where: { userId: req.userId },
@@ -35,7 +35,7 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
             messages: {
               orderBy: { createdAt: 'desc' },
               take: 1,
-              include: { user: { select: { id: true, name: true } } },
+              include: { user: { select: { id: true, name: true, avatarUrl: true } } },
             },
           },
         },
@@ -49,12 +49,12 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
         chat: {
           include: {
             participants: {
-              include: { user: { select: { id: true, name: true, email: true } } },
+              include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
             },
             messages: {
               orderBy: { createdAt: 'desc' },
               take: 1,
-              include: { user: { select: { id: true, name: true } } },
+              include: { user: { select: { id: true, name: true, avatarUrl: true } } },
             },
           },
         },
@@ -82,7 +82,7 @@ chatRouter.post('/', async (req: AuthRequest, res: Response) => {
       chat: {
         include: {
           participants: {
-            include: { user: { select: { id: true, name: true, email: true } } },
+            include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
           },
           keys: {
             where: { userId: req.userId },
@@ -116,7 +116,7 @@ chatRouter.post('/', async (req: AuthRequest, res: Response) => {
     },
     include: {
       participants: {
-        include: { user: { select: { id: true, name: true, email: true } } },
+        include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
       },
       keys: {
         where: { userId: req.userId },
@@ -206,7 +206,7 @@ chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
   const messages = await prisma.message.findMany({
     where: { chatId },
     orderBy: { createdAt: 'asc' },
-    include: { user: { select: { id: true, name: true } } },
+    include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     take: 100,
   });
   res.json(messages);
@@ -218,7 +218,7 @@ chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
 
   const message = await prisma.message.create({
     data: { content, audio, audioDuration, chatId, userId: req.userId! },
-    include: { user: { select: { id: true, name: true } } },
+    include: { user: { select: { id: true, name: true, avatarUrl: true } } },
   });
 
   await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } });

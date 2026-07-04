@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { MessageSquare, Plus, Search, Send, Trash2, Mic, Square, Play, Pause, ChevronLeft, CheckCheck, Lock, UnlockKeyhole } from 'lucide-react';
+import { MessageSquare, Plus, Search, Send, Trash2, Mic, Square, Play, Pause, ChevronLeft, Check, CheckCheck, Lock, UnlockKeyhole } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -282,7 +282,7 @@ export function ChatsPage() {
                 <div className="mt-2 space-y-0.5">
                   {searchResults.map((u) => (
                     <button key={u.id} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-muted" onClick={() => handleStartChat(u.id)}>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium">{u.name?.[0]?.toUpperCase() || '?'}</div>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium overflow-hidden">{u.avatarUrl ? <img src={`/api/upload/file/${u.avatarUrl}`} alt="" className="h-full w-full object-cover" /> : (u.name?.[0]?.toUpperCase() || '?')}</div>
                       <div><p className="text-sm font-medium">{u.name}</p><p className="text-xs text-muted-foreground">{u.email}</p></div>
                     </button>
                   ))}
@@ -316,10 +316,12 @@ export function ChatsPage() {
             chats.map((chat) => {
               const other = getOtherUser(chat);
               const hasKey = chat.keys?.length > 0;
-              return (
+                  return (
                 <div key={chat.id} className="group flex items-center">
                   <button className={cn('flex flex-1 items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted/50 border-b border-border/50', selectedChat?.id === chat.id && 'bg-muted')} onClick={() => selectChat(chat)}>
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">{other?.name?.[0]?.toUpperCase() || '?'}</div>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary overflow-hidden">
+                      {other?.avatarUrl ? <img src={`/api/upload/file/${other.avatarUrl}`} alt="" className="h-full w-full object-cover" /> : (other?.name?.[0]?.toUpperCase() || '?')}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-sm font-medium">{other?.name || 'Чат'}</p>
@@ -348,7 +350,9 @@ export function ChatsPage() {
               <Button variant="ghost" size="icon" className="h-7 w-7 lg:hidden" onClick={() => setShowMobileList(true)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">{getOtherUser(selectedChat)?.name?.[0]?.toUpperCase() || '?'}</div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary overflow-hidden">
+                {getOtherUser(selectedChat)?.avatarUrl ? <img src={`/api/upload/file/${getOtherUser(selectedChat).avatarUrl}`} alt="" className="h-full w-full object-cover" /> : (getOtherUser(selectedChat)?.name?.[0]?.toUpperCase() || '?')}
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-medium truncate">{getOtherUser(selectedChat)?.name || 'Чат'}</p>
@@ -363,28 +367,41 @@ export function ChatsPage() {
             <ScrollArea className="flex-1">
               <div className="px-4 py-3">
                 {messages.length === 0 && <p className="py-10 text-center text-xs text-muted-foreground">Сообщений пока нет</p>}
-                {messages.map((msg, i) => {
+                {messages.map((msg) => {
                   const isMine = msg.userId === user?.id;
-                  const showName = !isMine && (i === 0 || messages[i - 1]?.userId !== msg.userId);
+                  const avatarUrl = msg.user?.avatarUrl
+                    ? `/api/upload/file/${msg.user.avatarUrl}`
+                    : null;
+                  const initial = msg.user?.name?.[0]?.toUpperCase() || '?';
                   return (
-                    <div key={msg.id} className="flex flex-col items-start mb-1 max-w-[80%]">
-                      {showName && <p className="text-[11px] text-primary font-medium mb-0.5 ml-1">{msg.user.name}</p>}
-                      <div className={cn('px-3 py-1.5 text-sm leading-relaxed bg-muted rounded-2xl rounded-bl-md', msg.content === '🎤' && !msg.audio && 'opacity-60')}>
-                        {msg.audio ? (
-                          <AudioMessage base64={msg.audio} duration={msg.audioDuration} />
-                        ) : (
-                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                        )}
+                    <div key={msg.id} className="flex gap-2 mb-4 max-w-[85%]">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary mt-0.5">
+                        {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : initial}
                       </div>
-                      <div className="flex items-center gap-1 mt-0.5 ml-1">
-                        <span className="text-[10px] text-muted-foreground/50">{formatTime(msg.createdAt)}</span>
-                        {isMine && msg.readAt && (
-                          <span className="flex items-center gap-0.5 text-[10px] text-primary/60">
-                            <CheckCheck className="h-3 w-3" /> Прочитано
-                          </span>
-                        )}
-                        {aesKeyRef.current && (
-                          <Lock className="h-2.5 w-2.5 text-green-500/40" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[12px] font-medium text-primary">{msg.user?.name}</span>
+                          <span className="text-[10px] text-muted-foreground/50">{formatTime(msg.createdAt)}</span>
+                        </div>
+                        <div className={cn('px-3 py-1.5 text-sm leading-relaxed bg-muted rounded-2xl rounded-bl-md inline-block', msg.content === '🎤' && !msg.audio && 'opacity-60')}>
+                          {msg.audio ? (
+                            <AudioMessage base64={msg.audio} duration={msg.audioDuration} />
+                          ) : (
+                            <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                          )}
+                        </div>
+                        {isMine && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {msg.readAt ? (
+                              <span className="flex items-center gap-0.5 text-[10px] text-primary/60">
+                                <CheckCheck className="h-3 w-3" /> Прочитано
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/40">
+                                <Check className="h-3 w-3" /> Отправлено
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
