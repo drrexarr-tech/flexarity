@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flex-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flexdb
+      POSTGRES_USER: flex
+      POSTGRES_PASSWORD: flex_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - flex-network
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: flex-server
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://flex:flex_password@postgres:5432/flexdb?schema=public"
+      JWT_SECRET: "change-this-to-a-secure-random-string"
+      PORT: 3001
+      CLIENT_URL: "https://veheys.online"
+    depends_on:
+      - postgres
+    ports:
+      - "3001:3001"
+    networks:
+      - flex-network
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: flex-client
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - server
+    volumes:
+      - ./ssl:/etc/nginx/ssl
+    networks:
+      - flex-network
+
+networks:
+  flex-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
