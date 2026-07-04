@@ -105,6 +105,14 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
             )}
 
             <div className="flex flex-wrap items-center gap-2">
+              {task.assignee && (
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-[7px] font-medium text-primary">
+                    {task.assignee.name[0]?.toUpperCase()}
+                  </div>
+                  {task.assignee.name}
+                </span>
+              )}
               {task.visibility && task.visibility !== 'private' && (
                 <Badge variant="outline" className="text-[10px]">
                   {task.visibility === 'family' ? 'Семья' : 'Публичный'}

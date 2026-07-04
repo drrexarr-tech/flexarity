@@ -9,6 +9,12 @@ chatRouter.use(authenticate);
 const messageSchema = z.object({
   content: z.string().min(1),
   audio: z.string().optional(),
+  audioDuration: z.number().int().optional(),
+});
+
+const createChatSchema = z.object({
+  participantId: z.string(),
+  encryptedKeys: z.record(z.string()).optional(),
 });
 
 chatRouter.get('/', async (req: AuthRequest, res: Response) => {
@@ -19,6 +25,10 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
         include: {
           participants: {
             include: { user: { select: { id: true, name: true, email: true } } },
+          },
+          keys: {
+            where: { userId: req.userId },
+            select: { key: true },
           },
           messages: {
             orderBy: { createdAt: 'desc' },
@@ -35,7 +45,7 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
 });
 
 chatRouter.post('/', async (req: AuthRequest, res: Response) => {
-  const { participantId } = z.object({ participantId: z.string() }).parse(req.body);
+  const { participantId, encryptedKeys } = createChatSchema.parse(req.body);
 
   const myChatIds = (
     await prisma.chatParticipant.findMany({
@@ -51,6 +61,10 @@ chatRouter.post('/', async (req: AuthRequest, res: Response) => {
         include: {
           participants: {
             include: { user: { select: { id: true, name: true, email: true } } },
+          },
+          keys: {
+            where: { userId: req.userId },
+            select: { key: true },
           },
         },
       },
@@ -69,10 +83,22 @@ chatRouter.post('/', async (req: AuthRequest, res: Response) => {
           { userId: participantId },
         ],
       },
+      ...(encryptedKeys ? {
+        keys: {
+          create: Object.entries(encryptedKeys).map(([userId, key]) => ({
+            userId,
+            key,
+          })),
+        },
+      } : {}),
     },
     include: {
       participants: {
         include: { user: { select: { id: true, name: true, email: true } } },
+      },
+      keys: {
+        where: { userId: req.userId },
+        select: { key: true },
       },
     },
   });
@@ -149,6 +175,12 @@ chatRouter.get('/search/participants', async (req: AuthRequest, res: Response) =
 
 chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
   const chatId = String(req.params.id);
+
+  await prisma.message.updateMany({
+    where: { chatId, userId: { not: req.userId }, readAt: null },
+    data: { readAt: new Date() },
+  });
+
   const messages = await prisma.message.findMany({
     where: { chatId },
     orderBy: { createdAt: 'asc' },
@@ -160,10 +192,10 @@ chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
 
 chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
   const chatId = String(req.params.id);
-  const { content, audio } = messageSchema.parse(req.body);
+  const { content, audio, audioDuration } = messageSchema.parse(req.body);
 
   const message = await prisma.message.create({
-    data: { content, audio, chatId, userId: req.userId! },
+    data: { content, audio, audioDuration, chatId, userId: req.userId! },
     include: { user: { select: { id: true, name: true } } },
   });
 

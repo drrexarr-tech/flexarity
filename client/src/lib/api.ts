@@ -40,6 +40,20 @@ export const api = {
       request<any>('/auth/link', { method: 'POST', body: JSON.stringify({ provider, data }) }),
     updateProfile: (data: any) =>
       request<any>('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
+    setPublicKey: (publicKey: string) =>
+      request<any>('/auth/public-key', { method: 'PUT', body: JSON.stringify({ publicKey }) }),
+    getPublicKey: (userId: string) =>
+      request<{ publicKey: string }>(`/auth/public-key/${userId}`),
+    uploadAvatar: (file: File) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const token = localStorage.getItem('token');
+      return fetch('/api/upload/avatar', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then((r) => r.json());
+    },
   },
   recipes: {
     getAll: () => request<any[]>('/recipes'),
@@ -69,15 +83,18 @@ export const api = {
       request<any>('/family/invite/accept', { method: 'POST', body: JSON.stringify({ token }) }),
     removeMember: (familyId: string, userId: string) =>
       request<any>(`/family/${familyId}/member/${userId}`, { method: 'DELETE' }),
+    cancelInvite: (familyId: string, inviteId: string) =>
+      request<any>(`/family/${familyId}/invite/${inviteId}`, { method: 'DELETE' }),
     leave: (familyId: string) => request<any>(`/family/${familyId}/leave`, { method: 'DELETE' }),
   },
   chat: {
     getAll: () => request<any[]>('/chat'),
-    create: (participantId: string) => request<any>('/chat', { method: 'POST', body: JSON.stringify({ participantId }) }),
+    create: (participantId: string, encryptedKeys?: Record<string, string>) =>
+      request<any>('/chat', { method: 'POST', body: JSON.stringify({ participantId, encryptedKeys }) }),
     delete: (chatId: string) => request<any>(`/chat/${chatId}`, { method: 'DELETE' }),
     getMessages: (chatId: string) => request<any[]>(`/chat/${chatId}/messages`),
-    sendMessage: (chatId: string, content: string, audio?: string) =>
-      request<any>(`/chat/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content, audio }) }),
+    sendMessage: (chatId: string, content: string, audio?: string, audioDuration?: number) =>
+      request<any>(`/chat/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content, audio, audioDuration }) }),
     searchUsers: (q: string) => request<any[]>(`/chat/search/users?q=${encodeURIComponent(q)}`),
     searchParticipants: (q: string) => request<any[]>(`/chat/search/participants?q=${encodeURIComponent(q)}`),
   },

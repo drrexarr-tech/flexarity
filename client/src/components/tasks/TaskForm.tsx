@@ -10,6 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 import type { Task, TaskColumn } from '@/types';
 
 const schema = z.object({
@@ -20,6 +21,7 @@ const schema = z.object({
   columnId: z.string().min(1, 'Колонка обязательна'),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
   familyId: z.string().optional(),
+  assigneeId: z.string().optional(),
 });
 
 interface Props {
@@ -32,9 +34,18 @@ interface Props {
 export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
   const [loading, setLoading] = useState(false);
   const [families, setFamilies] = useState<any[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
-    api.family.getAll().then(setFamilies).catch(() => {});
+    api.family.getAll().then(async (fams) => {
+      setFamilies(fams);
+      const allMembers: any[] = [];
+      for (const f of fams) {
+        if (f.members) allMembers.push(...f.members.map((m: any) => ({ ...m.user, familyName: f.name })));
+      }
+      setFamilyMembers(allMembers);
+    }).catch(() => {});
   }, []);
 
   const form = useForm<z.infer<typeof schema>>({
@@ -48,6 +59,7 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
           columnId: task.columnId,
           visibility: task.visibility || 'private',
           familyId: task.familyId || undefined,
+          assigneeId: task.assigneeId || (task.assignee?.id) || undefined,
         }
       : {
           title: '',
@@ -57,6 +69,7 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
           columnId: defaultColumnId || columns[0]?.id || '',
           visibility: 'private',
           familyId: undefined,
+          assigneeId: user?.id || undefined,
         },
   });
 
@@ -87,6 +100,28 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
       <div className="space-y-2">
         <Label htmlFor="task-desc">Описание</Label>
         <Textarea id="task-desc" rows={3} {...form.register('description')} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Исполнитель</Label>
+        <Select
+          value={form.watch('assigneeId') || ''}
+          onValueChange={(v) => form.setValue('assigneeId', v || undefined)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Выберите исполнителя" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={user?.id || ''}>Я ({user?.name})</SelectItem>
+            {familyMembers
+              .filter((m: any) => m.id !== user?.id)
+              .map((m: any) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name} ({m.familyName})
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -169,7 +204,7 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
       )}
 
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Создание...' : 'Создать задачу'}
+        {loading ? 'Сохранение...' : task ? 'Сохранить' : 'Создать задачу'}
       </Button>
     </form>
   );

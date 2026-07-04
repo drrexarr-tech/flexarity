@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 const schema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   description: z.string().optional(),
+  url: z.string().optional(),
   category: z.string().optional(),
   cookingTime: z.coerce.number().optional(),
   ingredients: z.string().optional(),
@@ -44,6 +45,7 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
       ? {
           title: recipe.title,
           description: recipe.description || '',
+          url: recipe.url || '',
           category: recipe.category || '',
           cookingTime: recipe.cookingTime || undefined,
           ingredients: recipe.ingredients ? JSON.parse(recipe.ingredients).join('\n') : '',
@@ -54,6 +56,7 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
       : {
           title: '',
           description: '',
+          url: '',
           category: '',
           cookingTime: undefined,
           ingredients: '',
@@ -103,6 +106,11 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
       <div className="space-y-2">
         <Label htmlFor="description">Описание</Label>
         <Textarea id="description" rows={3} {...form.register('description')} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="recipe-url">Ссылка на рецепт</Label>
+        <Input id="recipe-url" placeholder="https://..." {...form.register('url')} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -9,6 +9,7 @@ echo "=== Building server ==="
 cd /opt/flex/server
 npm install
 npx prisma generate
+npx prisma migrate deploy
 npm run build
 
 echo "=== Building client ==="

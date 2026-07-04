@@ -171,6 +171,25 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
   throw new AppError(400, 'Неподдерживаемый провайдер');
 });
 
+authRouter.put('/public-key', authenticate, async (req: AuthRequest, res: Response) => {
+  const { publicKey } = z.object({ publicKey: z.string() }).parse(req.body);
+  await prisma.user.update({
+    where: { id: req.userId },
+    data: { publicKey },
+  });
+  res.json({ message: 'OK' });
+});
+
+authRouter.get('/public-key/:userId', authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = String(req.params.userId);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { publicKey: true },
+  });
+  if (!user || !user.publicKey) throw new AppError(404, 'Пользователь не найден');
+  res.json({ publicKey: user.publicKey });
+});
+
 // Update profile
 const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
@@ -188,7 +207,7 @@ authRouter.put('/profile', authenticate, async (req: AuthRequest, res: Response)
   const user = await prisma.user.update({
     where: { id: req.userId },
     data: updateData,
-    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
+    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
   });
   res.json(user);
 });
@@ -203,7 +222,7 @@ authRouter.get('/me', async (req: Request, res: Response) => {
   const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
   const user = await prisma.user.findUnique({
     where: { id: decoded.userId },
-    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
+    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
   });
 
   if (!user) {

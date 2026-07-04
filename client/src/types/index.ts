@@ -12,6 +12,7 @@ export interface Recipe {
   id: string;
   title: string;
   description: string | null;
+  url: string | null;
   ingredients: string;
   instructions: string;
   cookingTime: number | null;
@@ -35,6 +36,8 @@ export interface Task {
   column?: TaskColumn;
   visibility: 'private' | 'family' | 'public';
   familyId: string | null;
+  assigneeId?: string | null;
+  assignee?: { id: string; name: string; email: string } | null;
 }
 
 export interface TaskColumn {
@@ -44,5 +47,3 @@ export interface TaskColumn {
   order: number;
   tasks: Task[];
 }
-
-

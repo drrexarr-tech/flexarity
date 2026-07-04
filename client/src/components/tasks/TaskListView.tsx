@@ -95,6 +95,14 @@ export function TaskListView({ columns, onUpdateTask, onDeleteTask }: Props) {
                               {task.description}
                             </p>
                           )}
+                          {task.assignee && (
+                            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <div className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary/20 text-[6px] font-medium text-primary">
+                                {task.assignee.name[0]?.toUpperCase()}
+                              </div>
+                              {task.assignee.name}
+                            </span>
+                          )}
                           {task.dueDate && (
                             <span
                               className={cn(

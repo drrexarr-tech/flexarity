@@ -10,6 +10,7 @@ recipesRouter.use(authenticate);
 const recipeSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   description: z.string().optional(),
+  url: z.string().optional(),
   ingredients: z.string().default('[]'),
   instructions: z.string().default('[]'),
   cookingTime: z.coerce.number().optional(),

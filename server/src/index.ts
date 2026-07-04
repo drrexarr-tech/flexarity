@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { prisma } from './lib/prisma';
 import { authRouter } from './routes/auth';
 import { recipesRouter } from './routes/recipes';
@@ -8,13 +9,15 @@ import { familyRouter } from './routes/family';
 import { chatRouter } from './routes/chat';
 import { notificationsRouter } from './routes/notifications';
 import { notesRouter } from './routes/notes';
+import { uploadRouter } from './routes/upload';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/auth', authRouter);
 app.use('/api/recipes', recipesRouter);
@@ -23,6 +26,7 @@ app.use('/api/family', familyRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/notes', notesRouter);
+app.use('/api/upload', uploadRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

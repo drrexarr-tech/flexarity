@@ -22,6 +22,7 @@ const taskSchema = z.object({
   columnId: z.string(),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
   familyId: z.string().optional(),
+  assigneeId: z.string().optional(),
 });
 
 // Columns
@@ -44,6 +45,7 @@ tasksRouter.get('/columns', async (req: AuthRequest, res: Response) => {
           ],
         },
         orderBy: { order: 'asc' },
+        include: { assignee: { select: { id: true, name: true, email: true } } },
       },
     },
     orderBy: { order: 'asc' },
@@ -108,7 +110,7 @@ tasksRouter.get('/', async (req: AuthRequest, res: Response) => {
   const tasks = await prisma.task.findMany({
     where: { userId: req.userId },
     orderBy: { order: 'asc' },
-    include: { column: true },
+    include: { column: true, assignee: { select: { id: true, name: true, email: true } } },
   });
   res.json(tasks);
 });
@@ -117,6 +119,7 @@ tasksRouter.post('/', async (req: AuthRequest, res: Response) => {
   const data = taskSchema.parse(req.body);
   const task = await prisma.task.create({
     data: { ...data, userId: req.userId!, dueDate: data.dueDate ? new Date(data.dueDate) : undefined },
+    include: { assignee: { select: { id: true, name: true, email: true } } },
   });
   res.status(201).json(task);
 });
@@ -131,6 +134,7 @@ tasksRouter.put('/:id', async (req: AuthRequest, res: Response) => {
   const task = await prisma.task.update({
     where: { id: String(req.params.id) },
     data: { ...data, dueDate: data.dueDate ? new Date(data.dueDate) : undefined },
+    include: { assignee: { select: { id: true, name: true, email: true } } },
   });
   res.json(task);
 });

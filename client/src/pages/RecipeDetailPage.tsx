@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, Edit3, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock, Edit3, Trash2, ExternalLink } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -102,6 +102,11 @@ export function RecipeDetailPage() {
                 <Badge variant="outline">
                   {recipe.visibility === 'private' ? 'Только я' : recipe.visibility === 'family' ? 'Семья' : 'Публичный'}
                 </Badge>
+              )}
+              {recipe.url && (
+                <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline">
+                  <ExternalLink className="h-4 w-4" /> Ссылка
+                </a>
               )}
               {recipe.cookingTime && (
                 <span className="flex items-center gap-1 text-sm text-muted-foreground">

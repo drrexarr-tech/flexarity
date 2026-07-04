@@ -181,7 +181,20 @@ export function FamilyPage() {
                       {family.invites.filter((i: any) => i.status === 'pending').map((inv: any) => (
                         <div key={inv.id} className="flex items-center justify-between rounded-lg border px-3 py-1.5">
                           <span className="text-sm">{inv.email}</span>
-                          <Badge variant="outline" className="text-[10px]">Ожидает</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px]">Ожидает</Badge>
+                            {isAdmin && (
+                              <button className="text-destructive hover:text-destructive/80" onClick={async () => {
+                                try {
+                                  await api.family.cancelInvite(family.id, inv.id);
+                                  toast.success('Приглашение отменено');
+                                  load();
+                                } catch (err: any) { toast.error(err.message); }
+                              }}>
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

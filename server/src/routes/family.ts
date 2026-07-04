@@ -137,6 +137,24 @@ familyRouter.delete('/:familyId/member/:userId', async (req: AuthRequest, res: R
   res.json({ message: 'Участник удалён' });
 });
 
+familyRouter.delete('/:familyId/invite/:inviteId', async (req: AuthRequest, res: Response) => {
+  const familyId = String(req.params.familyId);
+  const inviteId = String(req.params.inviteId);
+
+  const membership = await prisma.familyMember.findFirst({
+    where: { familyId, userId: req.userId },
+  });
+  if (!membership) return res.status(403).json({ error: 'Вы не участник семьи' });
+
+  const invite = await prisma.familyInvite.findFirst({
+    where: { id: inviteId, familyId },
+  });
+  if (!invite) return res.status(404).json({ error: 'Приглашение не найдено' });
+
+  await prisma.familyInvite.delete({ where: { id: inviteId } });
+  res.json({ message: 'Приглашение отменено' });
+});
+
 familyRouter.delete('/:id/leave', async (req: AuthRequest, res: Response) => {
   const familyId = String(req.params.id);
   await prisma.familyMember.deleteMany({

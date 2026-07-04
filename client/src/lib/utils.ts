@@ -13,6 +13,10 @@ export function formatDate(date: string | Date) {
   });
 }
 
+export function formatTime(date: string | Date) {
+  return new Date(date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
 export function formatDateTime(date: string | Date) {
   return new Date(date).toLocaleDateString('ru-RU', {
     day: 'numeric',
