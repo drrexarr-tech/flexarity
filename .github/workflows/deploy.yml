@@ -25,7 +25,7 @@ jobs:
             cd /opt/flex/server
             npm install --silent
             npx prisma generate
-            npx prisma migrate deploy
+            DATABASE_URL="postgresql://flex:flex_password@localhost:5432/flexdb?schema=public" npx prisma migrate deploy
             npm run build
 
             echo "=== Building client ==="
