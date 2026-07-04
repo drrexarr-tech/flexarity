@@ -4,6 +4,22 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import toast from 'react-hot-toast';
 
+function parseTgResult(hash: string) {
+  const params = new URLSearchParams(hash);
+  let raw = params.get('tgAuthResult');
+  if (!raw) return null;
+  try {
+    const json = atob(raw);
+    return JSON.parse(json);
+  } catch {
+    try {
+      return JSON.parse(decodeURIComponent(raw));
+    } catch {
+      return null;
+    }
+  }
+}
+
 export function OAuthHandler() {
   const location = useLocation();
   const done = useRef(false);
@@ -13,29 +29,18 @@ export function OAuthHandler() {
     const hash = window.location.hash.slice(1);
     if (!hash) return;
 
-    const params = new URLSearchParams(hash);
-    let provider: string | null = null;
-    let data: any = null;
+    const data = parseTgResult(hash);
+    if (!data || !data.id) return;
 
-    if (params.has('tgAuthResult')) {
-      provider = 'telegram';
-      try { data = JSON.parse(decodeURIComponent(params.get('tgAuthResult')!)); }
-      catch { return; }
-    } else if (params.has('id')) {
-      provider = 'telegram';
-      data = Object.fromEntries(params.entries());
-    }
-
-    if (!provider || !data) return;
     done.current = true;
     window.location.hash = '';
 
     if (localStorage.getItem('token')) {
-      api.auth.link(provider as any, { id: data.id })
+      api.auth.link('telegram', { id: String(data.id) })
         .then((updated) => { useAuthStore.getState().setUser(updated); toast.success('Аккаунт привязан'); })
         .catch((err: any) => toast.error(err.message));
     } else {
-      api.auth.oauth(provider as any, data)
+      api.auth.oauth('telegram', data)
         .then((res) => { useAuthStore.getState().setAuth(res.user, res.token); })
         .catch((err: any) => toast.error(err.message));
     }
