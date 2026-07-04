@@ -11,10 +11,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Ошибка запроса' }));
@@ -28,45 +25,56 @@ export const api = {
   auth: {
     login: (data: { email: string; password: string }) =>
       request<{ token: string; user: { id: string; email: string; name: string } }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(data),
+        method: 'POST', body: JSON.stringify(data),
       }),
     register: (data: { email: string; password: string; name: string }) =>
       request<{ token: string; user: { id: string; email: string; name: string } }>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(data),
+        method: 'POST', body: JSON.stringify(data),
       }),
     me: () => request<{ id: string; email: string; name: string }>('/auth/me'),
   },
   recipes: {
     getAll: () => request<any[]>('/recipes'),
     getById: (id: string) => request<any>(`/recipes/${id}`),
-    create: (data: any) =>
-      request<any>('/recipes', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) =>
-      request<any>(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    delete: (id: string) =>
-      request<any>(`/recipes/${id}`, { method: 'DELETE' }),
+    create: (data: any) => request<any>('/recipes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<any>(`/recipes/${id}`, { method: 'DELETE' }),
   },
   tasks: {
     getColumns: () => request<any[]>('/tasks/columns'),
-    createColumn: (data: any) =>
-      request<any>('/tasks/columns', { method: 'POST', body: JSON.stringify(data) }),
-    updateColumn: (id: string, data: any) =>
-      request<any>(`/tasks/columns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    deleteColumn: (id: string) =>
-      request<any>(`/tasks/columns/${id}`, { method: 'DELETE' }),
+    createColumn: (data: any) => request<any>('/tasks/columns', { method: 'POST', body: JSON.stringify(data) }),
+    updateColumn: (id: string, data: any) => request<any>(`/tasks/columns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteColumn: (id: string) => request<any>(`/tasks/columns/${id}`, { method: 'DELETE' }),
     getAll: () => request<any[]>('/tasks'),
-    create: (data: any) =>
-      request<any>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) =>
-      request<any>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    delete: (id: string) =>
-      request<any>(`/tasks/${id}`, { method: 'DELETE' }),
+    create: (data: any) => request<any>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<any>(`/tasks/${id}`, { method: 'DELETE' }),
     reorder: (items: { id: string; order: number; columnId: string }[]) =>
-      request<any>('/tasks/reorder/all', {
-        method: 'PUT',
-        body: JSON.stringify({ items }),
-      }),
+      request<any>('/tasks/reorder/all', { method: 'PUT', body: JSON.stringify({ items }) }),
+  },
+  family: {
+    getAll: () => request<any[]>('/family'),
+    create: (name: string) => request<any>('/family', { method: 'POST', body: JSON.stringify({ name }) }),
+    invite: (familyId: string, email: string) =>
+      request<any>(`/family/${familyId}/invite`, { method: 'POST', body: JSON.stringify({ email }) }),
+    acceptInvite: (token: string) =>
+      request<any>('/family/invite/accept', { method: 'POST', body: JSON.stringify({ token }) }),
+    removeMember: (familyId: string, userId: string) =>
+      request<any>(`/family/${familyId}/member/${userId}`, { method: 'DELETE' }),
+    leave: (familyId: string) => request<any>(`/family/${familyId}/leave`, { method: 'DELETE' }),
+  },
+  chat: {
+    getAll: () => request<any[]>('/chat'),
+    create: (participantId: string) => request<any>('/chat', { method: 'POST', body: JSON.stringify({ participantId }) }),
+    getMessages: (chatId: string) => request<any[]>(`/chat/${chatId}/messages`),
+    sendMessage: (chatId: string, content: string) =>
+      request<any>(`/chat/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
+    searchUsers: (q: string) => request<any[]>(`/chat/search/users?q=${encodeURIComponent(q)}`),
+  },
+  notifications: {
+    getAll: () => request<any[]>('/notifications'),
+    getUnreadCount: () => request<{ count: number }>('/notifications/unread-count'),
+    markRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: 'PUT' }),
+    markAllRead: () => request<any>('/notifications/read-all', { method: 'PUT' }),
   },
 };

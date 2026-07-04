@@ -77,6 +77,7 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
                     <TaskForm
                       columns={columns}
                       defaultColumnId={task.columnId}
+                      task={task}
                       onSubmit={async (data) => {
                         await onUpdate(task.id, data);
                         setEditing(false);
@@ -100,6 +101,11 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
             )}
 
             <div className="flex flex-wrap items-center gap-2">
+              {task.visibility && task.visibility !== 'private' && (
+                <Badge variant="outline" className="text-[10px]">
+                  {task.visibility === 'family' ? 'Семья' : 'Публичный'}
+                </Badge>
+              )}
               {task.priority && (
                 <Badge
                   variant="outline"

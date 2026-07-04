@@ -98,6 +98,11 @@ export function RecipeDetailPage() {
             )}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {recipe.category && <Badge>{recipe.category}</Badge>}
+              {recipe.visibility && (
+                <Badge variant="outline">
+                  {recipe.visibility === 'private' ? 'Только я' : recipe.visibility === 'family' ? 'Семья' : 'Публичный'}
+                </Badge>
+              )}
               {recipe.cookingTime && (
                 <span className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" /> {recipe.cookingTime} минут

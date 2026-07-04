@@ -9,6 +9,8 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { RecipesPage } from '@/pages/RecipesPage';
 import { RecipeDetailPage } from '@/pages/RecipeDetailPage';
 import { TasksPage } from '@/pages/TasksPage';
+import { FamilyPage } from '@/pages/FamilyPage';
+import { ChatsPage } from '@/pages/ChatsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -56,6 +58,8 @@ export default function App() {
           <Route path="/recipes" element={<RecipesPage />} />
           <Route path="/recipes/:id" element={<RecipeDetailPage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/family" element={<FamilyPage />} />
+          <Route path="/chats" element={<ChatsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar, SidebarToggle } from './Sidebar';
+import { NotificationBell } from './NotificationBell';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -15,6 +16,9 @@ export function AppLayout() {
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary lg:hidden">
               <span className="text-xs font-bold text-primary-foreground">F</span>
             </div>
+          </div>
+          <div className="ml-auto">
+            <NotificationBell />
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-6">

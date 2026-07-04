@@ -4,6 +4,9 @@ import { prisma } from './lib/prisma';
 import { authRouter } from './routes/auth';
 import { recipesRouter } from './routes/recipes';
 import { tasksRouter } from './routes/tasks';
+import { familyRouter } from './routes/family';
+import { chatRouter } from './routes/chat';
+import { notificationsRouter } from './routes/notifications';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -15,6 +18,9 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/recipes', recipesRouter);
 app.use('/api/tasks', tasksRouter);
+app.use('/api/family', familyRouter);
+app.use('/api/chat', chatRouter);
+app.use('/api/notifications', notificationsRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

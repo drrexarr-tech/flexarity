@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import type { Recipe } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -17,6 +20,8 @@ const schema = z.object({
   cookingTime: z.coerce.number().optional(),
   ingredients: z.string().optional(),
   instructions: z.string().optional(),
+  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  familyId: z.string().optional(),
 });
 
 interface Props {
@@ -26,7 +31,12 @@ interface Props {
 
 export function RecipeForm({ recipe, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
+  const [families, setFamilies] = useState<any[]>([]);
   const isEdit = !!recipe;
+
+  useEffect(() => {
+    api.family.getAll().then(setFamilies).catch(() => {});
+  }, []);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -38,6 +48,8 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
           cookingTime: recipe.cookingTime || undefined,
           ingredients: recipe.ingredients ? JSON.parse(recipe.ingredients).join('\n') : '',
           instructions: recipe.instructions ? JSON.parse(recipe.instructions).join('\n') : '',
+          visibility: recipe.visibility || 'private',
+          familyId: recipe.familyId || undefined,
         }
       : {
           title: '',
@@ -46,17 +58,22 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
           cookingTime: undefined,
           ingredients: '',
           instructions: '',
+          visibility: 'private',
+          familyId: undefined,
         },
   });
+
+  const visibility = form.watch('visibility');
 
   async function onSubmit(data: z.infer<typeof schema>) {
     setLoading(true);
     try {
-      const payload = {
+      const payload: any = {
         ...data,
         ingredients: JSON.stringify(data.ingredients?.split('\n').filter(Boolean) || []),
         instructions: JSON.stringify(data.instructions?.split('\n').filter(Boolean) || []),
       };
+      if (data.visibility !== 'family') delete payload.familyId;
 
       if (isEdit && recipe) {
         await api.recipes.update(recipe.id, payload);
@@ -108,6 +125,42 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
         <Label htmlFor="instructions">Инструкции (каждый шаг с новой строки)</Label>
         <Textarea id="instructions" rows={5} {...form.register('instructions')} />
       </div>
+
+      <div className="space-y-2">
+        <Label>Видимость</Label>
+        <Select
+          value={form.watch('visibility')}
+          onValueChange={(v) => form.setValue('visibility', v as any)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="private">Только я</SelectItem>
+            <SelectItem value="family">Семья</SelectItem>
+            <SelectItem value="public">Публичный</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {visibility === 'family' && families.length > 0 && (
+        <div className="space-y-2">
+          <Label>Выберите семью</Label>
+          <Select
+            value={form.watch('familyId') || ''}
+            onValueChange={(v) => form.setValue('familyId', v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Выберите семью" />
+            </SelectTrigger>
+            <SelectContent>
+              {families.map((f) => (
+                <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Сохранение...' : isEdit ? 'Сохранить' : 'Создать рецепт'}

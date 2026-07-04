@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, CheckSquare, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ const links = [
   { to: '/', icon: LayoutDashboard, label: 'Главная' },
   { to: '/recipes', icon: BookOpen, label: 'Рецепты' },
   { to: '/tasks', icon: CheckSquare, label: 'Задачи' },
+  { to: '/family', icon: Users, label: 'Семья' },
+  { to: '/chats', icon: MessageSquare, label: 'Чаты' },
 ];
 
 interface SidebarProps {

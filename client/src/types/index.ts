@@ -14,16 +14,10 @@ export interface Recipe {
   category: string | null;
   imageUrl: string | null;
   isPublic: boolean;
+  visibility: 'private' | 'family' | 'public';
+  familyId: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface TaskColumn {
-  id: string;
-  title: string;
-  color: string | null;
-  order: number;
-  tasks: Task[];
 }
 
 export interface Task {
@@ -35,4 +29,16 @@ export interface Task {
   order: number;
   columnId: string;
   column?: TaskColumn;
+  visibility: 'private' | 'family' | 'public';
+  familyId: string | null;
 }
+
+export interface TaskColumn {
+  id: string;
+  title: string;
+  color: string | null;
+  order: number;
+  tasks: Task[];
+}
+
+

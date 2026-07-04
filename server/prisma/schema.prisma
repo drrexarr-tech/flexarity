@@ -17,33 +17,113 @@ model User {
   recipes     Recipe[]
   tasks       Task[]
   taskColumns TaskColumn[]
+  families    FamilyMember[]
+  invites     FamilyInvite[]
+  notifications Notification[]
+  chats       ChatParticipant[]
+  messages    Message[]
+}
+
+model Family {
+  id        String         @id @default(uuid())
+  name      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  members   FamilyMember[]
+  invites   FamilyInvite[]
+}
+
+model FamilyMember {
+  id        String   @id @default(uuid())
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  @@unique([userId, familyId])
+}
+
+model FamilyInvite {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  inviterId String
+  inviter   User     @relation(fields: [inviterId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  title     String
+  message   String
+  data      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Chat {
+  id           String             @id @default(uuid())
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  participants ChatParticipant[]
+  messages     Message[]
+}
+
+model ChatParticipant {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId, chatId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
 }
 
 model Recipe {
-  id           String   @id @default(uuid())
+  id           String       @id @default(uuid())
   title        String
   description  String?
-  ingredients  String   @default("[]")
-  instructions String   @default("[]")
+  ingredients  String       @default("[]")
+  instructions String       @default("[]")
   cookingTime  Int?
   category     String?
   imageUrl     String?
-  isPublic     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isPublic     Boolean      @default(false)
+  visibility   String       @default("private")
+  familyId     String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TaskColumn {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   title     String
   color     String?
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   tasks     Task[]
 }
 
@@ -54,6 +134,8 @@ model Task {
   priority    Priority?
   dueDate     DateTime?
   order       Int          @default(0)
+  visibility  String       @default("private")
+  familyId    String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   columnId    String

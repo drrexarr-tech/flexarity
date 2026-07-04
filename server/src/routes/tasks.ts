@@ -20,14 +20,31 @@ const taskSchema = z.object({
   dueDate: z.string().optional(),
   order: z.number().optional(),
   columnId: z.string(),
+  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  familyId: z.string().optional(),
 });
 
 // Columns
 tasksRouter.get('/columns', async (req: AuthRequest, res: Response) => {
+  const families = await prisma.familyMember.findMany({
+    where: { userId: req.userId },
+    select: { familyId: true },
+  });
+  const familyIds = families.map((f) => f.familyId);
+
   const columns = await prisma.taskColumn.findMany({
     where: { userId: req.userId },
     include: {
-      tasks: { orderBy: { order: 'asc' } },
+      tasks: {
+        where: {
+          OR: [
+            { userId: req.userId },
+            { visibility: 'family', familyId: { in: familyIds } },
+            { visibility: 'public' },
+          ],
+        },
+        orderBy: { order: 'asc' },
+      },
     },
     orderBy: { order: 'asc' },
   });
@@ -66,7 +83,7 @@ tasksRouter.delete('/columns/:id', async (req: AuthRequest, res: Response) => {
   res.json({ message: 'Колонка удалена' });
 });
 
-// Reorder - must be before /:id routes
+// Reorder
 tasksRouter.put('/reorder/all', async (req: AuthRequest, res: Response) => {
   const { items } = z.object({
     items: z.array(z.object({

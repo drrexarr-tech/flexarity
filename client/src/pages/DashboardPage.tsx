@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CheckSquare, ArrowRight } from 'lucide-react';
+import { BookOpen, CheckSquare, Users, MessageSquare, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const apps = [
@@ -16,6 +16,20 @@ const apps = [
     icon: CheckSquare,
     path: '/tasks',
     color: 'from-blue-500 to-indigo-500',
+  },
+  {
+    title: 'Моя семья',
+    description: 'Создайте семью, приглашайте участников и делитесь рецептами и задачами.',
+    icon: Users,
+    path: '/family',
+    color: 'from-green-500 to-emerald-500',
+  },
+  {
+    title: 'Чаты',
+    description: 'Общайтесь с участниками семьи и друзьями в реальном времени.',
+    icon: MessageSquare,
+    path: '/chats',
+    color: 'from-purple-500 to-pink-500',
   },
 ];
 
