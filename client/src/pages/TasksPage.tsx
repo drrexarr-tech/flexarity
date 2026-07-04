@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 export function TasksPage() {
   const [columns, setColumns] = useState<TaskColumn[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -85,7 +86,7 @@ export function TasksPage() {
           <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Планировщик задач</h1>
           <p className="text-sm text-muted-foreground lg:text-base">Управляйте своими задачами</p>
         </div>
-        <Dialog>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" /> Новая задача
@@ -97,7 +98,10 @@ export function TasksPage() {
             </DialogHeader>
             <TaskForm
               columns={columns}
-              onSubmit={handleCreateTask}
+              onSubmit={async (data) => {
+                await handleCreateTask(data);
+                setCreateDialogOpen(false);
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -119,6 +123,7 @@ export function TasksPage() {
           <div className="-mx-4 px-4 lg:mx-0 lg:px-0">
             <KanbanBoard
               columns={columns}
+              onCreateTask={handleCreateTask}
               onUpdateTask={handleUpdateTask}
               onDeleteTask={handleDeleteTask}
               onReorder={handleReorder}

@@ -124,6 +124,7 @@ export function RecipesPage() {
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditing(recipe);
+                        setDialogOpen(true);
                       }}
                     >
                       <Edit3 className="h-3.5 w-3.5" />

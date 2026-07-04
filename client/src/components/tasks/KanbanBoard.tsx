@@ -32,14 +32,16 @@ import type { TaskColumn, Task } from '@/types';
 
 interface Props {
   columns: TaskColumn[];
+  onCreateTask: (data: any) => Promise<void>;
   onUpdateTask: (id: string, data: any) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
   onReorder: (items: { id: string; order: number; columnId: string }[]) => Promise<void>;
   onRefresh: () => Promise<void>;
 }
 
-export function KanbanBoard({ columns, onUpdateTask, onDeleteTask, onReorder, onRefresh }: Props) {
+export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask, onReorder, onRefresh }: Props) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [createDialog, setCreateDialog] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -145,7 +147,7 @@ export function KanbanBoard({ columns, onUpdateTask, onDeleteTask, onReorder, on
                   {column.tasks.length}
                 </span>
               </div>
-              <Dialog>
+              <Dialog open={createDialog === column.id} onOpenChange={(o) => setCreateDialog(o ? column.id : null)}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7">
                     <Plus className="h-4 w-4" />
@@ -159,7 +161,8 @@ export function KanbanBoard({ columns, onUpdateTask, onDeleteTask, onReorder, on
                     columns={columns}
                     defaultColumnId={column.id}
                     onSubmit={async (data) => {
-                      await onUpdateTask('', { ...data, columnId: column.id });
+                      await onCreateTask({ ...data, columnId: column.id });
+                      setCreateDialog(null);
                     }}
                   />
                 </DialogContent>
