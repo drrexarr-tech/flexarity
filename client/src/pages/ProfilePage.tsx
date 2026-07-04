@@ -119,7 +119,7 @@ export function ProfilePage() {
               <div>
                 <p className="text-sm font-medium">Telegram</p>
                 {user?.telegramId ? (
-                  <p className="text-xs text-green-600 flex items-center gap-1"><CheckCheck className="h-3 w-3" /> ID: {user.telegramId}</p>
+                  <p className="text-xs text-green-600 flex items-center gap-1"><CheckCheck className="h-3 w-3" /> ID: {user.telegramId === 'undefined' ? 'ошибка' : user.telegramId}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Не привязан</p>
                 )}
@@ -142,7 +142,7 @@ export function ProfilePage() {
               <div>
                 <p className="text-sm font-medium">VK</p>
                 {user?.vkId ? (
-                  <p className="text-xs text-green-600 flex items-center gap-1"><CheckCheck className="h-3 w-3" /> ID: {user.vkId}</p>
+                  <p className="text-xs text-green-600 flex items-center gap-1"><CheckCheck className="h-3 w-3" /> ID: {user.vkId === 'undefined' ? 'ошибка' : user.vkId}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Не привязан</p>
                 )}

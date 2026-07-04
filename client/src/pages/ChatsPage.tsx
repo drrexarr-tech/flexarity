@@ -118,18 +118,18 @@ export function ChatsPage() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   async function initEncryption() {
-    let privKey = getStoredPrivateKey();
-    if (!privKey || !localStorage.getItem('flex_pubkey')) {
-      const pair = await generateKeyPair();
-      storePrivateKey(pair.privateKey);
-      localStorage.setItem('flex_pubkey', JSON.stringify(pair.publicKey));
-      await api.auth.setPublicKey(JSON.stringify(pair.publicKey));
-    } else if (!localStorage.getItem('flex_pubkey_sent')) {
-      try {
-        await api.auth.setPublicKey(localStorage.getItem('flex_pubkey')!);
-      } catch {}
-      localStorage.setItem('flex_pubkey_sent', '1');
-    }
+    try {
+      let privKey = getStoredPrivateKey();
+      if (!privKey || !localStorage.getItem('flex_pubkey')) {
+        const pair = await generateKeyPair();
+        storePrivateKey(pair.privateKey);
+        localStorage.setItem('flex_pubkey', JSON.stringify(pair.publicKey));
+        try { await api.auth.setPublicKey(JSON.stringify(pair.publicKey)); } catch {}
+      } else if (!localStorage.getItem('flex_pubkey_sent')) {
+        try { await api.auth.setPublicKey(localStorage.getItem('flex_pubkey')!); } catch {}
+        localStorage.setItem('flex_pubkey_sent', '1');
+      }
+    } catch {}
     setEncryptionReady(true);
   }
 

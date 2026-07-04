@@ -140,6 +140,24 @@ const linkSchema = z.object({
 authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) => {
   const { provider, data } = linkSchema.parse(req.body);
 
+  if (data.id === 'undefined' || data.id === 'null') {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { [provider === 'telegram' ? 'telegramId' : 'vkId']: null },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    });
+    return res.json(user);
+  }
+
+  if (data.remove) {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { [provider === 'telegram' ? 'telegramId' : 'vkId']: null },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    });
+    return res.json(user);
+  }
+
   if (provider === 'telegram') {
     const telegramId = String(data.id);
     const existing = await prisma.user.findUnique({ where: { telegramId } });
@@ -149,7 +167,7 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { telegramId },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
     return res.json(user);
   }
@@ -163,24 +181,6 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { vkId },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
-    });
-    return res.json(user);
-  }
-
-  if (provider === 'telegram' && data.remove) {
-    const user = await prisma.user.update({
-      where: { id: req.userId },
-      data: { telegramId: null },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
-    });
-    return res.json(user);
-  }
-
-  if (provider === 'vk' && data.remove) {
-    const user = await prisma.user.update({
-      where: { id: req.userId },
-      data: { vkId: null },
       select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
     return res.json(user);

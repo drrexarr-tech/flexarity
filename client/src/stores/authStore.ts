@@ -38,6 +38,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
+        if (user.telegramId === 'undefined' || user.vkId === 'undefined') {
+          if (user.telegramId === 'undefined') user.telegramId = null;
+          if (user.vkId === 'undefined') user.vkId = null;
+          localStorage.setItem('user', JSON.stringify(user));
+        }
         set({ user, token, isAuthenticated: true, isInitialized: true });
         return;
       } catch {
