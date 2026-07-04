@@ -9,7 +9,7 @@ echo "=== Building server ==="
 cd /opt/flex/server
 npm install
 npx prisma generate
-npx prisma migrate deploy
+DATABASE_URL="postgresql://flex:flex_password@localhost:5432/flexdb?schema=public" npx prisma db push --accept-data-loss
 npm run build
 
 echo "=== Building client ==="
