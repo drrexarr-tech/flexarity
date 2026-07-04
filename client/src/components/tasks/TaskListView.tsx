@@ -54,7 +54,7 @@ export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTas
               <span className="text-xs text-muted-foreground">{assignedTasks.length}</span>
             </div>
             <div className="divide-y">
-              {assignedTasks.map((task: any) => (
+              {assignedTasks.map((task: Task) => (
                 <div key={task.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/30">
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">

@@ -63,7 +63,7 @@ export const api = {
     delete: (id: string) => request<any>(`/recipes/${id}`, { method: 'DELETE' }),
   },
   tasks: {
-    getColumns: () => request<any[]>('/tasks/columns'),
+    getColumns: () => request<{ columns: any[]; assignedTasks: any[] }>('/tasks/columns'),
     createColumn: (data: any) => request<any>('/tasks/columns', { method: 'POST', body: JSON.stringify(data) }),
     updateColumn: (id: string, data: any) => request<any>(`/tasks/columns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteColumn: (id: string) => request<any>(`/tasks/columns/${id}`, { method: 'DELETE' }),

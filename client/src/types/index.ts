@@ -36,6 +36,8 @@ export interface Task {
   column?: TaskColumn;
   visibility: 'private' | 'family' | 'public';
   familyId: string | null;
+  userId: string;
+  user?: { id: string; name: string };
   assigneeId?: string | null;
   assignee?: { id: string; name: string; email: string } | null;
 }
