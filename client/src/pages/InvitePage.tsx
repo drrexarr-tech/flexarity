@@ -65,12 +65,21 @@ export function InvitePage() {
         <CardHeader className="text-center">
           <CardTitle>Приглашение в семью</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
-          {status === 'error' && <p className="text-sm text-destructive">{error}</p>}
-          <Button onClick={handleAccept} disabled={status === 'loading'} className="w-full">
-            {status === 'loading' ? 'Принятие...' : 'Принять приглашение'}
-          </Button>
-        </CardContent>
+          <CardContent className="flex flex-col items-center gap-4">
+            {status === 'error' && (
+              <>
+                <p className="text-sm text-destructive">{error}</p>
+                <Button variant="outline" className="w-full" onClick={() => navigate('/')}>
+                  <X className="mr-2 h-4 w-4" /> Закрыть
+                </Button>
+              </>
+            )}
+            {status !== 'error' && (
+              <Button onClick={handleAccept} disabled={status === 'loading'} className="w-full">
+                {status === 'loading' ? 'Принятие...' : 'Принять приглашение'}
+              </Button>
+            )}
+          </CardContent>
       </Card>
     </div>
   );

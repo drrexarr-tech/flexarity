@@ -92,6 +92,8 @@ export const api = {
     create: (participantId: string, encryptedKeys?: Record<string, string>) =>
       request<any>('/chat', { method: 'POST', body: JSON.stringify({ participantId, encryptedKeys }) }),
     delete: (chatId: string) => request<any>(`/chat/${chatId}`, { method: 'DELETE' }),
+    enableEncryption: (chatId: string, encryptedKeys: Record<string, string>) =>
+      request<any>(`/chat/${chatId}/encrypt`, { method: 'PUT', body: JSON.stringify({ encryptedKeys }) }),
     getMessages: (chatId: string) => request<any[]>(`/chat/${chatId}/messages`),
     sendMessage: (chatId: string, content: string, audio?: string, audioDuration?: number) =>
       request<any>(`/chat/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content, audio, audioDuration }) }),

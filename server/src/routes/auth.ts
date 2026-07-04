@@ -42,9 +42,14 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     ],
   });
 
+  const created = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+  });
+
   res.status(201).json({
     token,
-    user: { id: user.id, email: user.email, name: user.name },
+    user: created,
   });
 });
 
@@ -63,9 +68,14 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
 
+  const profile = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+  });
+
   res.json({
     token,
-    user: { id: user.id, email: user.email, name: user.name },
+    user: profile,
   });
 });
 
@@ -109,8 +119,12 @@ authRouter.post('/oauth', async (req: Request, res: Response) => {
     } else if (!user.telegramId) {
       user = await prisma.user.update({ where: { id: user.id }, data: { telegramId } });
     }
+    const profile = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    });
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
-    return res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+    return res.json({ token, user: profile });
   }
 
   if (provider === 'vk') {
@@ -124,8 +138,12 @@ authRouter.post('/oauth', async (req: Request, res: Response) => {
     } else if (!user.vkId) {
       user = await prisma.user.update({ where: { id: user.id }, data: { vkId } });
     }
+    const profile = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    });
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
-    return res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+    return res.json({ token, user: profile });
   }
 
   throw new AppError(400, 'Неподдерживаемый провайдер');

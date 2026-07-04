@@ -149,18 +149,18 @@ chatRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   });
   if (!participant) return res.status(403).json({ error: 'Вы не участник чата' });
 
-  const participantCount = await prisma.chatParticipant.count({ where: { chatId } });
-
+  await prisma.chatKey.deleteMany({ where: { chatId, userId: req.userId } });
   await prisma.chatParticipant.deleteMany({
     where: { chatId, userId: req.userId },
   });
 
-  if (participantCount <= 1) {
+  const remaining = await prisma.chatParticipant.count({ where: { chatId } });
+  if (remaining === 0) {
     await prisma.message.deleteMany({ where: { chatId } });
     await prisma.chat.delete({ where: { id: chatId } });
   }
 
-  res.json({ message: 'Чат удалён' });
+  res.json({ message: 'Вы вышли из чата' });
 });
 
 chatRouter.get('/search/participants', async (req: AuthRequest, res: Response) => {
@@ -243,6 +243,41 @@ chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
   }
 
   res.status(201).json(message);
+});
+
+chatRouter.put('/:id/encrypt', async (req: AuthRequest, res: Response) => {
+  const chatId = String(req.params.id);
+  const { encryptedKeys } = z.object({
+    encryptedKeys: z.record(z.string()),
+  }).parse(req.body);
+
+  const participant = await prisma.chatParticipant.findFirst({
+    where: { chatId, userId: req.userId },
+  });
+  if (!participant) return res.status(403).json({ error: 'Вы не участник чата' });
+
+  for (const [userId, key] of Object.entries(encryptedKeys)) {
+    await prisma.chatKey.upsert({
+      where: { chatId_userId: { chatId, userId } },
+      create: { chatId, userId, key },
+      update: { key },
+    });
+  }
+
+  const updated = await prisma.chat.findUnique({
+    where: { id: chatId },
+    include: {
+      participants: {
+        include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+      },
+      keys: {
+        where: { userId: req.userId },
+        select: { key: true },
+      },
+    },
+  });
+
+  res.json(updated);
 });
 
 chatRouter.get('/search/users', async (req: AuthRequest, res: Response) => {

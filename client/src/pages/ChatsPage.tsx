@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { MessageSquare, Plus, Search, Send, Trash2, Mic, Square, Play, Pause, ChevronLeft, Check, CheckCheck, Lock, UnlockKeyhole } from 'lucide-react';
+import { MessageSquare, Plus, Search, Send, LogOut, Mic, Square, Play, Pause, ChevronLeft, Check, CheckCheck, Lock, UnlockKeyhole, Shield } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,7 +186,11 @@ export function ChatsPage() {
     await ensureAESKey(chat);
     loadMessages(chat.id);
     setShowMobileList(false);
+    clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => loadMessages(chat.id), 5000);
   }
+
+  useEffect(() => () => clearInterval(pollRef.current), []);
 
   async function handleSend(audioBase64?: string, audioDuration?: number) {
     const text = audioBase64 ? '🎤' : newMessage.trim();
@@ -212,13 +216,36 @@ export function ChatsPage() {
     } catch (err: any) { toast.error(err.message); }
   }
 
+  const pollRef = useRef<ReturnType<typeof setInterval>>();
+
   async function handleDeleteChat(chatId: string) {
-    if (!confirm('Удалить чат?')) return;
+    if (!confirm('Выйти из чата?')) return;
     try {
       await api.chat.delete(chatId);
-      if (selectedChat?.id === chatId) setSelectedChat(null);
+      if (selectedChat?.id === chatId) { setSelectedChat(null); clearInterval(pollRef.current); }
       loadChats();
-      toast.success('Чат удалён');
+      toast.success('Вы вышли из чата');
+    } catch (err: any) { toast.error(err.message); }
+  }
+
+  async function handleEnableEncryption() {
+    if (!selectedChat) return;
+    const other = getOtherUser(selectedChat);
+    if (!other) return;
+    try {
+      const ownPub = localStorage.getItem('flex_pubkey');
+      if (!ownPub) { toast.error('Сначала сгенерируйте ключи'); return; }
+      const theirKey = await api.auth.getPublicKey(other.id);
+      if (!theirKey.publicKey) { toast.error('У собеседника нет публичного ключа'); return; }
+      const aesKey = await generateAESKey();
+      const myEncrypted = await encryptAESKey(aesKey, JSON.parse(ownPub));
+      const theirEncrypted = await encryptAESKey(aesKey, JSON.parse(theirKey.publicKey));
+      const encryptedKeys = { [user!.id]: myEncrypted, [other.id]: theirEncrypted };
+      const updated = await api.chat.enableEncryption(selectedChat.id, encryptedKeys);
+      aesKeyRef.current = aesKey;
+      setSelectedChat(updated);
+      loadChats();
+      toast.success('Шифрование включено');
     } catch (err: any) { toast.error(err.message); }
   }
 
@@ -332,8 +359,8 @@ export function ChatsPage() {
                       {chat.messages?.[0] && <p className="truncate text-[11px] text-muted-foreground/60">{chat.messages[0].content}</p>}
                     </div>
                   </button>
-                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-destructive" onClick={() => handleDeleteChat(chat.id)}>
-                    <Trash2 className="h-3 w-3" />
+                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-destructive" onClick={() => handleDeleteChat(chat.id)} title="Выйти из чата">
+                    <LogOut className="h-3 w-3" />
                   </Button>
                 </div>
               );
@@ -360,8 +387,13 @@ export function ChatsPage() {
                 </div>
                 <p className="text-[11px] text-muted-foreground truncate">{getOtherUser(selectedChat)?.email || ''}</p>
               </div>
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleDeleteChat(selectedChat.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
+              {!aesKeyRef.current && selectedChat.keys?.length === 0 && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-green-600" onClick={handleEnableEncryption} title="Включить шифрование">
+                  <Shield className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleDeleteChat(selectedChat.id)} title="Выйти из чата">
+                <LogOut className="h-3.5 w-3.5" />
               </Button>
             </div>
             <ScrollArea className="flex-1">

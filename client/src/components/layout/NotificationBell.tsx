@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, CheckCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -43,7 +44,7 @@ export function NotificationBell() {
 
   async function handleMarkAllRead() {
     await api.notifications.markAllRead();
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications([]);
   }
 
   function handleClick(n: any) {
@@ -51,6 +52,8 @@ export function NotificationBell() {
     if (n.link) navigate(n.link);
     setOpen(false);
   }
+
+  const visible = showAll ? notifications : notifications.filter((n) => !n.read);
 
   return (
     <div ref={ref} className="relative">
@@ -67,17 +70,22 @@ export function NotificationBell() {
         <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border bg-card shadow-xl lg:w-96">
           <div className="flex items-center justify-between border-b px-4 py-3">
             <h3 className="font-semibold">Уведомления</h3>
-            {unread > 0 && (
-              <button className="text-xs text-primary hover:underline" onClick={handleMarkAllRead}>
-                Прочитать все
+            <div className="flex items-center gap-2">
+              {unread > 0 && (
+                <button className="text-xs text-primary hover:underline flex items-center gap-1" onClick={handleMarkAllRead}>
+                  <CheckCheck className="h-3 w-3" /> Прочитать все
+                </button>
+              )}
+              <button className="text-xs text-muted-foreground hover:underline" onClick={() => setShowAll(!showAll)}>
+                {showAll ? 'Только новые' : 'Все'}
               </button>
-            )}
+            </div>
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {visible.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">Нет уведомлений</p>
             ) : (
-              notifications.map((n) => (
+              visible.map((n) => (
                 <button
                   key={n.id}
                   className={cn(
