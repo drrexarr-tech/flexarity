@@ -66,10 +66,12 @@ export const api = {
   chat: {
     getAll: () => request<any[]>('/chat'),
     create: (participantId: string) => request<any>('/chat', { method: 'POST', body: JSON.stringify({ participantId }) }),
+    delete: (chatId: string) => request<any>(`/chat/${chatId}`, { method: 'DELETE' }),
     getMessages: (chatId: string) => request<any[]>(`/chat/${chatId}/messages`),
-    sendMessage: (chatId: string, content: string) =>
-      request<any>(`/chat/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
+    sendMessage: (chatId: string, content: string, audio?: string) =>
+      request<any>(`/chat/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content, audio }) }),
     searchUsers: (q: string) => request<any[]>(`/chat/search/users?q=${encodeURIComponent(q)}`),
+    searchParticipants: (q: string) => request<any[]>(`/chat/search/participants?q=${encodeURIComponent(q)}`),
   },
   notifications: {
     getAll: () => request<any[]>('/notifications'),

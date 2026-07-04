@@ -6,6 +6,11 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 export const chatRouter = Router();
 chatRouter.use(authenticate);
 
+const messageSchema = z.object({
+  content: z.string().min(1),
+  audio: z.string().optional(),
+});
+
 chatRouter.get('/', async (req: AuthRequest, res: Response) => {
   const participations = await prisma.chatParticipant.findMany({
     where: { userId: req.userId },
@@ -88,6 +93,60 @@ chatRouter.post('/', async (req: AuthRequest, res: Response) => {
   res.status(201).json(chat);
 });
 
+chatRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
+  const chatId = String(req.params.id);
+
+  const participant = await prisma.chatParticipant.findFirst({
+    where: { chatId, userId: req.userId },
+  });
+  if (!participant) return res.status(403).json({ error: 'Вы не участник чата' });
+
+  const participantCount = await prisma.chatParticipant.count({ where: { chatId } });
+
+  await prisma.chatParticipant.deleteMany({
+    where: { chatId, userId: req.userId },
+  });
+
+  if (participantCount <= 1) {
+    await prisma.message.deleteMany({ where: { chatId } });
+    await prisma.chat.delete({ where: { id: chatId } });
+  }
+
+  res.json({ message: 'Чат удалён' });
+});
+
+chatRouter.get('/search/participants', async (req: AuthRequest, res: Response) => {
+  const q = String(req.query.q || '');
+  if (q.length < 2) return res.json([]);
+
+  const myChatIds = (
+    await prisma.chatParticipant.findMany({
+      where: { userId: req.userId },
+      select: { chatId: true },
+    })
+  ).map((c) => c.chatId);
+
+  const participants = await prisma.chatParticipant.findMany({
+    where: {
+      chatId: { in: myChatIds },
+      userId: { not: req.userId },
+      user: {
+        OR: [
+          { email: { contains: q, mode: 'insensitive' } },
+          { name: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      chat: { select: { id: true } },
+    },
+    take: 20,
+  });
+
+  res.json(participants.map((p) => ({ ...p.user, chatId: p.chat.id })));
+});
+
 chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
   const chatId = String(req.params.id);
   const messages = await prisma.message.findMany({
@@ -101,10 +160,10 @@ chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
 
 chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
   const chatId = String(req.params.id);
-  const { content } = z.object({ content: z.string().min(1) }).parse(req.body);
+  const { content, audio } = messageSchema.parse(req.body);
 
   const message = await prisma.message.create({
-    data: { content, chatId, userId: req.userId! },
+    data: { content, audio, chatId, userId: req.userId! },
     include: { user: { select: { id: true, name: true } } },
   });
 

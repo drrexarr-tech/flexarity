@@ -3,6 +3,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { sendEmail } from '../lib/email';
 
 export const familyRouter = Router();
 familyRouter.use(authenticate);
@@ -81,6 +82,16 @@ familyRouter.post('/:id/invite', async (req: AuthRequest, res: Response) => {
 
   const inviter = await prisma.user.findUnique({ where: { id: req.userId } });
   console.log(`[INVITE] ${inviter?.name} пригласил ${email} в семью "${family?.name}" (токен: ${token})`);
+
+  const inviteLink = `https://veheys.online/family/invite?token=${token}`;
+  await sendEmail(
+    email,
+    `Приглашение в семью "${family?.name}"`,
+    `<h2>Приглашение в семью</h2>
+     <p>${inviter?.name} приглашает вас присоединиться к семье "${family?.name}" в Flex.</p>
+     <p><a href="${inviteLink}">Принять приглашение</a></p>
+     <p>Или используйте токен: <b>${token}</b></p>`
+  );
 
   res.json({ message: 'Приглашение отправлено', token });
 });

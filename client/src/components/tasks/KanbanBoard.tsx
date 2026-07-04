@@ -7,6 +7,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
@@ -27,7 +28,23 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { TaskForm } from './TaskForm';
+import { cn } from '@/lib/utils';
 import type { TaskColumn, Task } from '@/types';
+
+function ColumnDropArea({ column, children }: { column: TaskColumn; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: `column-${column.id}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'flex w-[85vw] sm:w-80 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors',
+        isOver && 'bg-primary/5 border-primary/50'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 interface Props {
   columns: TaskColumn[];
@@ -76,16 +93,22 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
     if (!over) return;
 
     const activeCol = findColumn(active.id as string);
-    const overCol = findColumn(over.id as string);
-    if (!activeCol || !overCol) return;
-
-    if (active.id === over.id && activeCol.id === overCol.id) return;
+    if (!activeCol) return;
 
     const task = activeCol.tasks.find((t) => t.id === active.id);
     if (!task) return;
 
-    const newColumnId = overCol.id;
-    const items: { id: string; order: number; columnId: string }[] = [];
+    let overColId: string | null = null;
+    const overStr = over.id as string;
+
+    if (overStr.startsWith('column-')) {
+      overColId = overStr.replace('column-', '');
+    } else {
+      const col = findColumn(overStr);
+      if (col) overColId = col.id;
+    }
+
+    if (!overColId || activeCol.id === overColId && active.id === over.id) return;
 
     const updatedColumns = localColumns.map((col) => ({
       ...col,
@@ -93,24 +116,25 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
     }));
 
     const srcCol = updatedColumns.find((c) => c.id === activeCol.id)!;
-    const dstCol = updatedColumns.find((c) => c.id === overCol.id)!;
+    const dstCol = updatedColumns.find((c) => c.id === overColId)!;
 
     const taskIndex = srcCol.tasks.findIndex((t) => t.id === active.id);
-    if (taskIndex >= 0) {
-      const [moved] = srcCol.tasks.splice(taskIndex, 1);
-      moved.columnId = newColumnId;
+    if (taskIndex < 0) return;
 
-      if (over.id === overCol.id) {
-        dstCol.tasks.push(moved);
-      } else {
-        const overIndex = dstCol.tasks.findIndex((t) => t.id === over.id);
-        dstCol.tasks.splice(overIndex >= 0 ? overIndex : dstCol.tasks.length, 0, moved);
-      }
+    const [moved] = srcCol.tasks.splice(taskIndex, 1);
+    moved.columnId = overColId;
+
+    if (overStr === `column-${overColId}`) {
+      dstCol.tasks.push(moved);
+    } else {
+      const overIndex = dstCol.tasks.findIndex((t) => t.id === over.id);
+      dstCol.tasks.splice(overIndex >= 0 ? overIndex : dstCol.tasks.length, 0, moved);
     }
 
+    const items: { id: string; order: number; columnId: string }[] = [];
     updatedColumns.forEach((col) => {
       col.tasks.forEach((t, i) => {
-        items.push({ id: t.id, order: i, columnId: t.columnId });
+        items.push({ id: t.id, order: i, columnId: overColId === col.id ? overColId : t.columnId });
       });
     });
 
@@ -128,10 +152,7 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {localColumns.map((column) => (
-          <div
-            key={column.id}
-            className="flex w-[85vw] sm:w-80 shrink-0 flex-col rounded-xl border bg-muted/30"
-          >
+          <ColumnDropArea key={column.id} column={column}>
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div className="flex items-center gap-2">
                 {column.color && (
@@ -185,7 +206,7 @@ export function KanbanBoard({ columns, onCreateTask, onUpdateTask, onDeleteTask,
                 </div>
               </SortableContext>
             </ScrollArea>
-          </div>
+          </ColumnDropArea>
         ))}
       </div>
 
