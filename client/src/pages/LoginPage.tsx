@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,6 +28,20 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
+    if (params.has('tgAuthResult')) {
+      try {
+        const data = JSON.parse(decodeURIComponent(params.get('tgAuthResult')!));
+        api.auth.oauth('telegram', data).then((res) => {
+          setAuth(res.user, res.token);
+          navigate('/');
+        }).catch((err: any) => setError(err.message));
+      } catch {}
+    }
+  }, []);
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),

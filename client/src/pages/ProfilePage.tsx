@@ -130,7 +130,7 @@ export function ProfilePage() {
                 <Unlink className="h-3 w-3 mr-1" /> Отвязать
               </Button>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => window.open('https://oauth.telegram.org/auth?bot_id=8418868047&origin=' + encodeURIComponent(window.location.origin), '_blank')}>
+              <Button variant="outline" size="sm" onClick={() => { window.location.href = 'https://oauth.telegram.org/auth?bot_id=8418868047&origin=' + encodeURIComponent(window.location.origin) + '&return_to=/auth/callback'; }}>
                 Привязать
               </Button>
             )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ export function AuthCallbackPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [status, setStatus] = useState('Обработка...');
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     async function handle() {
@@ -35,14 +36,24 @@ export function AuthCallbackPage() {
 
       if (!provider || !data) {
         setStatus('Не удалось войти через соцсеть');
+        setTimeout(() => navigate('/login'), 2000);
         return;
       }
 
+      const existingToken = localStorage.getItem('token');
+
       try {
-        const res = await api.auth.oauth(provider as any, data);
-        setAuth(res.user, res.token);
-        toast.success('Вход выполнен');
-        navigate('/');
+        if (existingToken) {
+          const updated = await api.auth.link(provider as any, { id: data.id });
+          useAuthStore.getState().setUser(updated);
+          toast.success('Аккаунт привязан');
+          navigate('/profile');
+        } else {
+          const res = await api.auth.oauth(provider as any, data);
+          setAuth(res.user, res.token);
+          toast.success('Вход выполнен');
+          navigate('/');
+        }
       } catch (err: any) {
         setStatus(err.message);
         toast.error(err.message);
