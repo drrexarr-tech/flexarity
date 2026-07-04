@@ -57,7 +57,7 @@ interface Props {
 }
 
 export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask, onDeleteTask, onReorder, onRefresh }: Props) {
-  const [localColumns, setLocalColumns] = useState<TaskColumn[]>(columns);
+  const [localColumns, setLocalColumns] = useState<TaskColumn[]>(Array.isArray(columns) ? columns : []);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [createDialog, setCreateDialog] = useState<string | null>(null);
 

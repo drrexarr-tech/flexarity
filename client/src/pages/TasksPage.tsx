@@ -25,8 +25,8 @@ export function TasksPage() {
   const load = useCallback(async () => {
     try {
       const data = await api.tasks.getColumns();
-      setColumns(data.columns || data);
-      setAssignedTasks(data.assignedTasks || []);
+      setColumns(Array.isArray(data.columns) ? data.columns : Array.isArray(data) ? data : []);
+      setAssignedTasks(Array.isArray(data.assignedTasks) ? data.assignedTasks : []);
     } catch (err: any) {
       toast.error(err.message);
     } finally {

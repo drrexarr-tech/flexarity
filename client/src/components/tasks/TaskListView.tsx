@@ -35,9 +35,13 @@ export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTas
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const allTasks = columns.flatMap((col) =>
-    col.tasks.map((t) => ({ ...t, columnTitle: col.title, columnColor: col.color }))
-  );
+  const allTasks = Array.isArray(columns)
+    ? columns.flatMap((col) =>
+        Array.isArray(col.tasks)
+          ? col.tasks.map((t) => ({ ...t, columnTitle: col.title, columnColor: col.color }))
+          : []
+      )
+    : [];
 
   return (
     <div className="space-y-4">
