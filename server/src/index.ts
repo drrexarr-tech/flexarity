@@ -22,6 +22,14 @@ app.get('/api/health', (_req, res) => {
 
 app.use(errorHandler);
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
+});
+
 async function main() {
   try {
     await prisma.$connect();

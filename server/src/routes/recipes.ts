@@ -12,7 +12,7 @@ const recipeSchema = z.object({
   description: z.string().optional(),
   ingredients: z.string().default('[]'),
   instructions: z.string().default('[]'),
-  cookingTime: z.number().optional(),
+  cookingTime: z.coerce.number().optional(),
   category: z.string().optional(),
   imageUrl: z.string().optional(),
   isPublic: z.boolean().default(false),

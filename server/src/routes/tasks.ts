@@ -17,7 +17,7 @@ const taskSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   description: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().optional(),
   order: z.number().optional(),
   columnId: z.string(),
 });

@@ -19,6 +19,14 @@ export function errorHandler(
     return res.status(err.statusCode).json({ error: err.message });
   }
 
+  if (err.name === 'ZodError') {
+    return res.status(400).json({ error: 'Ошибка валидации', details: (err as any).errors });
+  }
+
+  if (err.name === 'PrismaClientKnownRequestError') {
+    return res.status(400).json({ error: 'Ошибка базы данных' });
+  }
+
   console.error('Unhandled error:', err);
   return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 }
