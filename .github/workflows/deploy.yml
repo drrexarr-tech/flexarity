@@ -16,8 +16,10 @@ jobs:
           port: 8833
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            export PATH=$PATH:/opt/flex/server/node_modules/.bin
+
             echo "=== Pulling latest code ==="
-            cd /opt/flex && git pull
+            cd /opt/flex && git pull --no-rebase
 
             echo "=== Building server ==="
             cd /opt/flex/server
@@ -32,8 +34,8 @@ jobs:
             sudo cp -r dist/* /var/www/html/
 
             echo "=== Restarting server ==="
-            sudo pkill -f "tsx /opt/flex/server" || true
-            screen -dmS flex-server bash -c 'DATABASE_URL="postgresql://flex:flex_password@localhost:5432/flexdb?schema=public" JWT_SECRET="${{ secrets.JWT_SECRET }}" tsx /opt/flex/server/src/index.ts'
+            screen -X -S flex-server quit 2>/dev/null || true
+            screen -dmS flex-server bash -c 'cd /opt/flex/server && DATABASE_URL="postgresql://flex:flex_password@localhost:5432/flexdb?schema=public" JWT_SECRET="${{ secrets.JWT_SECRET }}" npx tsx src/index.ts'
 
             echo "=== Reloading nginx ==="
             sudo systemctl reload nginx || sudo systemctl start nginx
