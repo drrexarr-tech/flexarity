@@ -7,6 +7,7 @@ import { tasksRouter } from './routes/tasks';
 import { familyRouter } from './routes/family';
 import { chatRouter } from './routes/chat';
 import { notificationsRouter } from './routes/notifications';
+import { notesRouter } from './routes/notes';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -21,6 +22,7 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/family', familyRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/notes', notesRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

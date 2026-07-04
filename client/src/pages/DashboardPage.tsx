@@ -1,32 +1,39 @@
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CheckSquare, Users, MessageSquare, ArrowRight } from 'lucide-react';
+import { BookOpen, CheckSquare, Users, MessageSquare, StickyNote, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const apps = [
   {
     title: 'Книга рецептов',
-    description: 'Создавайте и храните свои кулинарные рецепты. Добавляйте ингредиенты, пошаговые инструкции и категории.',
+    description: 'Создавайте и храните свои кулинарные рецепты.',
     icon: BookOpen,
     path: '/recipes',
     color: 'from-orange-500 to-red-500',
   },
   {
     title: 'Планировщик задач',
-    description: 'Управляйте задачами в виде списка или канбан-доски. Ставьте приоритеты и сроки.',
+    description: 'Управляйте задачами: канбан-доска или список.',
     icon: CheckSquare,
     path: '/tasks',
     color: 'from-blue-500 to-indigo-500',
   },
   {
+    title: 'Заметки',
+    description: 'Личные заметки с текстом и голосовыми.',
+    icon: StickyNote,
+    path: '/notes',
+    color: 'from-yellow-500 to-amber-500',
+  },
+  {
     title: 'Моя семья',
-    description: 'Создайте семью, приглашайте участников и делитесь рецептами и задачами.',
+    description: 'Семья, приглашения и общий доступ.',
     icon: Users,
     path: '/family',
     color: 'from-green-500 to-emerald-500',
   },
   {
     title: 'Чаты',
-    description: 'Общайтесь с участниками семьи и друзьями в реальном времени.',
+    description: 'Общайтесь с семьёй и друзьями.',
     icon: MessageSquare,
     path: '/chats',
     color: 'from-purple-500 to-pink-500',

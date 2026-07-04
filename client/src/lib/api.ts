@@ -32,6 +32,14 @@ export const api = {
         method: 'POST', body: JSON.stringify(data),
       }),
     me: () => request<{ id: string; email: string; name: string }>('/auth/me'),
+    oauth: (provider: 'telegram' | 'vk', data: any) =>
+      request<{ token: string; user: { id: string; email: string; name: string } }>('/auth/oauth', {
+        method: 'POST', body: JSON.stringify({ provider, data }),
+      }),
+    link: (provider: 'telegram' | 'vk', data: any) =>
+      request<any>('/auth/link', { method: 'POST', body: JSON.stringify({ provider, data }) }),
+    updateProfile: (data: any) =>
+      request<any>('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
   },
   recipes: {
     getAll: () => request<any[]>('/recipes'),
@@ -72,6 +80,12 @@ export const api = {
       request<any>(`/chat/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content, audio }) }),
     searchUsers: (q: string) => request<any[]>(`/chat/search/users?q=${encodeURIComponent(q)}`),
     searchParticipants: (q: string) => request<any[]>(`/chat/search/participants?q=${encodeURIComponent(q)}`),
+  },
+  notes: {
+    getAll: () => request<any[]>('/notes'),
+    create: (data: any) => request<any>('/notes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<any>(`/notes/${id}`, { method: 'DELETE' }),
   },
   notifications: {
     getAll: () => request<any[]>('/notifications'),

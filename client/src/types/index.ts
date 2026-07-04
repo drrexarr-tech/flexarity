@@ -2,6 +2,10 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  telegramId?: string | null;
+  vkId?: string | null;
+  avatarUrl?: string | null;
+  dateOfBirth?: string | null;
 }
 
 export interface Recipe {

@@ -111,7 +111,7 @@ export function RecipesPage() {
             <Card
               key={recipe.id}
               className="group cursor-pointer transition-shadow hover:shadow-md"
-              onClick={() => navigate(`/recipes/${recipe.id}`)}
+              onDoubleClick={() => navigate(`/recipes/${recipe.id}`)}
             >
               <CardHeader className="p-3 lg:p-4">
                 <div className="flex items-start justify-between">

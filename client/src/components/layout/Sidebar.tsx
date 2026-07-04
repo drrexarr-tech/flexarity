@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ const links = [
   { to: '/', icon: LayoutDashboard, label: 'Главная' },
   { to: '/recipes', icon: BookOpen, label: 'Рецепты' },
   { to: '/tasks', icon: CheckSquare, label: 'Задачи' },
+  { to: '/notes', icon: StickyNote, label: 'Заметки' },
   { to: '/family', icon: Users, label: 'Семья' },
   { to: '/chats', icon: MessageSquare, label: 'Чаты' },
 ];
@@ -72,7 +73,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         <div className="border-t p-3">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2">
+          <NavLink
+            to="/profile"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent"
+          >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
               {user?.name?.[0]?.toUpperCase() || '?'}
             </div>
@@ -80,7 +85,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
-          </div>
+          </NavLink>
           <div className="mt-2 flex items-center gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggle}>
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

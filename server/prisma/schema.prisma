@@ -12,6 +12,10 @@ model User {
   email       String       @unique
   name        String
   password    String
+  telegramId  String?      @unique
+  vkId        String?      @unique
+  avatarUrl   String?
+  dateOfBirth DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   recipes     Recipe[]
@@ -22,6 +26,7 @@ model User {
   notifications Notification[]
   chats       ChatParticipant[]
   messages    Message[]
+  notes       Note[]
 }
 
 model Family {
@@ -143,6 +148,17 @@ model Task {
   column      TaskColumn   @relation(fields: [columnId], references: [id], onDelete: Cascade)
   userId      String
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String
+  content   String?
+  audio     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Priority {

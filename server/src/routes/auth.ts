@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
 export const authRouter = Router();
@@ -68,6 +69,130 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   });
 });
 
+const oauthSchema = z.object({
+  provider: z.enum(['telegram', 'vk']),
+  data: z.record(z.any()),
+});
+
+import crypto from 'crypto';
+
+authRouter.post('/oauth', async (req: Request, res: Response) => {
+  const { provider, data } = oauthSchema.parse(req.body);
+
+  if (provider === 'telegram') {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (botToken) {
+      const checkHash = data.hash;
+      const checkArr = Object.keys(data)
+        .filter((k) => k !== 'hash')
+        .sort()
+        .map((k) => `${k}=${data[k]}`)
+        .join('\n');
+      const secretKey = crypto.createHash('sha256').update(botToken).digest();
+      const hmac = crypto.createHmac('sha256', secretKey).update(checkArr).digest('hex');
+      if (hmac !== checkHash) {
+        throw new AppError(400, 'Недействительные данные Telegram');
+      }
+    }
+
+    const telegramId = String(data.id);
+    const name = data.first_name + (data.last_name ? ` ${data.last_name}` : '');
+    let user = await prisma.user.findUnique({ where: { telegramId } });
+    if (!user) {
+      const email = data.email || `tg_${data.id}@telegram.placeholder`;
+      user = await prisma.user.findUnique({ where: { email } });
+    }
+    if (!user) {
+      user = await prisma.user.create({
+        data: { email: `tg_${data.id}@telegram.placeholder`, password: '', name, telegramId },
+      });
+    } else if (!user.telegramId) {
+      user = await prisma.user.update({ where: { id: user.id }, data: { telegramId } });
+    }
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+    return res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+  }
+
+  if (provider === 'vk') {
+    const vkId = String(data.id);
+    const email = data.email || `vk_${data.id}@vk.placeholder`;
+    const name = data.first_name + (data.last_name ? ` ${data.last_name}` : '');
+    let user = await prisma.user.findUnique({ where: { vkId } });
+    if (!user) user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.user.create({ data: { email, password: '', name, vkId } });
+    } else if (!user.vkId) {
+      user = await prisma.user.update({ where: { id: user.id }, data: { vkId } });
+    }
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+    return res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+  }
+
+  throw new AppError(400, 'Неподдерживаемый провайдер');
+});
+
+// Link Telegram/VK to existing account
+const linkSchema = z.object({
+  provider: z.enum(['telegram', 'vk']),
+  data: z.record(z.any()),
+});
+
+authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) => {
+  const { provider, data } = linkSchema.parse(req.body);
+
+  if (provider === 'telegram') {
+    const telegramId = String(data.id);
+    const existing = await prisma.user.findUnique({ where: { telegramId } });
+    if (existing && existing.id !== req.userId) {
+      throw new AppError(400, 'Telegram уже привязан к другому аккаунту');
+    }
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { telegramId },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
+    });
+    return res.json(user);
+  }
+
+  if (provider === 'vk') {
+    const vkId = String(data.id);
+    const existing = await prisma.user.findUnique({ where: { vkId } });
+    if (existing && existing.id !== req.userId) {
+      throw new AppError(400, 'VK уже привязан к другому аккаунту');
+    }
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { vkId },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
+    });
+    return res.json(user);
+  }
+
+  throw new AppError(400, 'Неподдерживаемый провайдер');
+});
+
+// Update profile
+const updateProfileSchema = z.object({
+  name: z.string().min(2).optional(),
+  avatarUrl: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+});
+
+authRouter.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
+  const data = updateProfileSchema.parse(req.body);
+  const updateData: any = {};
+  if (data.name) updateData.name = data.name;
+  if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
+  if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth);
+
+  const user = await prisma.user.update({
+    where: { id: req.userId },
+    data: updateData,
+    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
+  });
+  res.json(user);
+});
+
 authRouter.get('/me', async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
@@ -78,7 +203,7 @@ authRouter.get('/me', async (req: Request, res: Response) => {
   const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
   const user = await prisma.user.findUnique({
     where: { id: decoded.userId },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
   });
 
   if (!user) {

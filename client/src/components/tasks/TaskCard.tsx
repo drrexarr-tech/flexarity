@@ -50,6 +50,10 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
       ref={setNodeRef}
       style={style}
       className={cn('relative', isDragging && 'opacity-50')}
+      onDoubleClick={() => {
+        const editBtn = document.querySelector(`[data-task-id="${task.id}"]`);
+        if (editBtn) (editBtn as HTMLButtonElement).click();
+      }}
     >
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
@@ -66,7 +70,7 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
               <div className="flex gap-1 shrink-0">
                 <Dialog open={editing} onOpenChange={setEditing}>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" data-task-id={task.id}>
                       <Edit3 className="h-3 w-3" />
                     </Button>
                   </DialogTrigger>
