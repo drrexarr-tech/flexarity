@@ -120,15 +120,15 @@ export function ChatsPage() {
   async function initEncryption() {
     try {
       let privKey = getStoredPrivateKey();
-      if (!privKey || !localStorage.getItem('flex_pubkey')) {
+      let pubKey = localStorage.getItem('flex_pubkey');
+      if (!privKey || !pubKey) {
         const pair = await generateKeyPair();
         storePrivateKey(pair.privateKey);
-        localStorage.setItem('flex_pubkey', JSON.stringify(pair.publicKey));
-        try { await api.auth.setPublicKey(JSON.stringify(pair.publicKey)); } catch {}
-      } else if (!localStorage.getItem('flex_pubkey_sent')) {
-        try { await api.auth.setPublicKey(localStorage.getItem('flex_pubkey')!); } catch {}
-        localStorage.setItem('flex_pubkey_sent', '1');
+        pubKey = JSON.stringify(pair.publicKey);
+        localStorage.setItem('flex_pubkey', pubKey);
       }
+      await api.auth.setPublicKey(pubKey);
+      localStorage.setItem('flex_pubkey_sent', '1');
     } catch {}
     setEncryptionReady(true);
   }
@@ -171,7 +171,9 @@ export function ChatsPage() {
           if (m.audio) {
             m.audio = await decryptAudio(m.audio, key);
           }
-        } catch {}
+        } catch {
+          if (m.content && !m.content.startsWith('🎤')) m.content = '🔒 Не удалось расшифровать';
+        }
         return m;
       }));
       setMessages(decrypted);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Trash2, Edit3, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar, Trash2, Edit3, ChevronDown, ChevronRight, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { cn, formatDate } from '@/lib/utils';
 
 interface Props {
   columns: TaskColumn[];
+  assignedTasks?: any[];
   onUpdateTask: (id: string, data: any) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
 }
@@ -27,7 +28,7 @@ const priorityColors = {
 };
 const priorityLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
 
-export function TaskListView({ columns, onUpdateTask, onDeleteTask }: Props) {
+export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTask }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const toggleCollapse = (id: string) => {
@@ -40,6 +41,42 @@ export function TaskListView({ columns, onUpdateTask, onDeleteTask }: Props) {
 
   return (
     <div className="space-y-4">
+      {assignedTasks && assignedTasks.length > 0 && (
+        <Card className="border-amber-200 dark:border-amber-800">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-2 px-4 py-3 font-semibold text-amber-700 dark:text-amber-400">
+              <UserCheck className="h-4 w-4" />
+              Назначено мне
+              <span className="text-xs text-muted-foreground">{assignedTasks.length}</span>
+            </div>
+            <div className="divide-y">
+              {assignedTasks.map((task: any) => (
+                <div key={task.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/30">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{task.title}</p>
+                      {task.priority && (
+                        <Badge variant="outline" className={cn('text-[10px]', priorityColors[task.priority])}>
+                          {priorityLabels[task.priority]}
+                        </Badge>
+                      )}
+                    </div>
+                    {task.description && <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>}
+                    {task.assignee && (
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-[7px] font-medium text-primary">
+                          {task.assignee.name[0]?.toUpperCase()}
+                        </div>
+                        <span className="text-xs text-muted-foreground/60">от {task.user?.name || task.assignee.name}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {columns.map((column) => {
         const isCollapsed = collapsed[column.id];
         return (

@@ -18,13 +18,15 @@ import toast from 'react-hot-toast';
 
 export function TasksPage() {
   const [columns, setColumns] = useState<TaskColumn[]>([]);
+  const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const data = await api.tasks.getColumns();
-      setColumns(data);
+      setColumns(data.columns || data);
+      setAssignedTasks(data.assignedTasks || []);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -123,6 +125,7 @@ export function TasksPage() {
           <div className="-mx-4 px-4 lg:mx-0 lg:px-0">
             <KanbanBoard
               columns={columns}
+              assignedTasks={assignedTasks}
               onCreateTask={handleCreateTask}
               onUpdateTask={handleUpdateTask}
               onDeleteTask={handleDeleteTask}
@@ -135,6 +138,7 @@ export function TasksPage() {
         <TabsContent value="list" className="mt-4">
           <TaskListView
             columns={columns}
+            assignedTasks={assignedTasks}
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
           />

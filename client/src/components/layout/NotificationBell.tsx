@@ -44,7 +44,7 @@ export function NotificationBell() {
 
   async function handleMarkAllRead() {
     await api.notifications.markAllRead();
-    setNotifications([]);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }
 
   function handleClick(n: any) {

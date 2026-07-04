@@ -112,12 +112,12 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
             <SelectValue placeholder="Выберите исполнителя" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={user?.id || ''}>Я ({user?.name})</SelectItem>
+            <SelectItem value={user?.id || ''}>{user?.name}</SelectItem>
             {familyMembers
               .filter((m: any) => m.id !== user?.id)
               .map((m: any) => (
                 <SelectItem key={m.id} value={m.id}>
-                  {m.name} ({m.familyName})
+                  {m.name}
                 </SelectItem>
               ))}
           </SelectContent>

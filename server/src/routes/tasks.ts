@@ -50,7 +50,21 @@ tasksRouter.get('/columns', async (req: AuthRequest, res: Response) => {
     },
     orderBy: { order: 'asc' },
   });
-  res.json(columns);
+
+  const assignedTasks = await prisma.task.findMany({
+    where: {
+      assigneeId: req.userId,
+      userId: { not: req.userId },
+    },
+    orderBy: { order: 'asc' },
+    include: {
+      column: true,
+      assignee: { select: { id: true, name: true, email: true } },
+      user: { select: { id: true, name: true } },
+    },
+  });
+
+  res.json({ columns, assignedTasks });
 });
 
 tasksRouter.post('/columns', async (req: AuthRequest, res: Response) => {
