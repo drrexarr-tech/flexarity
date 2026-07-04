@@ -19,7 +19,7 @@ jobs:
             export PATH=$PATH:/opt/flex/server/node_modules/.bin
 
             echo "=== Pulling latest code ==="
-            cd /opt/flex && git pull --no-rebase
+            cd /opt/flex && git fetch origin && git reset --hard origin/main
 
             echo "=== Building server ==="
             cd /opt/flex/server
