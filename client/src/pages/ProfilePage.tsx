@@ -4,9 +4,8 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, CheckCheck } from 'lucide-react';
+import { Camera, CheckCheck, Unlink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function ProfilePage() {
@@ -15,6 +14,7 @@ export function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth?.slice(0, 10) || '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -22,7 +22,7 @@ export function ProfilePage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const updated = await api.auth.updateProfile({ name, dateOfBirth: dateOfBirth || undefined });
+      const updated = await api.auth.updateProfile({ name, email: email || undefined, dateOfBirth: dateOfBirth || undefined });
       setUser(updated);
       toast.success('Профиль обновлён');
     } catch (err: any) {
@@ -46,23 +46,12 @@ export function ProfilePage() {
     }
   }
 
-  async function handleLinkTelegram() {
-    const telegramId = prompt('Введите ID Telegram (число):');
-    if (!telegramId) return;
+  async function handleUnlink(provider: 'telegram' | 'vk') {
+    if (!confirm(`Отвязать ${provider === 'telegram' ? 'Telegram' : 'VK'}?`)) return;
     try {
-      const updated = await api.auth.link('telegram', { id: telegramId });
+      const updated = await api.auth.link(provider, { remove: true });
       setUser(updated);
-      toast.success('Telegram привязан');
-    } catch (err: any) { toast.error(err.message); }
-  }
-
-  async function handleLinkVK() {
-    const vkId = prompt('Введите ID VK (число):');
-    if (!vkId) return;
-    try {
-      const updated = await api.auth.link('vk', { id: vkId });
-      setUser(updated);
-      toast.success('VK привязан');
+      toast.success(`${provider === 'telegram' ? 'Telegram' : 'VK'} отвязан`);
     } catch (err: any) { toast.error(err.message); }
   }
 
@@ -108,6 +97,10 @@ export function ProfilePage() {
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
+            <Label>Email</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-2">
             <Label>Дата рождения</Label>
             <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="[color-scheme:light_dark]" />
           </div>
@@ -132,8 +125,14 @@ export function ProfilePage() {
                 )}
               </div>
             </div>
-            {!user?.telegramId && (
-              <Button variant="outline" size="sm" onClick={handleLinkTelegram}>Привязать</Button>
+            {user?.telegramId ? (
+              <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleUnlink('telegram')}>
+                <Unlink className="h-3 w-3 mr-1" /> Отвязать
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => window.open('https://oauth.telegram.org/auth?bot_id=8418868047&origin=' + encodeURIComponent(window.location.origin), '_blank')}>
+                Привязать
+              </Button>
             )}
           </div>
 
@@ -149,8 +148,12 @@ export function ProfilePage() {
                 )}
               </div>
             </div>
-            {!user?.vkId && (
-              <Button variant="outline" size="sm" onClick={handleLinkVK}>Привязать</Button>
+            {user?.vkId ? (
+              <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleUnlink('vk')}>
+                <Unlink className="h-3 w-3 mr-1" /> Отвязать
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">Нет VK приложения</p>
             )}
           </div>
 

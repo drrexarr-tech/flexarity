@@ -18,28 +18,50 @@ const createChatSchema = z.object({
 });
 
 chatRouter.get('/', async (req: AuthRequest, res: Response) => {
-  const participations = await prisma.chatParticipant.findMany({
-    where: { userId: req.userId },
-    include: {
-      chat: {
-        include: {
-          participants: {
-            include: { user: { select: { id: true, name: true, email: true } } },
-          },
-          keys: {
-            where: { userId: req.userId },
-            select: { key: true },
-          },
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            include: { user: { select: { id: true, name: true } } },
+  let participations;
+  try {
+    participations = await prisma.chatParticipant.findMany({
+      where: { userId: req.userId },
+      include: {
+        chat: {
+          include: {
+            participants: {
+              include: { user: { select: { id: true, name: true, email: true } } },
+            },
+            keys: {
+              where: { userId: req.userId },
+              select: { key: true },
+            },
+            messages: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              include: { user: { select: { id: true, name: true } } },
+            },
           },
         },
       },
-    },
-    orderBy: { chat: { updatedAt: 'desc' } },
-  });
+      orderBy: { chat: { updatedAt: 'desc' } },
+    });
+  } catch {
+    participations = await prisma.chatParticipant.findMany({
+      where: { userId: req.userId },
+      include: {
+        chat: {
+          include: {
+            participants: {
+              include: { user: { select: { id: true, name: true, email: true } } },
+            },
+            messages: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              include: { user: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { chat: { updatedAt: 'desc' } },
+    });
+  }
 
   res.json(participations.map((p) => p.chat));
 });

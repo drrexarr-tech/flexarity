@@ -163,7 +163,25 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { vkId },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    });
+    return res.json(user);
+  }
+
+  if (provider === 'telegram' && data.remove) {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { telegramId: null },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    });
+    return res.json(user);
+  }
+
+  if (provider === 'vk' && data.remove) {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { vkId: null },
+      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
     return res.json(user);
   }
@@ -193,6 +211,7 @@ authRouter.get('/public-key/:userId', authenticate, async (req: AuthRequest, res
 // Update profile
 const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
   avatarUrl: z.string().optional(),
   dateOfBirth: z.string().optional(),
 });
@@ -201,6 +220,7 @@ authRouter.put('/profile', authenticate, async (req: AuthRequest, res: Response)
   const data = updateProfileSchema.parse(req.body);
   const updateData: any = {};
   if (data.name) updateData.name = data.name;
+  if (data.email) updateData.email = data.email;
   if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
   if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth);
 
