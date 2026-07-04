@@ -15,7 +15,7 @@ import { ChatsPage } from '@/pages/ChatsPage';
 import { NotesPage } from '@/pages/NotesPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { InvitePage } from '@/pages/InvitePage';
-import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
+import { OAuthHandler } from '@/components/layout/OAuthHandler';
 import { PageTransition } from '@/components/layout/PageTransition';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -41,7 +41,6 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/family/invite" element={<InvitePage />} />
         <Route
           element={
@@ -76,6 +75,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <OAuthHandler />
       <Toaster
         position="top-right"
         toastOptions={{
