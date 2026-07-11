@@ -241,7 +241,7 @@ export function ProfilePage() {
             <DialogDescription>Кликните на изображении, чтобы выбрать область</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
-            <div className="relative cursor-crosshair" onMouseDown={handleMouseDown}>
+            <div className="relative cursor-crosshair w-fit" onMouseDown={handleMouseDown}>
               <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => setPreviewKey(k => k + 1)} />
               <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent 72px, rgba(0,0,0,0.45) 72px)` }}>
                 <div className="absolute w-36 h-36 rounded-full border-4 border-primary pointer-events-none" style={{ left: `calc(${cropPos.x * 100}% - 72px)`, top: `calc(${cropPos.y * 100}% - 72px)` }} />
