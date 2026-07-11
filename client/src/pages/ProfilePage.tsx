@@ -5,13 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, CheckCheck, Unlink } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Camera, CheckCheck, Unlink, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cropImgRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [cropDialog, setCropDialog] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropDataUrl, setCropDataUrl] = useState('');
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -32,17 +40,60 @@ export function ProfilePage() {
     }
   }
 
-  async function handleAvatar(file: File) {
-    if (!file.type.startsWith('image/')) { toast.error('Только изображения'); return; }
-    setUploading(true);
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) { toast.error('Только изображения'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCropFile(f);
+      setCropDataUrl(ev.target!.result as string);
+      setCropDialog(true);
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  }
+
+  function doCrop() {
+    const img = cropImgRef.current;
+    const canvas = canvasRef.current;
+    if (!img || !canvas || !cropFile) return;
+
+    const size = Math.min(img.naturalWidth, img.naturalHeight);
+    const x = (img.naturalWidth - size) / 2;
+    const y = (img.naturalHeight - size) / 2;
+
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(img, x, y, size, size, 0, 0, 256, 256);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      setCropDialog(false);
+      setUploading(true);
+      try {
+        const croppedFile = new File([blob], cropFile.name, { type: 'image/png' });
+        const updated = await api.auth.uploadAvatar(croppedFile);
+        setUser(updated);
+        toast.success('Аватарка обновлена');
+      } catch (err: any) {
+        toast.error(err.message);
+      } finally {
+        setUploading(false);
+      }
+    }, 'image/png');
+  }
+
+  async function handleDeleteAvatar() {
     try {
-      const updated = await api.auth.uploadAvatar(file);
+      const updated = await api.auth.updateProfile({ avatarUrl: null });
       setUser(updated);
-      toast.success('Аватарка обновлена');
+      toast.success('Аватарка удалена');
     } catch (err: any) {
       toast.error(err.message);
-    } finally {
-      setUploading(false);
     }
   }
 
@@ -55,6 +106,10 @@ export function ProfilePage() {
     } catch (err: any) { toast.error(err.message); }
   }
 
+  const avatarUrl = user?.avatarUrl?.startsWith('data:') || user?.avatarUrl?.startsWith('http')
+    ? user?.avatarUrl
+    : user?.avatarUrl ? `/api/upload/file/${user.avatarUrl}` : null;
+
   return (
     <div className="max-w-lg space-y-6">
       <h1 className="text-2xl font-bold lg:text-3xl">Профиль</h1>
@@ -64,8 +119,8 @@ export function ProfilePage() {
           <div className="flex items-center gap-4">
             <div className="relative group">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground overflow-hidden">
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
                   user?.name?.[0]?.toUpperCase() || '?'
                 )}
@@ -77,18 +132,17 @@ export function ProfilePage() {
               >
                 <Camera className="h-5 w-5 text-white" />
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatar(f); }}
-              />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <CardTitle className="text-xl">{user?.name}</CardTitle>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
+            {avatarUrl && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={handleDeleteAvatar} title="Удалить аватарку">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -109,6 +163,25 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={cropDialog} onOpenChange={setCropDialog}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Обрезка аватарки</DialogTitle>
+            <DialogDescription>Выберите область для аватарки</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center">
+            <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[50vh] rounded-md" />
+          </div>
+          <canvas ref={canvasRef} className="hidden" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCropDialog(false)}>Отмена</Button>
+            <Button onClick={doCrop} disabled={uploading}>
+              {uploading ? 'Загрузка...' : 'Сохранить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Привязанные аккаунты</CardTitle></CardHeader>

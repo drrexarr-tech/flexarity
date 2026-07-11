@@ -230,7 +230,7 @@ authRouter.get('/public-key/:userId', authenticate, async (req: AuthRequest, res
 const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  avatarUrl: z.string().optional(),
+  avatarUrl: z.string().nullable().optional(),
   dateOfBirth: z.string().optional(),
 });
 
