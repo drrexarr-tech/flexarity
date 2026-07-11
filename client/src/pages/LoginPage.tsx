@@ -26,6 +26,7 @@ const registerSchema = z.object({
 export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -47,7 +48,7 @@ export function LoginPage() {
     setError('');
     try {
       const res = await api.auth.login(data);
-      setAuth(res.user, res.token);
+      setAuth(res.user, res.token, rememberMe);
       navigate('/');
     } catch (err: any) {
       setError(err.message);
@@ -61,7 +62,7 @@ export function LoginPage() {
     setError('');
     try {
       const res = await api.auth.register(data);
-      setAuth(res.user, res.token);
+      setAuth(res.user, res.token, rememberMe);
       navigate('/');
     } catch (err: any) {
       setError(err.message);
@@ -104,6 +105,10 @@ export function LoginPage() {
                   )}
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
+                  Запомнить меня
+                </label>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Вход...' : 'Войти'}
                 </Button>
@@ -134,6 +139,10 @@ export function LoginPage() {
                   )}
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
+                  Запомнить меня
+                </label>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Регистрация...' : 'Зарегистрироваться'}
                 </Button>

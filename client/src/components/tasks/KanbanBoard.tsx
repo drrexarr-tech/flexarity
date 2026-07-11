@@ -125,7 +125,6 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
     if (overStr.startsWith('column-')) {
       overColId = overStr.replace('column-', '');
     } else if (overStr === 'assigned-column') {
-      // dropped on assigned section - no-op
       return;
     } else {
       const col = findColumn(overStr);
@@ -135,54 +134,51 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
     if (!overColId) return;
 
     const activeId = active.id as string;
-
-    // Assigned task dropped on a column -> move to that column
-    if (isAssignedTask(activeId)) {
-      const task = assignedTasks?.find((t: any) => t.id === activeId);
-      if (!task) return;
-      await onUpdateTask(activeId, { columnId: overColId });
-      onRefresh();
-      return;
-    }
-
     const activeCol = findColumn(activeId);
-    if (!activeCol) return;
 
-    const task = activeCol.tasks.find((t) => t.id === activeId);
-    if (!task) return;
+    // Get source column for own tasks, or null for assigned tasks
+    const isOwn = activeCol != null;
+    const srcColId = activeCol?.id;
 
-    if (activeCol.id === overColId && activeId === over.id) return;
+    if (srcColId === overColId && activeId === overStr) return;
 
     const updatedColumns = localColumns.map((col) => ({
       ...col,
       tasks: [...col.tasks],
     }));
 
-    const srcCol = updatedColumns.find((c) => c.id === activeCol.id)!;
-    const dstCol = updatedColumns.find((c) => c.id === overColId)!;
+    if (isOwn) {
+      const srcCol = updatedColumns.find((c) => c.id === srcColId);
+      if (!srcCol) return;
+      const taskIndex = srcCol.tasks.findIndex((t) => t.id === activeId);
+      if (taskIndex < 0) return;
+      const [moved] = srcCol.tasks.splice(taskIndex, 1);
+      moved.columnId = overColId;
 
-    const taskIndex = srcCol.tasks.findIndex((t) => t.id === activeId);
-    if (taskIndex < 0) return;
+      const dstCol = updatedColumns.find((c) => c.id === overColId);
+      if (!dstCol) return;
 
-    const [moved] = srcCol.tasks.splice(taskIndex, 1);
-    moved.columnId = overColId;
+      if (overStr === `column-${overColId}`) {
+        dstCol.tasks.push(moved);
+      } else {
+        const overIndex = dstCol.tasks.findIndex((t) => t.id === overStr);
+        dstCol.tasks.splice(overIndex >= 0 ? overIndex : dstCol.tasks.length, 0, moved);
+      }
 
-    if (overStr === `column-${overColId}`) {
-      dstCol.tasks.push(moved);
-    } else {
-      const overIndex = dstCol.tasks.findIndex((t) => t.id === over.id);
-      dstCol.tasks.splice(overIndex >= 0 ? overIndex : dstCol.tasks.length, 0, moved);
-    }
-
-    const items: { id: string; order: number; columnId: string }[] = [];
-    updatedColumns.forEach((col) => {
-      col.tasks.forEach((t, i) => {
-        items.push({ id: t.id, order: i, columnId: overColId === col.id ? overColId : t.columnId });
+      const items: { id: string; order: number; columnId: string }[] = [];
+      updatedColumns.forEach((col) => {
+        col.tasks.forEach((t, i) => {
+          items.push({ id: t.id, order: i, columnId: col.id });
+        });
       });
-    });
 
-    setLocalColumns(updatedColumns);
-    await onReorder(items);
+      setLocalColumns(updatedColumns);
+      await onReorder(items);
+    } else {
+      const task = assignedTasks?.find((t: any) => t.id === activeId);
+      if (!task) return;
+      await onUpdateTask(activeId, { columnId: overColId });
+    }
     onRefresh();
   }
 

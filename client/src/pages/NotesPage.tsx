@@ -10,12 +10,14 @@ import {
 } from '@/components/ui/dialog';
 import toast from 'react-hot-toast';
 
-function VoiceRecorder({ onSend }: { onSend: (audioBase64: string) => void }) {
+function VoiceRecorder({ onSend }: { onSend: (audioBase64: string, duration: number) => void }) {
   const [recording, setRecording] = useState(false);
   const mr = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
+  const startTime = useRef(0);
   async function start() {
     chunks.current = [];
+    startTime.current = Date.now();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
@@ -23,9 +25,10 @@ function VoiceRecorder({ onSend }: { onSend: (audioBase64: string) => void }) {
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.current.push(e.data); };
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
+        const duration = Math.round((Date.now() - startTime.current) / 1000);
         const blob = new Blob(chunks.current, { type: 'audio/webm' });
         const reader = new FileReader();
-        reader.onload = (ev) => onSend((ev.target!.result as string).split(',')[1]);
+        reader.onload = (ev) => onSend((ev.target!.result as string).split(',')[1], duration);
         reader.readAsDataURL(blob);
       };
       recorder.start();
@@ -40,7 +43,13 @@ function VoiceRecorder({ onSend }: { onSend: (audioBase64: string) => void }) {
   );
 }
 
-function AudioMsg({ base64 }: { base64: string }) {
+function formatDuration(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function AudioMsg({ base64, duration }: { base64: string; duration?: number }) {
   const [playing, setPlaying] = useState(false);
   const ref = useRef<HTMLAudioElement | null>(null);
   function toggle() {
@@ -51,20 +60,28 @@ function AudioMsg({ base64 }: { base64: string }) {
   return (
     <button onClick={toggle} className="flex items-center gap-1.5 text-xs text-primary hover:opacity-80">
       {playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-      <span>Голосовая заметка</span>
+      <span>{duration != null ? formatDuration(duration) : 'Голосовая заметка'}</span>
     </button>
   );
 }
 
 function NoteImages({ imagesJson }: { imagesJson: string | null }) {
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const images = (() => { try { const p = JSON.parse(imagesJson || '[]'); return Array.isArray(p) ? p : []; } catch { return []; } })();
   if (images.length === 0) return null;
   return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      {images.map((img: string, i: number) => (
-        <img key={i} src={`data:image/png;base64,${img}`} alt="" className="h-16 w-16 rounded-md object-cover border" loading="lazy" />
-      ))}
-    </div>
+    <>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {images.map((img: string, i: number) => (
+          <img key={i} src={`data:image/png;base64,${img}`} alt="" className="h-16 w-16 rounded-md object-cover border cursor-pointer" loading="lazy" onClick={() => setLightbox(img)} />
+        ))}
+      </div>
+      <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh]">
+          {lightbox && <img src={`data:image/png;base64,${lightbox}`} alt="" className="w-full h-auto max-h-[80vh] object-contain rounded-md" />}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -76,7 +93,7 @@ export function NotesPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [audios, setAudios] = useState<string[]>([]);
+  const [audios, setAudios] = useState<{ data: string; duration: number }[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,13 +111,13 @@ export function NotesPage() {
     setEditing(note);
     setTitle(note.title);
     setContent(note.content || '');
-    try { setAudios(JSON.parse(note.audio || '[]')); } catch { setAudios(note.audio ? [note.audio] : []); }
+    try { setAudios(JSON.parse(note.audio || '[]')); } catch { setAudios(note.audio ? [{ data: note.audio, duration: 0 }] : []); }
     try { setImages(JSON.parse(note.images || '[]')); } catch { setImages([]); }
     setSaving(false);
     setDialogOpen(true);
   }
 
-  function addAudio(audioBase64: string) { setAudios((prev) => [...prev, audioBase64]); }
+  function addAudio(audioBase64: string, duration: number) { setAudios((prev) => [...prev, { data: audioBase64, duration }]); }
 
   function removeAudio(idx: number) { setAudios((prev) => prev.filter((_, i) => i !== idx)); }
 
@@ -175,7 +192,7 @@ export function NotesPage() {
               ))}
               {audios.map((a, i) => (
                 <div key={i} className="flex items-center gap-1 rounded-md bg-muted px-2 py-1">
-                  <AudioMsg base64={a} />
+                  <AudioMsg base64={a.data} duration={a.duration} />
                   <button className="text-muted-foreground hover:text-destructive" onClick={() => removeAudio(i)}>
                     <X className="h-3 w-3" />
                   </button>
@@ -222,7 +239,14 @@ export function NotesPage() {
                 <NoteImages imagesJson={note.images} />
                 {note.audio && (() => { try {
                   const list = JSON.parse(note.audio);
-                  return Array.isArray(list) ? list.map((a: string, i: number) => <div key={i} className="mt-1"><AudioMsg base64={a} /></div>) : <div className="mt-2"><AudioMsg base64={note.audio} /></div>;
+                  if (Array.isArray(list)) {
+                    return list.map((a: any, i: number) => {
+                      const base64 = typeof a === 'string' ? a : a.data;
+                      const duration = typeof a === 'object' ? a.duration : undefined;
+                      return <div key={i} className="mt-1"><AudioMsg base64={base64} duration={duration} /></div>;
+                    });
+                  }
+                  return <div className="mt-2"><AudioMsg base64={note.audio} /></div>;
                 } catch { return <div className="mt-2"><AudioMsg base64={note.audio} /></div>; }})()}
                 <p className="mt-2 text-[10px] text-muted-foreground/60">{new Date(note.updatedAt).toLocaleDateString('ru-RU')}</p>
               </CardContent>

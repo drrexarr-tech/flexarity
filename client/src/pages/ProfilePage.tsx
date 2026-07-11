@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,28 @@ export function ProfilePage() {
   const [cropDialog, setCropDialog] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropDataUrl, setCropDataUrl] = useState('');
+
+  useEffect(() => {
+    if (!cropDialog || !cropImgRef.current) return;
+    const img = cropImgRef.current;
+    const onLoad = () => {
+      const preview = document.getElementById('crop-preview') as HTMLCanvasElement;
+      if (!preview) return;
+      const ctx = preview.getContext('2d');
+      if (!ctx) return;
+      const size = Math.min(img.naturalWidth, img.naturalHeight);
+      const x = (img.naturalWidth - size) / 2;
+      const y = (img.naturalHeight - size) / 2;
+      ctx.clearRect(0, 0, 128, 128);
+      ctx.beginPath();
+      ctx.arc(64, 64, 64, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, x, y, size, size, 0, 0, 128, 128);
+    };
+    if (img.complete) onLoad();
+    else { img.onload = onLoad; }
+  }, [cropDialog, cropDataUrl]);
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -111,7 +133,7 @@ export function ProfilePage() {
   }
 
   const avatarUrl = user?.avatarUrl
-    ? (user.avatarUrl.startsWith('data:') || user.avatarUrl.startsWith('http') ? user.avatarUrl : `/api/upload/file/${user.avatarUrl}`)
+    ? (user.avatarUrl.startsWith('data:') || user.avatarUrl.startsWith('http') || user.avatarUrl.startsWith('/') ? user.avatarUrl : `/api/upload/file/${user.avatarUrl}`)
     : null;
 
   return (
@@ -172,12 +194,13 @@ export function ProfilePage() {
         <DialogContent className="w-[90vw] max-w-sm">
           <DialogHeader>
             <DialogTitle>Обрезка аватарки</DialogTitle>
-            <DialogDescription>Выберите область для аватарки</DialogDescription>
+            <DialogDescription>Предпросмотр круглой аватарки</DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-center">
-            <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[50vh] rounded-md" />
+          <div className="flex flex-col items-center gap-4">
+            <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[40vh] rounded-md" />
+            <canvas ref={canvasRef} width={256} height={256} className="hidden" />
+            <canvas id="crop-preview" width={128} height={128} className="rounded-full border-2 border-border" style={{ width: 128, height: 128 }} />
           </div>
-          <canvas ref={canvasRef} className="hidden" />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCropDialog(false)}>Отмена</Button>
             <Button onClick={doCrop} disabled={uploading}>

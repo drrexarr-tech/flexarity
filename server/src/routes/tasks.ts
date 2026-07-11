@@ -117,8 +117,8 @@ tasksRouter.put('/reorder/all', async (req: AuthRequest, res: Response) => {
   }).parse(req.body);
 
   for (const item of items) {
-    await prisma.task.updateMany({
-      where: { id: item.id, userId: req.userId },
+    await prisma.task.update({
+      where: { id: item.id },
       data: { order: item.order, columnId: item.columnId },
     });
   }

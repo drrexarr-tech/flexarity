@@ -6,10 +6,14 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isInitialized: boolean;
-  setAuth: (user: User, token: string) => void;
+  setAuth: (user: User, token: string, remember?: boolean) => void;
   setUser: (user: User) => void;
   logout: () => void;
   init: () => void;
+}
+
+function getStorage(remember: boolean) {
+  return remember ? localStorage : sessionStorage;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -17,37 +21,50 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   isAuthenticated: false,
   isInitialized: false,
-  setAuth: (user, token) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+  setAuth: (user, token, remember = true) => {
+    const storage = getStorage(remember);
+    storage.setItem('token', token);
+    storage.setItem('user', JSON.stringify(user));
     localStorage.setItem('userId', user.id);
+    if (!remember) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
     set({ user, token, isAuthenticated: true, isInitialized: true });
   },
   setUser: (user) => {
-    localStorage.setItem('user', JSON.stringify(user));
+    const storage = localStorage.getItem('token') ? localStorage : sessionStorage;
+    storage.setItem('user', JSON.stringify(user));
     set({ user });
   },
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     set({ user: null, token: null, isAuthenticated: false, isInitialized: true });
   },
   init: () => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
+    let token = localStorage.getItem('token');
+    let userStr = localStorage.getItem('user');
+    if (!token || !userStr) {
+      token = sessionStorage.getItem('token');
+      userStr = sessionStorage.getItem('user');
+    }
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
         if (user.telegramId === 'undefined' || user.vkId === 'undefined') {
           if (user.telegramId === 'undefined') user.telegramId = null;
           if (user.vkId === 'undefined') user.vkId = null;
-          localStorage.setItem('user', JSON.stringify(user));
         }
         set({ user, token, isAuthenticated: true, isInitialized: true });
         return;
       } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
       }
     }
     set({ isInitialized: true });
