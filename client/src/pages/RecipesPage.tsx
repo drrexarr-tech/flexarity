@@ -18,7 +18,6 @@ import {
 import { RecipeForm } from '@/components/recipes/RecipeForm';
 import type { Recipe } from '@/types';
 import toast from 'react-hot-toast';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 export function RecipesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -28,7 +27,6 @@ export function RecipesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const navigate = useNavigate();
-  const isMobile = !useMediaQuery('(min-width: 640px)');
 
   async function load() {
     try {
@@ -62,17 +60,15 @@ export function RecipesPage() {
 
   return (
     <div className="space-y-4 lg:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Книга рецептов</h1>
-          <p className="text-sm text-muted-foreground lg:text-base">Ваши кулинарные рецепты</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto" size={isMobile ? 'default' : 'default'}>
-              <Plus className="mr-2 h-4 w-4" /> Добавить рецепт
-            </Button>
-          </DialogTrigger>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-1 h-3.5 w-3.5" /> Добавить рецепт
+              </Button>
+            </DialogTrigger>
           <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto sm:w-full">
             <DialogHeader>
               <DialogTitle>{editing ? 'Редактировать рецепт' : 'Новый рецепт'}</DialogTitle>
@@ -88,6 +84,8 @@ export function RecipesPage() {
           </DialogContent>
         </Dialog>
       </div>
+      </div>
+      <p className="text-sm text-muted-foreground">Ваши кулинарные рецепты</p>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

@@ -264,7 +264,7 @@ export function NotesPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-2 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+          <div className="grid gap-2 sm:grid-cols-2">
             {notes.map((note) => (
               <Card key={note.id} className="group cursor-pointer transition-shadow hover:shadow-sm" onClick={() => openEdit(note)}>
                 <CardContent className="p-2.5">

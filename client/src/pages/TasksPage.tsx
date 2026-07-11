@@ -111,8 +111,8 @@ export function TasksPage() {
           </DialogContent>
         </Dialog>
       </div>
-      <p className="text-sm text-muted-foreground -mt-2">Управляйте своими задачами</p>
       </div>
+      <p className="text-sm text-muted-foreground">Управляйте своими задачами</p>
 
       <Tabs defaultValue="kanban">
         <div className="overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0">
