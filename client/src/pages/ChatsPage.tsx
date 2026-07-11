@@ -197,7 +197,7 @@ export function ChatsPage() {
     loadMessages(chat.id);
     setShowMobileList(false);
     clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => loadMessages(chat.id), 10000);
+    pollRef.current = setInterval(() => loadMessages(chat.id), 3000);
   }
 
   useEffect(() => () => clearInterval(pollRef.current), []);
