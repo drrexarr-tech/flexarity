@@ -55,7 +55,7 @@ export function ProfilePage() {
   function drawPreview() {
     const img = cropImgRef.current;
     const canvas = previewRef.current;
-    if (!img || !canvas) return;
+    if (!img || !canvas || !img.naturalWidth) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const side = 200;
@@ -79,12 +79,13 @@ export function ProfilePage() {
     ctx.stroke();
   }
 
+  const [previewKey, setPreviewKey] = useState(0);
+
   useEffect(() => {
     if (!cropDialog || !cropImgRef.current || !previewRef.current) return;
-    const img = cropImgRef.current;
-    img.onload = () => drawPreview();
-    if (img.complete) drawPreview();
-  }, [cropDialog, cropDataUrl, cropPos]);
+    if (!cropImgRef.current.naturalWidth) return;
+    drawPreview();
+  }, [cropDialog, cropDataUrl, cropPos, previewKey]);
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -241,7 +242,7 @@ export function ProfilePage() {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
             <div className="relative cursor-crosshair" onMouseDown={handleMouseDown}>
-              <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" />
+              <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => setPreviewKey(k => k + 1)} />
               <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent 72px, rgba(0,0,0,0.45) 72px)` }}>
                 <div className="absolute w-36 h-36 rounded-full border-4 border-primary pointer-events-none" style={{ left: `calc(${cropPos.x * 100}% - 72px)`, top: `calc(${cropPos.y * 100}% - 72px)` }} />
               </div>
