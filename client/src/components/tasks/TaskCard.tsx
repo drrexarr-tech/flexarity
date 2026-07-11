@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2, Edit3, GripVertical, Calendar } from 'lucide-react';
+import { Trash2, Edit3, GripVertical, Calendar, Check } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useAuthStore } from '@/stores/authStore';
@@ -60,6 +60,17 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
     >
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
+          <button
+            className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-primary/60 hover:border-primary transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!task.columnId) return;
+              const doneCol = columns.find((c) => c.title === 'Готово');
+              if (doneCol) onUpdate(task.id, { columnId: doneCol.id });
+            }}
+          >
+            {task.columnId === columns.find((c) => c.title === 'Готово')?.id && (<Check className="h-3 w-3 text-primary" />)}
+          </button>
           <button
             className="mt-0.5 cursor-grab touch-none text-muted-foreground hover:text-foreground"
             {...attributes}
