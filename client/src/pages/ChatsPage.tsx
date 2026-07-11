@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { MessageSquare, Plus, Search, Send, LogOut, Mic, Square, Play, Pause, ChevronLeft, Check, CheckCheck, Lock, UnlockKeyhole, Shield, X, Trash2 } from 'lucide-react';
+import { MessageSquare, Plus, Search, Send, LogOut, Mic, Square, Play, Pause, ChevronLeft, Check, CheckCheck, Lock, UnlockKeyhole, Shield, X, Trash2, Image } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
 import { useAuthStore } from '@/stores/authStore';
 import { cn, formatTime } from '@/lib/utils';
@@ -112,8 +112,10 @@ export function ChatsPage() {
   const [participantResults, setParticipantResults] = useState<any[]>([]);
   const [showMobileList, setShowMobileList] = useState(true);
   const [encryptionReady, setEncryptionReady] = useState(false);
+  const [deleteChatTarget, setDeleteChatTarget] = useState<string | null>(null);
   const aesKeyRef = useRef<CryptoKey | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -194,9 +196,9 @@ export function ChatsPage() {
 
   useEffect(() => () => clearInterval(pollRef.current), []);
 
-  async function handleSend(audioBase64?: string, audioDuration?: number) {
-    const text = audioBase64 ? '🎤' : newMessage.trim();
-    if (!text && !audioBase64 || !selectedChat) return;
+  async function handleSend(audioBase64?: string, audioDuration?: number, imageBase64?: string) {
+    const text = imageBase64 ? '📷' : audioBase64 ? '🎤' : newMessage.trim();
+    if (!text && !audioBase64 && !imageBase64 || !selectedChat) return;
     try {
       const key = aesKeyRef.current;
       let encryptedContent = text;
@@ -205,7 +207,7 @@ export function ChatsPage() {
         if (!audioBase64 && text) encryptedContent = await encryptMessage(text, key);
         if (audioBase64 && encryptedAudio) encryptedAudio = await encryptAudio(audioBase64, key);
       }
-      const msg = await api.chat.sendMessage(selectedChat.id, encryptedContent, encryptedAudio, audioDuration);
+      const msg = await api.chat.sendMessage(selectedChat.id, encryptedContent, encryptedAudio, audioDuration, imageBase64);
       if (key) {
         try {
           if (msg.content && !msg.content.startsWith('🎤')) msg.content = await decryptMessage(msg.content, key);
@@ -221,23 +223,23 @@ export function ChatsPage() {
   const pollRef = useRef<ReturnType<typeof setInterval>>();
 
   async function handleLeaveChat(chatId: string) {
-    if (!confirm('Выйти из чата? История сохранится, и вы сможете вернуться.')) return;
     try {
       await api.chat.delete(chatId);
       if (selectedChat?.id === chatId) { setSelectedChat(null); clearInterval(pollRef.current); }
       loadChats();
       toast.success('Вы вышли из чата');
     } catch (err: any) { toast.error(err.message); }
+    setDeleteChatTarget(null);
   }
 
   async function handleDeleteChat(chatId: string) {
-    if (!confirm('Удалить чат для всех? Это действие необратимо.')) return;
     try {
       await api.chat.deleteChat(chatId);
       if (selectedChat?.id === chatId) { setSelectedChat(null); clearInterval(pollRef.current); }
       loadChats();
       toast.success('Чат удалён');
     } catch (err: any) { toast.error(err.message); }
+    setDeleteChatTarget(null);
   }
 
   async function handleEnableEncryption() {
@@ -378,7 +380,7 @@ export function ChatsPage() {
                       {chat.messages?.[0] && <p className="truncate text-[11px] text-muted-foreground/60">{chat.messages[0].content}</p>}
                     </div>
                   </button>
-                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-destructive" onClick={() => handleDeleteChat(chat.id)} title="Удалить чат">
+                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-destructive" onClick={() => setDeleteChatTarget(chat.id)} title="Удалить чат">
                     <Trash2 className="h-3 w-3" />
                   </Button>
                   <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-muted-foreground" onClick={() => handleLeaveChat(chat.id)} title="Выйти из чата">
@@ -414,10 +416,10 @@ export function ChatsPage() {
                   <Shield className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleDeleteChat(selectedChat.id)} title="Удалить чат для всех">
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => setDeleteChatTarget(selectedChat.id)} title="Удалить чат">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => handleLeaveChat(selectedChat.id)} title="Выйти из чата">
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => setDeleteChatTarget(selectedChat.id)} title="Выйти из чата">
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -441,7 +443,9 @@ export function ChatsPage() {
                           <span className="text-[10px] text-muted-foreground/50">{formatTime(msg.createdAt)}</span>
                         </div>
                         <div className={cn('group relative px-3 py-1.5 text-sm leading-relaxed bg-muted rounded-2xl rounded-bl-md inline-block', msg.content === '🎤' && !msg.audio && 'opacity-60')}>
-                          {msg.audio ? (
+                          {msg.image ? (
+                            <img src={`data:image/png;base64,${msg.image}`} alt="" className="max-w-[200px] rounded-md" loading="lazy" />
+                          ) : msg.audio ? (
                             <AudioMessage base64={msg.audio} duration={msg.audioDuration} />
                           ) : (
                             <p className="whitespace-pre-wrap break-words">{msg.content}</p>
@@ -474,6 +478,20 @@ export function ChatsPage() {
             </ScrollArea>
             <div className="flex items-end gap-1.5 border-t p-2">
               <VoiceRecorder onSend={(audio, duration) => handleSend(audio, duration)} />
+              <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  const base64 = (ev.target!.result as string).split(',')[1];
+                  handleSend(undefined, undefined, base64);
+                };
+                reader.readAsDataURL(file);
+                e.target.value = '';
+              }} />
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => imageInputRef.current?.click()}>
+                <Image className="h-4 w-4" />
+              </Button>
               <Input placeholder="Сообщение..." className="min-h-0 h-9 text-sm" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
               <Button size="icon" className="h-9 w-9 shrink-0" onClick={() => handleSend()}><Send className="h-4 w-4" /></Button>
             </div>
@@ -486,6 +504,24 @@ export function ChatsPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!deleteChatTarget} onOpenChange={() => setDeleteChatTarget(null)}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Удаление чата</DialogTitle>
+            <DialogDescription>Выберите действие</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Button variant="destructive" className="w-full justify-start" onClick={() => deleteChatTarget && handleDeleteChat(deleteChatTarget)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Удалить для всех
+            </Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => deleteChatTarget && handleLeaveChat(deleteChatTarget)}>
+              <LogOut className="mr-2 h-4 w-4" /> Удалить только у меня
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => setDeleteChatTarget(null)}>Отмена</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

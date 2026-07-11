@@ -140,7 +140,13 @@ tasksRouter.post('/', async (req: AuthRequest, res: Response) => {
 
 tasksRouter.put('/:id', async (req: AuthRequest, res: Response) => {
   const existing = await prisma.task.findFirst({
-    where: { id: String(req.params.id), userId: req.userId },
+    where: {
+      id: String(req.params.id),
+      OR: [
+        { userId: req.userId },
+        { assigneeId: req.userId },
+      ],
+    },
   });
   if (!existing) throw new AppError(404, 'Задача не найдена');
 

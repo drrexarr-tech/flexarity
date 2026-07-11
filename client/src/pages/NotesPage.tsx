@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import toast from 'react-hot-toast';
 
@@ -57,14 +56,31 @@ function AudioMsg({ base64 }: { base64: string }) {
   );
 }
 
+function NoteContent({ content }: { content: string }) {
+  const parts = content.split(/(!\[image\]\(data:[^)]+\))/g);
+  return (
+    <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
+      {parts.map((part, i) => {
+        const match = part.match(/^!\[image\]\(data:(image\/[^;]+);base64,([^)]+)\)$/);
+        if (match) {
+          return <img key={i} src={`data:${match[1]};base64,${match[2]}`} alt="" className="max-w-full h-auto rounded-md my-1" loading="lazy" />;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
+  );
+}
+
 export function NotesPage() {
   const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [audios, setAudios] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); }, []);
@@ -74,37 +90,36 @@ export function NotesPage() {
     finally { setLoading(false); }
   }
 
-  function openCreate() { setEditing(null); setTitle(''); setContent(''); setAudios([]); setDialogOpen(true); }
+  function openCreate() { setEditing(null); setTitle(''); setContent(''); setAudios([]); setSaving(false); setDialogOpen(true); }
 
   function openEdit(note: any) {
     setEditing(note);
     setTitle(note.title);
     setContent(note.content || '');
     try { setAudios(JSON.parse(note.audio || '[]')); } catch { setAudios(note.audio ? [note.audio] : []); }
+    setSaving(false);
     setDialogOpen(true);
   }
 
-  function addAudio(audioBase64: string) {
-    setAudios((prev) => [...prev, audioBase64]);
-  }
+  function addAudio(audioBase64: string) { setAudios((prev) => [...prev, audioBase64]); }
 
-  function removeAudio(idx: number) {
-    setAudios((prev) => prev.filter((_, i) => i !== idx));
-  }
+  function removeAudio(idx: number) { setAudios((prev) => prev.filter((_, i) => i !== idx)); }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const base64 = (ev.target!.result as string).split(',')[1];
-      setContent((prev) => prev + `\n![image](data:image/png;base64,${base64})\n`);
+      const dataUrl = ev.target!.result as string;
+      setContent((prev) => prev + `\n![image](${dataUrl})\n`);
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   }
 
   async function handleSave() {
-    if (!title.trim()) return;
+    if (!title.trim() || saving) return;
+    setSaving(true);
     try {
       const data: any = { title, content };
       if (audios.length > 0) data.audio = JSON.stringify(audios);
@@ -117,11 +132,11 @@ export function NotesPage() {
       setDialogOpen(false);
       load();
     } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Удалить заметку?')) return;
-    try { await api.notes.delete(id); load(); toast.success('Заметка удалена'); } catch (err: any) { toast.error(err.message); }
+    try { await api.notes.delete(id); setDeleteTarget(null); load(); toast.success('Заметка удалена'); } catch (err: any) { toast.error(err.message); }
   }
 
   if (loading) return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
@@ -154,8 +169,23 @@ export function NotesPage() {
                 </div>
               ))}
             </div>
-            <Button className="w-full" onClick={handleSave}>Сохранить</Button>
+            <Button className="w-full" onClick={handleSave} disabled={saving}>
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Удалить заметку?</DialogTitle>
+            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Удалить</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -171,11 +201,11 @@ export function NotesPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-medium truncate">{note.title}</h3>
-                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-7 w-7 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }}>
+                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-7 w-7 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(note.id); }}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                {note.content && <p className="mt-1 text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">{note.content}</p>}
+                {note.content && <NoteContent content={note.content} />}
                 {note.audio && (() => { try {
                   const list = JSON.parse(note.audio);
                   return Array.isArray(list) ? list.map((a: string, i: number) => <div key={i} className="mt-1"><AudioMsg base64={a} /></div>) : <div className="mt-2"><AudioMsg base64={note.audio} /></div>;

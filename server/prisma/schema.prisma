@@ -111,6 +111,7 @@ model Message {
   content   String
   audio         String?
   audioDuration Int?
+  image         String?
   readAt        DateTime?
   createdAt DateTime  @default(now())
   userId    String

@@ -10,6 +10,7 @@ const messageSchema = z.object({
   content: z.string().min(1),
   audio: z.string().optional(),
   audioDuration: z.number().int().optional(),
+  image: z.string().optional(),
 });
 
 const createChatSchema = z.object({
@@ -236,10 +237,10 @@ chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
 
 chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
   const chatId = String(req.params.id);
-  const { content, audio, audioDuration } = messageSchema.parse(req.body);
+  const { content, audio, audioDuration, image } = messageSchema.parse(req.body);
 
   const message = await prisma.message.create({
-    data: { content, audio, audioDuration, chatId, userId: req.userId! },
+    data: { content, audio, audioDuration, image, chatId, userId: req.userId! },
     include: { user: { select: { id: true, name: true, avatarUrl: true } } },
   });
 
