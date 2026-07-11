@@ -28,6 +28,13 @@ export function ProfilePage() {
     const img = cropImgRef.current;
     if (!img) return;
     const rect = img.getBoundingClientRect();
+    const clickX = (e.clientX - rect.left) / rect.width;
+    const clickY = (e.clientY - rect.top) / rect.height;
+    const rX = 72 / rect.width;
+    const rY = 72 / rect.height;
+    const dx = (clickX - cropPos.x) / rX;
+    const dy = (clickY - cropPos.y) / rY;
+    if (dx * dx + dy * dy > 1) return;
 
     function move(ev: MouseEvent) {
       setCropPos({
@@ -43,8 +50,6 @@ export function ProfilePage() {
 
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
-
-    move(e.nativeEvent);
   }
 
   function drawPreview() {
@@ -243,8 +248,8 @@ export function ProfilePage() {
             <div className="relative cursor-crosshair" onMouseDown={handleMouseDown}>
               <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => setImgLoaded(true)} />
               {imgLoaded && (
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute w-36 h-36 rounded-full border-4 border-primary shadow-[0_0_0_999px_rgba(0,0,0,0.45)]" style={{ left: `calc(${cropPos.x * 100}% - 72px)`, top: `calc(${cropPos.y * 100}% - 72px)` }} />
+                <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent 72px, rgba(0,0,0,0.45) 72px)` }}>
+                  <div className="absolute w-36 h-36 rounded-full border-4 border-primary pointer-events-none" style={{ left: `calc(${cropPos.x * 100}% - 72px)`, top: `calc(${cropPos.y * 100}% - 72px)` }} />
                 </div>
               )}
             </div>
