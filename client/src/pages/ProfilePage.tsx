@@ -22,25 +22,32 @@ export function ProfilePage() {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropDataUrl, setCropDataUrl] = useState('');
   const [cropPos, setCropPos] = useState({ x: 0.5, y: 0.5 });
+  const [cropR, setCropR] = useState(72);
   function handleMouseDown(e: React.MouseEvent<HTMLImageElement>) {
     e.preventDefault();
     const img = cropImgRef.current;
     if (!img) return;
     const rect = img.getBoundingClientRect();
+    const maxR = Math.min(72, rect.width / 2, rect.height / 2);
+    setCropR(maxR);
+    const rX = maxR / Math.max(rect.width, 1);
+    const rY = maxR / Math.max(rect.height, 1);
+    const fits = rX <= 0.5 && rY <= 0.5;
     const clickX = (e.clientX - rect.left) / rect.width;
     const clickY = (e.clientY - rect.top) / rect.height;
-    const rX = 72 / rect.width;
-    const rY = 72 / rect.height;
 
-    const inCircle = rX > 0.5 || rY > 0.5 || ((clickX - cropPos.x) / rX) ** 2 + ((clickY - cropPos.y) / rY) ** 2 <= 1;
-    if (!inCircle) return;
+    if (fits) {
+      const dx = (clickX - cropPos.x) / rX;
+      const dy = (clickY - cropPos.y) / rY;
+      if (dx * dx + dy * dy > 1) return;
+    }
 
     function move(ev: MouseEvent) {
-      const mX = Math.max(rX, Math.min(1 - rX, (ev.clientX - rect.left) / rect.width));
-      const mY = Math.max(rY, Math.min(1 - rY, (ev.clientY - rect.top) / rect.height));
+      const rawX = (ev.clientX - rect.left) / rect.width;
+      const rawY = (ev.clientY - rect.top) / rect.height;
       setCropPos({
-        x: isNaN(mX) ? 0.5 : mX,
-        y: isNaN(mY) ? 0.5 : mY,
+        x: fits ? Math.max(rX, Math.min(1 - rX, rawX)) : 0.5,
+        y: fits ? Math.max(rY, Math.min(1 - rY, rawY)) : 0.5,
       });
     }
 
@@ -126,9 +133,14 @@ export function ProfilePage() {
     const canvas = canvasRef.current;
     if (!img || !canvas || !cropFile) return;
 
-    const cropSize = Math.min(img.naturalWidth, img.naturalHeight) * 0.7;
-    const sx = img.naturalWidth * cropPos.x - cropSize / 2;
-    const sy = img.naturalHeight * cropPos.y - cropSize / 2;
+    const scaleX = img.naturalWidth / (cropImgRef.current?.getBoundingClientRect().width || 1);
+    const scaleY = img.naturalHeight / (cropImgRef.current?.getBoundingClientRect().height || 1);
+    const natCropR = cropR * Math.min(scaleX, scaleY);
+    const natCropX = img.naturalWidth * cropPos.x;
+    const natCropY = img.naturalHeight * cropPos.y;
+    const sx = natCropX - natCropR;
+    const sy = natCropY - natCropR;
+    const size = natCropR * 2;
 
     canvas.width = 256;
     canvas.height = 256;
@@ -139,7 +151,7 @@ export function ProfilePage() {
     ctx.arc(128, 128, 128, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, 256, 256);
+    ctx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
 
     canvas.toBlob(async (blob) => {
       if (!blob) return;
@@ -244,8 +256,8 @@ export function ProfilePage() {
           <div className="flex flex-col items-center gap-4">
             <div className="relative cursor-crosshair w-fit" onMouseDown={handleMouseDown}>
               <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => setPreviewKey(k => k + 1)} />
-              <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent 72px, rgba(0,0,0,0.45) 72px)` }}>
-                <div className="absolute w-36 h-36 rounded-full border-4 border-primary pointer-events-none" style={{ left: `calc(${cropPos.x * 100}% - 72px)`, top: `calc(${cropPos.y * 100}% - 72px)` }} />
+              <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent ${cropR}px, rgba(0,0,0,0.45) ${cropR}px)` }}>
+                <div className="absolute rounded-full border-4 border-primary pointer-events-none" style={{ width: cropR * 2, height: cropR * 2, left: `calc(${cropPos.x * 100}% - ${cropR}px)`, top: `calc(${cropPos.y * 100}% - ${cropR}px)` }} />
               </div>
             </div>
             <canvas ref={canvasRef} width={256} height={256} className="hidden" />
