@@ -22,8 +22,6 @@ export function ProfilePage() {
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropDataUrl, setCropDataUrl] = useState('');
   const [cropPos, setCropPos] = useState({ x: 0.5, y: 0.5 });
-  const [imgLoaded, setImgLoaded] = useState(false);
-
   function handleMouseDown(e: React.MouseEvent<HTMLImageElement>) {
     const img = cropImgRef.current;
     if (!img) return;
@@ -82,16 +80,11 @@ export function ProfilePage() {
   }
 
   useEffect(() => {
-    if (!cropDialog || !cropImgRef.current) return;
+    if (!cropDialog || !cropImgRef.current || !previewRef.current) return;
     const img = cropImgRef.current;
-    if (img.complete) { setImgLoaded(true); return; }
-    img.onload = () => setImgLoaded(true);
-  }, [cropDialog, cropDataUrl]);
-
-  useEffect(() => {
-    if (!imgLoaded) return;
-    drawPreview();
-  }, [imgLoaded, cropPos]);
+    img.onload = () => drawPreview();
+    if (img.complete) drawPreview();
+  }, [cropDialog, cropDataUrl, cropPos]);
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -249,11 +242,9 @@ export function ProfilePage() {
           <div className="flex flex-col items-center gap-4">
             <div className="relative cursor-crosshair" onMouseDown={handleMouseDown}>
               <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => setImgLoaded(true)} />
-              {imgLoaded && (
-                <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent 72px, rgba(0,0,0,0.45) 72px)` }}>
-                  <div className="absolute w-36 h-36 rounded-full border-4 border-primary pointer-events-none" style={{ left: `calc(${cropPos.x * 100}% - 72px)`, top: `calc(${cropPos.y * 100}% - 72px)` }} />
-                </div>
-              )}
+              <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent 72px, rgba(0,0,0,0.45) 72px)` }}>
+                <div className="absolute w-36 h-36 rounded-full border-4 border-primary pointer-events-none" style={{ left: `calc(${cropPos.x * 100}% - 72px)`, top: `calc(${cropPos.y * 100}% - 72px)` }} />
+              </div>
             </div>
             <canvas ref={canvasRef} width={256} height={256} className="hidden" />
             <div className="text-center">
