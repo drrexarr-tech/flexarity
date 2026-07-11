@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Trash2, Edit3, GripVertical, Calendar, Check } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -36,7 +36,6 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
   const currentUser = useAuthStore((s) => s.user);
   const isObserver = task.assignee && task.assignee.id !== currentUser?.id && task.userId === currentUser?.id;
   const [editing, setEditing] = useState(false);
-  const prevColRef = useRef<string | null>(null);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: 'task', task },
@@ -68,12 +67,10 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
               const doneCol = columns.find((c) => c.title === 'Готово');
               if (!doneCol || !task.columnId) return;
               if (task.columnId === doneCol.id) {
-                const fallback = prevColRef.current && columns.find((c) => c.id === prevColRef.current);
-                if (fallback && fallback.id !== doneCol.id) {
-                  onUpdate(task.id, { columnId: fallback.id });
-                }
+                const sorted = [...columns].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+                const fallback = sorted.find((c) => c.id !== doneCol.id);
+                if (fallback) onUpdate(task.id, { columnId: fallback.id });
               } else {
-                prevColRef.current = task.columnId;
                 onUpdate(task.id, { columnId: doneCol.id });
               }
             }}

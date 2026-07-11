@@ -109,23 +109,23 @@ export function FamilyPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
+      <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold lg:text-3xl">Моя семья</h1>
-          <p className="text-sm text-muted-foreground">Синхронизация задач и рецептов с близкими</p>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> Создать семью</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Создать семью</DialogTitle></DialogHeader>
+              <div className="flex gap-2">
+                <Input placeholder="Название семьи" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                <Button onClick={handleCreate}>Создать</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Создать семью</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Создать семью</DialogTitle></DialogHeader>
-            <div className="flex gap-2">
-              <Input placeholder="Название семьи" value={newName} onChange={(e) => setNewName(e.target.value)} />
-              <Button onClick={handleCreate}>Создать</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <p className="text-sm text-muted-foreground mt-1">Синхронизация задач и рецептов с близкими</p>
       </div>
 
       {families.length === 0 ? (

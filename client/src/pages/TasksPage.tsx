@@ -88,17 +88,15 @@ export function TasksPage() {
 
   return (
     <div className="space-y-4 lg:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Планировщик задач</h1>
-          <p className="text-sm text-muted-foreground lg:text-base">Управляйте своими задачами</p>
-        </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" /> Новая задача
-            </Button>
-          </DialogTrigger>
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-1 h-3.5 w-3.5" /> Новая задача
+              </Button>
+            </DialogTrigger>
           <DialogContent className="w-[95vw] max-w-md sm:w-full">
             <DialogHeader>
               <DialogTitle>Создать задачу</DialogTitle>
@@ -112,6 +110,8 @@ export function TasksPage() {
             />
           </DialogContent>
         </Dialog>
+      </div>
+      <p className="text-sm text-muted-foreground -mt-2">Управляйте своими задачами</p>
       </div>
 
       <Tabs defaultValue="kanban">

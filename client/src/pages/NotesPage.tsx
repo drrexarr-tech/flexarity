@@ -78,9 +78,9 @@ function NoteImages({ imagesJson }: { imagesJson: string | null }) {
   }
   return (
     <>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {images.map((img: string, i: number) => (
-          <img key={i} src={imgSrc(img)} alt="" className="h-16 w-16 rounded-md object-cover border cursor-pointer" loading="lazy" onClick={(e) => { e.stopPropagation(); setLightbox(img); }} />
+          <img key={i} src={imgSrc(img)} alt="" className="h-12 w-12 rounded-md object-cover border cursor-pointer" loading="lazy" onClick={(e) => { e.stopPropagation(); setLightbox(img); }} />
         ))}
       </div>
       <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
@@ -196,10 +196,10 @@ export function NotesPage() {
   if (loading) return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
 
   return (
-    <div className="space-y-4 max-w-3xl">
-      <div className="flex items-center justify-between">
+    <div className="space-y-3 max-w-3xl">
+      <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold lg:text-3xl">Заметки</h1>
-        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Создать</Button>
+        <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3.5 w-3.5" /> Создать</Button>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -264,10 +264,10 @@ export function NotesPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
+          <div className="grid gap-2 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
             {notes.map((note) => (
-              <Card key={note.id} className="group cursor-pointer transition-shadow hover:shadow-md" onClick={() => openEdit(note)}>
-                <CardContent className="p-3">
+              <Card key={note.id} className="group cursor-pointer transition-shadow hover:shadow-sm" onClick={() => openEdit(note)}>
+                <CardContent className="p-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-medium truncate text-sm">{note.title}</h3>
                     <Button variant="ghost" size="icon" className="invisible group-hover:visible h-6 w-6 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(note.id); }}>
