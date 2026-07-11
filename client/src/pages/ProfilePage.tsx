@@ -23,6 +23,7 @@ export function ProfilePage() {
   const [cropDataUrl, setCropDataUrl] = useState('');
   const [cropPos, setCropPos] = useState({ x: 0.5, y: 0.5 });
   function handleMouseDown(e: React.MouseEvent<HTMLImageElement>) {
+    e.preventDefault();
     const img = cropImgRef.current;
     if (!img) return;
     const rect = img.getBoundingClientRect();
