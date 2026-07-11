@@ -25,6 +25,12 @@ const upload = multer({
   },
 });
 
+const uploadMedia = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, _file, cb) => cb(null, true),
+});
+
 uploadRouter.post('/avatar', authenticate, upload.single('avatar'), async (req: AuthRequest, res: Response) => {
   if (!req.file) throw new AppError(400, 'Файл не загружен');
 
@@ -37,6 +43,18 @@ uploadRouter.post('/avatar', authenticate, upload.single('avatar'), async (req: 
   });
 
   res.json(user);
+});
+
+uploadRouter.post('/image', authenticate, uploadMedia.single('file'), async (req: AuthRequest, res: Response) => {
+  if (!req.file) throw new AppError(400, 'Файл не загружен');
+  const url = `/api/upload/file/${req.file.filename}`;
+  res.json({ url });
+});
+
+uploadRouter.post('/audio', authenticate, uploadMedia.single('file'), async (req: AuthRequest, res: Response) => {
+  if (!req.file) throw new AppError(400, 'Файл не загружен');
+  const url = `/api/upload/file/${req.file.filename}`;
+  res.json({ url });
 });
 
 uploadRouter.get('/file/:filename', async (req: AuthRequest, res: Response) => {

@@ -197,7 +197,7 @@ export function ChatsPage() {
     loadMessages(chat.id);
     setShowMobileList(false);
     clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => loadMessages(chat.id), 5000);
+    pollRef.current = setInterval(() => loadMessages(chat.id), 10000);
   }
 
   useEffect(() => () => clearInterval(pollRef.current), []);
@@ -442,7 +442,7 @@ export function ChatsPage() {
                         </div>
                         <div className={cn('group relative px-3 py-1.5 text-sm leading-relaxed bg-muted rounded-2xl rounded-bl-md inline-block', msg.content === '🎤' && !msg.audio && 'opacity-60')}>
                           {msg.image ? (
-                            <img src={`data:image/png;base64,${msg.image}`} alt="" className="max-w-[200px] rounded-md" loading="lazy" />
+                            <img src={msg.image.startsWith('data:') || msg.image.startsWith('/') ? msg.image : `data:image/png;base64,${msg.image}`} alt="" className="max-w-[200px] rounded-md" loading="lazy" />
                           ) : msg.audio ? (
                             <AudioMessage base64={msg.audio} duration={msg.audioDuration} />
                           ) : (
@@ -479,12 +479,10 @@ export function ChatsPage() {
               <input type="file" accept="image/*" className="hidden" ref={imageInputRef} onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                  const base64 = (ev.target!.result as string).split(',')[1];
-                  handleSend(undefined, undefined, base64);
-                };
-                reader.readAsDataURL(file);
+                try {
+                  const { url } = await api.uploadImage(file);
+                  handleSend(undefined, undefined, url);
+                } catch { toast.error('Ошибка загрузки изображения'); }
                 e.target.value = '';
               }} />
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => imageInputRef.current?.click()}>

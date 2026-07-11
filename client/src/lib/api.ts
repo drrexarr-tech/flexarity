@@ -54,7 +54,37 @@ export const api = {
         body: formData,
       }).then((r) => r.json());
     },
+  uploadImage: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = localStorage.getItem('token');
+      return fetch('/api/upload/image', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then((r) => r.json());
+    },
   },
+  uploadImage: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = localStorage.getItem('token');
+      return fetch('/api/upload/image', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then((r) => r.json());
+    },
+  uploadAudio: (blob: Blob) => {
+      const formData = new FormData();
+      formData.append('file', blob, 'audio.webm');
+      const token = localStorage.getItem('token');
+      return fetch('/api/upload/audio', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then((r) => r.json());
+    },
   recipes: {
     getAll: () => request<any[]>('/recipes'),
     getById: (id: string) => request<any>(`/recipes/${id}`),
@@ -104,7 +134,7 @@ export const api = {
     searchParticipants: (q: string) => request<any[]>(`/chat/search/participants?q=${encodeURIComponent(q)}`),
   },
   notes: {
-    getAll: () => request<any[]>('/notes'),
+    getAll: (skip = 0, take = 20) => request<{ notes: any[]; total: number; skip: number; take: number }>(`/notes?skip=${skip}&take=${take}`),
     create: (data: any) => request<any>('/notes', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<any>(`/notes/${id}`, { method: 'DELETE' }),

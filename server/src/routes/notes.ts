@@ -14,11 +14,20 @@ const noteSchema = z.object({
 });
 
 notesRouter.get('/', async (req: AuthRequest, res: Response) => {
-  const notes = await prisma.note.findMany({
-    where: { userId: req.userId },
-    orderBy: { updatedAt: 'desc' },
-  });
-  res.json(notes);
+  const skip = parseInt(String(req.query.skip)) || 0;
+  const take = Math.min(parseInt(String(req.query.take)) || 20, 50);
+
+  const [notes, total] = await Promise.all([
+    prisma.note.findMany({
+      where: { userId: req.userId },
+      orderBy: { updatedAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.note.count({ where: { userId: req.userId } }),
+  ]);
+
+  res.json({ notes, total, skip, take });
 });
 
 notesRouter.post('/', async (req: AuthRequest, res: Response) => {
