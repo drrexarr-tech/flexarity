@@ -24,13 +24,27 @@ export function ProfilePage() {
   const [cropPos, setCropPos] = useState({ x: 0.5, y: 0.5 });
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  function handleImageClick(e: React.MouseEvent<HTMLImageElement>) {
+  function handleMouseDown(e: React.MouseEvent<HTMLImageElement>) {
     const img = cropImgRef.current;
     if (!img) return;
     const rect = img.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setCropPos({ x, y });
+
+    function move(ev: MouseEvent) {
+      setCropPos({
+        x: Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width)),
+        y: Math.max(0, Math.min(1, (ev.clientY - rect.top) / rect.height)),
+      });
+    }
+
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+    }
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+
+    move(e.nativeEvent);
   }
 
   function drawPreview() {
@@ -226,7 +240,7 @@ export function ProfilePage() {
             <DialogDescription>Кликните на изображении, чтобы выбрать область</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
-            <div className="relative cursor-crosshair" onClick={handleImageClick}>
+            <div className="relative cursor-crosshair" onMouseDown={handleMouseDown}>
               <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => setImgLoaded(true)} />
               {imgLoaded && (
                 <div className="absolute inset-0 pointer-events-none">
