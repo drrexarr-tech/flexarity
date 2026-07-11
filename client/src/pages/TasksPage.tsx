@@ -4,11 +4,8 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { TaskForm } from '@/components/tasks/TaskForm';
 import { KanbanBoard } from '@/components/tasks/KanbanBoard';
@@ -21,6 +18,7 @@ export function TasksPage() {
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +54,13 @@ export function TasksPage() {
   }
 
   async function handleDeleteTask(id: string) {
+    setDeleteTarget(id);
+  }
+
+  async function confirmDeleteTask() {
+    const id = deleteTarget;
+    setDeleteTarget(null);
+    if (!id) return;
     try {
       await api.tasks.delete(id);
       toast.success('Задача удалена');
@@ -144,6 +149,19 @@ export function TasksPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Удалить задачу?</DialogTitle>
+            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={confirmDeleteTask}>Удалить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

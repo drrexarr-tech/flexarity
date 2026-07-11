@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import toast from 'react-hot-toast';
 
@@ -18,6 +18,8 @@ export function FamilyPage() {
   const [newName, setNewName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ familyId: string; userId: string } | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -64,9 +66,15 @@ export function FamilyPage() {
   }
 
   async function handleRemoveMember(familyId: string, userId: string) {
-    if (!confirm('Удалить участника?')) return;
+    setRemoveTarget({ familyId, userId });
+  }
+
+  async function confirmRemoveMember() {
+    const target = removeTarget;
+    setRemoveTarget(null);
+    if (!target) return;
     try {
-      await api.family.removeMember(familyId, userId);
+      await api.family.removeMember(target.familyId, target.userId);
       toast.success('Участник удалён');
       load();
     } catch (err: any) {
@@ -75,9 +83,15 @@ export function FamilyPage() {
   }
 
   async function handleLeave(familyId: string) {
-    if (!confirm('Покинуть семью?')) return;
+    setLeaveTarget(familyId);
+  }
+
+  async function confirmLeave() {
+    const id = leaveTarget;
+    setLeaveTarget(null);
+    if (!id) return;
     try {
-      await api.family.leave(familyId);
+      await api.family.leave(id);
       toast.success('Вы покинули семью');
       load();
     } catch (err: any) {
@@ -219,6 +233,32 @@ export function FamilyPage() {
           );
         })
       )}
+
+      <Dialog open={!!removeTarget} onOpenChange={() => setRemoveTarget(null)}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Удалить участника?</DialogTitle>
+            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setRemoveTarget(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={confirmRemoveMember}>Удалить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!leaveTarget} onOpenChange={() => setLeaveTarget(null)}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Покинуть семью?</DialogTitle>
+            <DialogDescription>Вы сможете вернуться только по новому приглашению.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setLeaveTarget(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={confirmLeave}>Выйти</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

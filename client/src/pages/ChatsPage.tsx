@@ -115,7 +115,6 @@ export function ChatsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [participantQuery, setParticipantQuery] = useState('');
-  const [participantResults, setParticipantResults] = useState<any[]>([]);
   const [showMobileList, setShowMobileList] = useState(true);
   const [encryptionReady, setEncryptionReady] = useState(false);
   const [deleteChatTarget, setDeleteChatTarget] = useState<string | null>(null);
@@ -275,10 +274,8 @@ export function ChatsPage() {
     try { setSearchResults(await api.chat.searchUsers(q)); } catch {}
   }
 
-  async function handleParticipantSearch(q: string) {
+  function handleParticipantSearch(q: string) {
     setParticipantQuery(q);
-    if (q.length < 2) { setParticipantResults([]); return; }
-    try { setParticipantResults(await api.chat.searchParticipants(q)); } catch {}
   }
 
   async function handleStartChat(participantId: string) {
@@ -342,28 +339,28 @@ export function ChatsPage() {
             <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Поиск в чатах..." className="pl-7 h-7 text-xs" value={participantQuery} onChange={(e) => handleParticipantSearch(e.target.value)} />
           </div>
-          {participantResults.length > 0 && (
-            <div className="absolute z-10 w-64 rounded-md border bg-card shadow-md p-1">
-              {participantResults.map((u) => (
-                <button key={u.id} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted" onClick={() => { const chat = chats.find((c) => c.id === u.chatId); if (chat) selectChat(chat); setParticipantQuery(''); setParticipantResults([]); }}>
-                  <span className="font-medium">{u.name}</span>
-                  <span className="text-muted-foreground">{u.email}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <ScrollArea className="flex-1">
-          {chats.length === 0 ? (
+          {chats.filter((c) => {
+            if (participantQuery.length < 1) return true;
+            const o = getOtherUser(c);
+            const q = participantQuery.toLowerCase();
+            return o && (o.name.toLowerCase().includes(q) || o.email.toLowerCase().includes(q));
+          }).length === 0 ? (
             <div className="flex flex-col items-center py-12 text-muted-foreground">
-              <MessageSquare className="mb-2 h-8 w-8" />
-              <p className="text-xs">Нет чатов</p>
+              <Search className="mb-2 h-8 w-8" />
+              <p className="text-xs">{participantQuery.length >= 1 ? 'Нет такого пользователя' : 'Нет чатов'}</p>
             </div>
           ) : (
-            chats.map((chat) => {
+            chats.filter((c) => {
+              if (participantQuery.length < 1) return true;
+              const o = getOtherUser(c);
+              const q = participantQuery.toLowerCase();
+              return o && (o.name.toLowerCase().includes(q) || o.email.toLowerCase().includes(q));
+            }).map((chat) => {
               const other = getOtherUser(chat);
               const hasKey = chat.keys?.length > 0;
-                  return (
+              return (
                 <div key={chat.id} className="group flex items-center">
                   <button className={cn('flex flex-1 items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted/50 border-b border-border/50', selectedChat?.id === chat.id && 'bg-muted')} onClick={() => selectChat(chat)}>
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary overflow-hidden">

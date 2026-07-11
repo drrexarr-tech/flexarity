@@ -264,17 +264,17 @@ export function NotesPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
             {notes.map((note) => (
               <Card key={note.id} className="group cursor-pointer transition-shadow hover:shadow-md" onClick={() => openEdit(note)}>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-medium truncate">{note.title}</h3>
-                    <Button variant="ghost" size="icon" className="invisible group-hover:visible h-7 w-7 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(note.id); }}>
-                      <Trash2 className="h-3.5 w-3.5" />
+                    <h3 className="font-medium truncate text-sm">{note.title}</h3>
+                    <Button variant="ghost" size="icon" className="invisible group-hover:visible h-6 w-6 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(note.id); }}>
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
-                  {note.content && <p className="mt-1 text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">{note.content}</p>}
+                  {note.content && <p className="mt-1 text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">{note.content}</p>}
                   <NoteImages imagesJson={note.images} />
                   {note.audio && (() => { try {
                     const list = JSON.parse(note.audio);
@@ -282,12 +282,12 @@ export function NotesPage() {
                       return list.map((a: any, i: number) => {
                         const url = typeof a === 'string' ? `data:audio/webm;base64,${a}` : a.data ? `data:audio/webm;base64,${a.data}` : a.url;
                         const duration = a.duration || 0;
-                        return <div key={i} className="mt-1"><AudioMsg url={url} duration={duration} /></div>;
+                        return <div key={i} className="mt-0.5"><AudioMsg url={url} duration={duration} /></div>;
                       });
                     }
                     return null;
                   } catch { return null; }})()}
-                  <p className="mt-2 text-[10px] text-muted-foreground/60">{new Date(note.updatedAt).toLocaleDateString('ru-RU')}</p>
+                  <p className="mt-1.5 text-[10px] text-muted-foreground/60">{new Date(note.updatedAt).toLocaleDateString('ru-RU')}</p>
                 </CardContent>
               </Card>
             ))}

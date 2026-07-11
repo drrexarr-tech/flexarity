@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
 import type { Recipe } from '@/types';
@@ -24,6 +26,7 @@ export function RecipesPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const navigate = useNavigate();
   const isMobile = !useMediaQuery('(min-width: 640px)');
 
@@ -41,7 +44,6 @@ export function RecipesPage() {
   useEffect(() => { load(); }, []);
 
   async function handleDelete(id: string) {
-    if (!confirm('Удалить рецепт?')) return;
     try {
       await api.recipes.delete(id);
       setRecipes((prev) => prev.filter((r) => r.id !== id));
@@ -49,6 +51,7 @@ export function RecipesPage() {
     } catch (err: any) {
       toast.error(err.message);
     }
+    setDeleteTarget(null);
   }
 
   const filtered = recipes.filter(
@@ -135,7 +138,7 @@ export function RecipesPage() {
                       className="h-7 w-7 text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(recipe.id);
+                        setDeleteTarget(recipe.id);
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -157,6 +160,19 @@ export function RecipesPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Удалить рецепт?</DialogTitle>
+            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Удалить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

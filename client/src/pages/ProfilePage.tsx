@@ -23,6 +23,8 @@ export function ProfilePage() {
   const [cropDataUrl, setCropDataUrl] = useState('');
   const [cropPos, setCropPos] = useState({ x: 0.5, y: 0.5 });
   const [cropR, setCropR] = useState(72);
+  const [unlinkTarget, setUnlinkTarget] = useState<'telegram' | 'vk' | null>(null);
+  const [deleteAvatarDialog, setDeleteAvatarDialog] = useState(false);
   function handleMouseDown(e: React.MouseEvent<HTMLImageElement>) {
     e.preventDefault();
     const img = cropImgRef.current;
@@ -171,6 +173,11 @@ export function ProfilePage() {
   }
 
   async function handleDeleteAvatar() {
+    setDeleteAvatarDialog(true);
+  }
+
+  async function confirmDeleteAvatar() {
+    setDeleteAvatarDialog(false);
     try {
       const updated = await api.auth.updateProfile({ avatarUrl: null });
       setUser(updated);
@@ -181,7 +188,13 @@ export function ProfilePage() {
   }
 
   async function handleUnlink(provider: 'telegram' | 'vk') {
-    if (!confirm(`Отвязать ${provider === 'telegram' ? 'Telegram' : 'VK'}?`)) return;
+    setUnlinkTarget(provider);
+  }
+
+  async function confirmUnlink() {
+    const provider = unlinkTarget;
+    setUnlinkTarget(null);
+    if (!provider) return;
     try {
       const updated = await api.auth.link(provider, { remove: true });
       setUser(updated);
@@ -338,6 +351,32 @@ export function ProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={deleteAvatarDialog} onOpenChange={setDeleteAvatarDialog}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Удалить аватарку?</DialogTitle>
+            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteAvatarDialog(false)}>Отмена</Button>
+            <Button variant="destructive" onClick={confirmDeleteAvatar}>Удалить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!unlinkTarget} onOpenChange={() => setUnlinkTarget(null)}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Отвязать {unlinkTarget === 'telegram' ? 'Telegram' : 'VK'}?</DialogTitle>
+            <DialogDescription>Вы сможете привязать его снова позже.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setUnlinkTarget(null)}>Отмена</Button>
+            <Button variant="destructive" onClick={confirmUnlink}>Отвязать</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

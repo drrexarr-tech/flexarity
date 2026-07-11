@@ -7,11 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
 import type { Recipe } from '@/types';
@@ -23,6 +20,7 @@ export function RecipeDetailPage() {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   async function load() {
     if (!id) return;
@@ -40,7 +38,7 @@ export function RecipeDetailPage() {
   useEffect(() => { load(); }, [id]);
 
   async function handleDelete() {
-    if (!recipe || !confirm('Удалить рецепт?')) return;
+    if (!recipe) return;
     try {
       await api.recipes.delete(recipe.id);
       toast.success('Рецепт удалён');
@@ -83,7 +81,7 @@ export function RecipeDetailPage() {
               <RecipeForm recipe={recipe} onSuccess={() => { setEditDialogOpen(false); load(); }} />
             </DialogContent>
           </Dialog>
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
+          <Button variant="destructive" size="sm" onClick={() => setDeleteDialog(true)}>
             <Trash2 className="mr-2 h-4 w-4" /> Удалить
           </Button>
         </div>
@@ -155,6 +153,19 @@ export function RecipeDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Удалить рецепт?</DialogTitle>
+            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteDialog(false)}>Отмена</Button>
+            <Button variant="destructive" onClick={() => { setDeleteDialog(false); handleDelete(); }}>Удалить</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
