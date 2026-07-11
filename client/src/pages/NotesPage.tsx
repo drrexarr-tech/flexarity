@@ -56,18 +56,15 @@ function AudioMsg({ base64 }: { base64: string }) {
   );
 }
 
-function NoteContent({ content }: { content: string }) {
-  const parts = content.split(/(!\[image\]\(data:[^)]+\))/g);
+function NoteImages({ imagesJson }: { imagesJson: string | null }) {
+  const images = (() => { try { const p = JSON.parse(imagesJson || '[]'); return Array.isArray(p) ? p : []; } catch { return []; } })();
+  if (images.length === 0) return null;
   return (
-    <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
-      {parts.map((part, i) => {
-        const match = part.match(/^!\[image\]\(data:(image\/[^;]+);base64,([^)]+)\)$/);
-        if (match) {
-          return <img key={i} src={`data:${match[1]};base64,${match[2]}`} alt="" className="max-w-full h-auto rounded-md my-1" loading="lazy" />;
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </p>
+    <div className="mt-2 flex flex-wrap gap-2">
+      {images.map((img: string, i: number) => (
+        <img key={i} src={`data:image/png;base64,${img}`} alt="" className="h-16 w-16 rounded-md object-cover border" loading="lazy" />
+      ))}
+    </div>
   );
 }
 
@@ -80,6 +77,7 @@ export function NotesPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [audios, setAudios] = useState<string[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,13 +88,14 @@ export function NotesPage() {
     finally { setLoading(false); }
   }
 
-  function openCreate() { setEditing(null); setTitle(''); setContent(''); setAudios([]); setSaving(false); setDialogOpen(true); }
+  function openCreate() { setEditing(null); setTitle(''); setContent(''); setAudios([]); setImages([]); setSaving(false); setDialogOpen(true); }
 
   function openEdit(note: any) {
     setEditing(note);
     setTitle(note.title);
     setContent(note.content || '');
     try { setAudios(JSON.parse(note.audio || '[]')); } catch { setAudios(note.audio ? [note.audio] : []); }
+    try { setImages(JSON.parse(note.images || '[]')); } catch { setImages([]); }
     setSaving(false);
     setDialogOpen(true);
   }
@@ -105,13 +104,17 @@ export function NotesPage() {
 
   function removeAudio(idx: number) { setAudios((prev) => prev.filter((_, i) => i !== idx)); }
 
+  function addImage(imgBase64: string) { setImages((prev) => [...prev, imgBase64]); }
+
+  function removeImage(idx: number) { setImages((prev) => prev.filter((_, i) => i !== idx)); }
+
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const dataUrl = ev.target!.result as string;
-      setContent((prev) => prev + `\n![image](${dataUrl})\n`);
+      const base64 = (ev.target!.result as string).split(',')[1];
+      addImage(base64);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -124,6 +127,8 @@ export function NotesPage() {
       const data: any = { title, content };
       if (audios.length > 0) data.audio = JSON.stringify(audios);
       else data.audio = null;
+      if (images.length > 0) data.images = JSON.stringify(images);
+      else data.images = null;
       if (editing) {
         await api.notes.update(editing.id, data);
       } else {
@@ -157,9 +162,17 @@ export function NotesPage() {
             <div className="flex flex-wrap items-center gap-2">
               <VoiceRecorder onSend={addAudio} />
               <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => fileInputRef.current?.click()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => fileInputRef.current?.click()} title="Добавить изображение">
                 <Image className="h-4 w-4" />
               </Button>
+              {images.map((img, i) => (
+                <div key={i} className="relative group/image">
+                  <img src={`data:image/png;base64,${img}`} alt="" className="h-10 w-10 rounded-md object-cover border" />
+                  <button className="absolute -top-1 -right-1 hidden group-hover/image:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground" onClick={() => removeImage(i)}>
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              ))}
               {audios.map((a, i) => (
                 <div key={i} className="flex items-center gap-1 rounded-md bg-muted px-2 py-1">
                   <AudioMsg base64={a} />
@@ -205,7 +218,8 @@ export function NotesPage() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                {note.content && <NoteContent content={note.content} />}
+                {note.content && <p className="mt-1 text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">{note.content}</p>}
+                <NoteImages imagesJson={note.images} />
                 {note.audio && (() => { try {
                   const list = JSON.parse(note.audio);
                   return Array.isArray(list) ? list.map((a: string, i: number) => <div key={i} className="mt-1"><AudioMsg base64={a} /></div>) : <div className="mt-2"><AudioMsg base64={note.audio} /></div>;

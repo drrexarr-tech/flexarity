@@ -68,6 +68,10 @@ export function ProfilePage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    ctx.beginPath();
+    ctx.arc(128, 128, 128, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
     ctx.drawImage(img, x, y, size, size, 0, 0, 256, 256);
 
     canvas.toBlob(async (blob) => {
@@ -106,9 +110,9 @@ export function ProfilePage() {
     } catch (err: any) { toast.error(err.message); }
   }
 
-  const avatarUrl = user?.avatarUrl?.startsWith('data:') || user?.avatarUrl?.startsWith('http')
-    ? user?.avatarUrl
-    : user?.avatarUrl ? `/api/upload/file/${user.avatarUrl}` : null;
+  const avatarUrl = user?.avatarUrl
+    ? (user.avatarUrl.startsWith('data:') || user.avatarUrl.startsWith('http') ? user.avatarUrl : `/api/upload/file/${user.avatarUrl}`)
+    : null;
 
   return (
     <div className="max-w-lg space-y-6">

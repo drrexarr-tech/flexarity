@@ -380,12 +380,6 @@ export function ChatsPage() {
                       {chat.messages?.[0] && <p className="truncate text-[11px] text-muted-foreground/60">{chat.messages[0].content}</p>}
                     </div>
                   </button>
-                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-destructive" onClick={() => setDeleteChatTarget(chat.id)} title="Удалить чат">
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-muted-foreground" onClick={() => handleLeaveChat(chat.id)} title="Выйти из чата">
-                    <LogOut className="h-3 w-3" />
-                  </Button>
                 </div>
               );
             })

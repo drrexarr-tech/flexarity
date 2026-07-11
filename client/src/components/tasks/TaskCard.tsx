@@ -117,6 +117,11 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
                   {isObserver && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-amber-600 border-amber-300">Наблюдаю</Badge>}
                 </span>
               )}
+              {task.user && task.user.id !== currentUser?.id && (
+                <span className="text-[10px] text-muted-foreground/50">
+                  от {task.user.name}
+                </span>
+              )}
               {task.visibility && task.visibility !== 'private' && (
                 <Badge variant="outline" className="text-[10px]">
                   {task.visibility === 'family' ? 'Семья' : 'Публичный'}

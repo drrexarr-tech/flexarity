@@ -40,21 +40,28 @@ tasksRouter.get('/columns', async (req: AuthRequest, res: Response) => {
         where: {
           OR: [
             { userId: req.userId },
+            { assigneeId: req.userId },
             { visibility: 'family', familyId: { in: familyIds } },
             { visibility: 'public' },
           ],
         },
         orderBy: { order: 'asc' },
-        include: { assignee: { select: { id: true, name: true, email: true } } },
+        include: {
+          assignee: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true } },
+        },
       },
     },
     orderBy: { order: 'asc' },
   });
 
+  const myColumnIds = columns.map((c) => c.id);
+
   const assignedTasks = await prisma.task.findMany({
     where: {
       assigneeId: req.userId,
       userId: { not: req.userId },
+      columnId: { notIn: myColumnIds },
     },
     orderBy: { order: 'asc' },
     include: {
