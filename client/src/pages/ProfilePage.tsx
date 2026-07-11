@@ -32,14 +32,16 @@ export function ProfilePage() {
     const clickY = (e.clientY - rect.top) / rect.height;
     const rX = 72 / rect.width;
     const rY = 72 / rect.height;
-    const dx = (clickX - cropPos.x) / rX;
-    const dy = (clickY - cropPos.y) / rY;
-    if (dx * dx + dy * dy > 1) return;
+
+    const inCircle = rX > 0.5 || rY > 0.5 || ((clickX - cropPos.x) / rX) ** 2 + ((clickY - cropPos.y) / rY) ** 2 <= 1;
+    if (!inCircle) return;
 
     function move(ev: MouseEvent) {
+      const mX = Math.max(rX, Math.min(1 - rX, (ev.clientX - rect.left) / rect.width));
+      const mY = Math.max(rY, Math.min(1 - rY, (ev.clientY - rect.top) / rect.height));
       setCropPos({
-        x: Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width)),
-        y: Math.max(0, Math.min(1, (ev.clientY - rect.top) / rect.height)),
+        x: isNaN(mX) ? 0.5 : mX,
+        y: isNaN(mY) ? 0.5 : mY,
       });
     }
 
