@@ -17,27 +17,30 @@ export function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const cropImgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewRef = useRef<HTMLCanvasElement>(null);
   const [cropDialog, setCropDialog] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropDataUrl, setCropDataUrl] = useState('');
 
   useEffect(() => {
-    if (!cropDialog || !cropImgRef.current) return;
+    if (!cropDialog || !cropImgRef.current || !previewRef.current) return;
     const img = cropImgRef.current;
+    const canvas = previewRef.current;
     const onLoad = () => {
-      const preview = document.getElementById('crop-preview') as HTMLCanvasElement;
-      if (!preview) return;
-      const ctx = preview.getContext('2d');
+      const ctx = canvas.getContext('2d');
       if (!ctx) return;
+      const side = 256;
+      canvas.width = side;
+      canvas.height = side;
       const size = Math.min(img.naturalWidth, img.naturalHeight);
       const x = (img.naturalWidth - size) / 2;
       const y = (img.naturalHeight - size) / 2;
-      ctx.clearRect(0, 0, 128, 128);
+      ctx.clearRect(0, 0, side, side);
       ctx.beginPath();
-      ctx.arc(64, 64, 64, 0, Math.PI * 2);
+      ctx.arc(side / 2, side / 2, side / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img, x, y, size, size, 0, 0, 128, 128);
+      ctx.drawImage(img, x, y, size, size, 0, 0, side, side);
     };
     if (img.complete) onLoad();
     else { img.onload = onLoad; }
@@ -197,9 +200,12 @@ export function ProfilePage() {
             <DialogDescription>Предпросмотр круглой аватарки</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
-            <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[40vh] rounded-md" />
+            <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" />
             <canvas ref={canvasRef} width={256} height={256} className="hidden" />
-            <canvas id="crop-preview" width={128} height={128} className="rounded-full border-2 border-border" style={{ width: 128, height: 128 }} />
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground mb-2">Предпросмотр:</p>
+              <canvas ref={previewRef} className="rounded-full border-2 border-border mx-auto" style={{ width: 128, height: 128 }} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCropDialog(false)}>Отмена</Button>

@@ -9,8 +9,8 @@ notesRouter.use(authenticate);
 const noteSchema = z.object({
   title: z.string().min(1),
   content: z.string().optional(),
-  images: z.string().optional(),
-  audio: z.string().optional(),
+  images: z.string().nullable().optional(),
+  audio: z.string().nullable().optional(),
 });
 
 notesRouter.get('/', async (req: AuthRequest, res: Response) => {

@@ -17,6 +17,12 @@ import {
 } from '@/lib/crypto';
 import toast from 'react-hot-toast';
 
+function getAvatarUrl(url: string | null | undefined) {
+  if (!url) return null;
+  if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('/')) return url;
+  return `/api/upload/file/${url}`;
+}
+
 function formatDuration(sec: number) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -323,7 +329,7 @@ export function ChatsPage() {
                 <div className="mt-2 space-y-0.5">
                   {searchResults.map((u) => (
                     <button key={u.id} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-muted" onClick={() => handleStartChat(u.id)}>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium overflow-hidden">{u.avatarUrl ? <img src={`/api/upload/file/${u.avatarUrl}`} alt="" className="h-full w-full object-cover" /> : (u.name?.[0]?.toUpperCase() || '?')}</div>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium overflow-hidden">{getAvatarUrl(u.avatarUrl) ? <img src={getAvatarUrl(u.avatarUrl)!} alt="" className="h-full w-full object-cover" /> : (u.name?.[0]?.toUpperCase() || '?')}</div>
                       <div><p className="text-sm font-medium">{u.name}</p><p className="text-xs text-muted-foreground">{u.email}</p></div>
                     </button>
                   ))}
@@ -361,7 +367,7 @@ export function ChatsPage() {
                 <div key={chat.id} className="group flex items-center">
                   <button className={cn('flex flex-1 items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted/50 border-b border-border/50', selectedChat?.id === chat.id && 'bg-muted')} onClick={() => selectChat(chat)}>
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary overflow-hidden">
-                      {other?.avatarUrl ? <img src={`/api/upload/file/${other.avatarUrl}`} alt="" className="h-full w-full object-cover" /> : (other?.name?.[0]?.toUpperCase() || '?')}
+                      {getAvatarUrl(other?.avatarUrl) ? <img src={getAvatarUrl(other?.avatarUrl)!} alt="" className="h-full w-full object-cover" /> : (other?.name?.[0]?.toUpperCase() || '?')}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
@@ -396,7 +402,7 @@ export function ChatsPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary overflow-hidden">
-                {getOtherUser(selectedChat)?.avatarUrl ? <img src={`/api/upload/file/${getOtherUser(selectedChat).avatarUrl}`} alt="" className="h-full w-full object-cover" /> : (getOtherUser(selectedChat)?.name?.[0]?.toUpperCase() || '?')}
+                {getAvatarUrl(getOtherUser(selectedChat)?.avatarUrl) ? <img src={getAvatarUrl(getOtherUser(selectedChat)?.avatarUrl)!} alt="" className="h-full w-full object-cover" /> : (getOtherUser(selectedChat)?.name?.[0]?.toUpperCase() || '?')}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -422,9 +428,7 @@ export function ChatsPage() {
                 {messages.length === 0 && <p className="py-10 text-center text-xs text-muted-foreground">Сообщений пока нет</p>}
                 {messages.map((msg) => {
                   const isMine = msg.userId === user?.id;
-                  const avatarUrl = msg.user?.avatarUrl
-                    ? `/api/upload/file/${msg.user.avatarUrl}`
-                    : null;
+                  const avatarUrl = getAvatarUrl(msg.user?.avatarUrl);
                   const initial = msg.user?.name?.[0]?.toUpperCase() || '?';
                   return (
                     <div key={msg.id} className="flex gap-2 mb-4 max-w-[85%]">

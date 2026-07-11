@@ -111,7 +111,14 @@ export function NotesPage() {
     setEditing(note);
     setTitle(note.title);
     setContent(note.content || '');
-    try { setAudios(JSON.parse(note.audio || '[]')); } catch { setAudios(note.audio ? [{ data: note.audio, duration: 0 }] : []); }
+    try {
+      const parsed = JSON.parse(note.audio || '[]');
+      if (Array.isArray(parsed)) {
+        setAudios(parsed.map((a: any) => typeof a === 'string' ? { data: a, duration: 0 } : a));
+      } else {
+        setAudios(note.audio ? [{ data: note.audio, duration: 0 }] : []);
+      }
+    } catch { setAudios(note.audio ? [{ data: note.audio, duration: 0 }] : []); }
     try { setImages(JSON.parse(note.images || '[]')); } catch { setImages([]); }
     setSaving(false);
     setDialogOpen(true);
