@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Plus, Mic, Square, Play, Pause, Trash2, Edit3, StickyNote } from 'lucide-react';
+import { Plus, Mic, Square, Play, Pause, Trash2, Edit3, StickyNote, Image, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,7 +64,8 @@ export function NotesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [audio, setAudio] = useState<string | null>(null);
+  const [audios, setAudios] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -73,15 +74,41 @@ export function NotesPage() {
     finally { setLoading(false); }
   }
 
-  function openCreate() { setEditing(null); setTitle(''); setContent(''); setAudio(null); setDialogOpen(true); }
+  function openCreate() { setEditing(null); setTitle(''); setContent(''); setAudios([]); setDialogOpen(true); }
 
-  function openEdit(note: any) { setEditing(note); setTitle(note.title); setContent(note.content || ''); setAudio(note.audio || null); setDialogOpen(true); }
+  function openEdit(note: any) {
+    setEditing(note);
+    setTitle(note.title);
+    setContent(note.content || '');
+    try { setAudios(JSON.parse(note.audio || '[]')); } catch { setAudios(note.audio ? [note.audio] : []); }
+    setDialogOpen(true);
+  }
+
+  function addAudio(audioBase64: string) {
+    setAudios((prev) => [...prev, audioBase64]);
+  }
+
+  function removeAudio(idx: number) {
+    setAudios((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = (ev.target!.result as string).split(',')[1];
+      setContent((prev) => prev + `\n![image](data:image/png;base64,${base64})\n`);
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function handleSave() {
     if (!title.trim()) return;
     try {
       const data: any = { title, content };
-      if (audio) data.audio = audio;
+      if (audios.length > 0) data.audio = JSON.stringify(audios);
+      else data.audio = null;
       if (editing) {
         await api.notes.update(editing.id, data);
       } else {
@@ -112,10 +139,20 @@ export function NotesPage() {
           <div className="space-y-3">
             <Input placeholder="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} />
             <Textarea placeholder="Содержание..." rows={6} value={content} onChange={(e) => setContent(e.target.value)} />
-            <div className="flex items-center gap-2">
-              <VoiceRecorder onSend={(b) => setAudio(b)} />
-              {audio && <AudioMsg base64={audio} />}
-              {audio && <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setAudio(null)}><Trash2 className="h-3 w-3" /></Button>}
+            <div className="flex flex-wrap items-center gap-2">
+              <VoiceRecorder onSend={addAudio} />
+              <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => fileInputRef.current?.click()}>
+                <Image className="h-4 w-4" />
+              </Button>
+              {audios.map((a, i) => (
+                <div key={i} className="flex items-center gap-1 rounded-md bg-muted px-2 py-1">
+                  <AudioMsg base64={a} />
+                  <button className="text-muted-foreground hover:text-destructive" onClick={() => removeAudio(i)}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
             <Button className="w-full" onClick={handleSave}>Сохранить</Button>
           </div>
@@ -139,7 +176,10 @@ export function NotesPage() {
                   </Button>
                 </div>
                 {note.content && <p className="mt-1 text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">{note.content}</p>}
-                {note.audio && <div className="mt-2"><AudioMsg base64={note.audio} /></div>}
+                {note.audio && (() => { try {
+                  const list = JSON.parse(note.audio);
+                  return Array.isArray(list) ? list.map((a: string, i: number) => <div key={i} className="mt-1"><AudioMsg base64={a} /></div>) : <div className="mt-2"><AudioMsg base64={note.audio} /></div>;
+                } catch { return <div className="mt-2"><AudioMsg base64={note.audio} /></div>; }})()}
                 <p className="mt-2 text-[10px] text-muted-foreground/60">{new Date(note.updatedAt).toLocaleDateString('ru-RU')}</p>
               </CardContent>
             </Card>

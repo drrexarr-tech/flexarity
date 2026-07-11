@@ -15,7 +15,6 @@ import toast from 'react-hot-toast';
 
 const schema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  description: z.string().optional(),
   url: z.string().optional(),
   category: z.string().optional(),
   cookingTime: z.coerce.number().optional(),
@@ -44,7 +43,6 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
     defaultValues: recipe
       ? {
           title: recipe.title,
-          description: recipe.description || '',
           url: recipe.url || '',
           category: recipe.category || '',
           cookingTime: recipe.cookingTime || undefined,
@@ -55,7 +53,6 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
         }
       : {
           title: '',
-          description: '',
           url: '',
           category: '',
           cookingTime: undefined,
@@ -101,11 +98,6 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
         {form.formState.errors.title && (
           <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
         )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Описание</Label>
-        <Textarea id="description" rows={3} {...form.register('description')} />
       </div>
 
       <div className="space-y-2">

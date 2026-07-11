@@ -144,11 +144,6 @@ export function RecipesPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-0 lg:p-4 lg:pt-0">
-                {recipe.description && (
-                  <p className="mb-2 line-clamp-2 text-xs text-muted-foreground lg:text-sm">
-                    {recipe.description}
-                  </p>
-                )}
                 <div className="flex flex-wrap items-center gap-2">
                   {recipe.category && <Badge variant="secondary" className="text-[10px] lg:text-xs">{recipe.category}</Badge>}
                   {recipe.cookingTime && (

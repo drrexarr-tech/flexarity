@@ -93,9 +93,6 @@ export function RecipeDetailPage() {
         <div className="flex items-start gap-4">
           <div className="flex-1">
             <h1 className="text-2xl font-bold lg:text-3xl">{recipe.title}</h1>
-            {recipe.description && (
-              <p className="mt-2 text-sm text-muted-foreground lg:text-base">{recipe.description}</p>
-            )}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {recipe.category && <Badge>{recipe.category}</Badge>}
               {recipe.visibility && (

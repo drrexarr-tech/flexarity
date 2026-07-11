@@ -79,6 +79,7 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
     setLoading(true);
     try {
       const payload: any = { ...data };
+      if (!payload.dueDate) delete payload.dueDate;
       if (data.visibility !== 'family') delete payload.familyId;
       await onSubmit(payload);
       form.reset();
@@ -163,8 +164,14 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="task-due">Срок выполнения</Label>
-        <Input id="task-due" type="datetime-local" {...form.register('dueDate')} />
+        <div className="flex items-center gap-2">
+          <Label htmlFor="task-due">Срок выполнения</Label>
+          <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" checked={!form.watch('dueDate')} onChange={(e) => form.setValue('dueDate', e.target.checked ? '' : undefined)} />
+            Без срока
+          </label>
+        </div>
+        <Input id="task-due" type="datetime-local" {...form.register('dueDate')} disabled={!form.watch('dueDate')} />
       </div>
 
       <div className="space-y-2">

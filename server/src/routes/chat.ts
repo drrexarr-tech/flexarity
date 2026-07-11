@@ -37,6 +37,9 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
               take: 1,
               include: { user: { select: { id: true, name: true, avatarUrl: true } } },
             },
+            _count: {
+              select: { messages: { where: { userId: { not: req.userId }, readAt: null } } },
+            },
           },
         },
       },
@@ -56,6 +59,9 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
               take: 1,
               include: { user: { select: { id: true, name: true, avatarUrl: true } } },
             },
+            _count: {
+              select: { messages: { where: { userId: { not: req.userId }, readAt: null } } },
+            },
           },
         },
       },
@@ -63,7 +69,7 @@ chatRouter.get('/', async (req: AuthRequest, res: Response) => {
     });
   }
 
-  res.json(participations.map((p) => p.chat));
+  res.json(participations.map((p) => ({ ...p.chat, unreadCount: p.chat._count.messages })));
 });
 
 chatRouter.post('/', async (req: AuthRequest, res: Response) => {
@@ -163,6 +169,22 @@ chatRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   res.json({ message: 'Вы вышли из чата' });
 });
 
+chatRouter.delete('/:id/delete', async (req: AuthRequest, res: Response) => {
+  const chatId = String(req.params.id);
+
+  const participant = await prisma.chatParticipant.findFirst({
+    where: { chatId, userId: req.userId },
+  });
+  if (!participant) return res.status(403).json({ error: 'Вы не участник чата' });
+
+  await prisma.message.deleteMany({ where: { chatId } });
+  await prisma.chatKey.deleteMany({ where: { chatId } });
+  await prisma.chatParticipant.deleteMany({ where: { chatId } });
+  await prisma.chat.delete({ where: { id: chatId } });
+
+  res.json({ message: 'Чат удалён' });
+});
+
 chatRouter.get('/search/participants', async (req: AuthRequest, res: Response) => {
   const q = String(req.query.q || '');
   if (q.length < 2) return res.json([]);
@@ -254,6 +276,19 @@ chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
   }
 
   res.status(201).json(message);
+});
+
+chatRouter.delete('/:chatId/messages/:messageId', async (req: AuthRequest, res: Response) => {
+  const chatId = String(req.params.chatId);
+  const messageId = String(req.params.messageId);
+
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, chatId, userId: req.userId },
+  });
+  if (!message) return res.status(404).json({ error: 'Сообщение не найдено' });
+
+  await prisma.message.delete({ where: { id: messageId } });
+  res.json({ message: 'Сообщение удалено' });
 });
 
 chatRouter.put('/:id/encrypt', async (req: AuthRequest, res: Response) => {

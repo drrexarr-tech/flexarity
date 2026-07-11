@@ -11,7 +11,6 @@ export interface User {
 export interface Recipe {
   id: string;
   title: string;
-  description: string | null;
   url: string | null;
   ingredients: string;
   instructions: string;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -14,6 +14,7 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  useSortable,
 } from '@dnd-kit/sortable';
 import { Plus, UserCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,6 +47,21 @@ function ColumnDropArea({ column, children }: { column: TaskColumn; children: Re
   );
 }
 
+function AssignedDropArea({ children }: { children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: 'assigned-column' });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'w-[85vw] sm:w-80 shrink-0 flex-col rounded-xl border bg-amber-50 dark:bg-amber-950/20',
+        isOver && 'bg-primary/5 border-primary/50'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 interface Props {
   columns: TaskColumn[];
   assignedTasks?: any[];
@@ -60,6 +76,8 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
   const [localColumns, setLocalColumns] = useState<TaskColumn[]>(Array.isArray(columns) ? columns : []);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [createDialog, setCreateDialog] = useState<string | null>(null);
+
+  const assignedTaskIds = useMemo(() => (assignedTasks || []).map((t: any) => t.id), [assignedTasks]);
 
   useEffect(() => {
     setLocalColumns(columns);
@@ -78,8 +96,17 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
     return undefined;
   }
 
+  function isAssignedTask(id: string) {
+    return assignedTasks?.some((t: any) => t.id === id);
+  }
+
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
+    if (isAssignedTask(active.id as string)) {
+      const task = assignedTasks?.find((t: any) => t.id === active.id);
+      if (task) setActiveTask(task);
+      return;
+    }
     const column = findColumn(active.id as string);
     if (column) {
       const task = column.tasks.find((t) => t.id === active.id);
@@ -93,23 +120,38 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
 
     if (!over) return;
 
-    const activeCol = findColumn(active.id as string);
-    if (!activeCol) return;
-
-    const task = activeCol.tasks.find((t) => t.id === active.id);
-    if (!task) return;
-
-    let overColId: string | null = null;
     const overStr = over.id as string;
-
+    let overColId: string | null = null;
     if (overStr.startsWith('column-')) {
       overColId = overStr.replace('column-', '');
+    } else if (overStr === 'assigned-column') {
+      // dropped on assigned section - no-op
+      return;
     } else {
       const col = findColumn(overStr);
       if (col) overColId = col.id;
     }
 
-    if (!overColId || activeCol.id === overColId && active.id === over.id) return;
+    if (!overColId) return;
+
+    const activeId = active.id as string;
+
+    // Assigned task dropped on a column -> move to that column
+    if (isAssignedTask(activeId)) {
+      const task = assignedTasks?.find((t: any) => t.id === activeId);
+      if (!task) return;
+      await onUpdateTask(activeId, { columnId: overColId });
+      onRefresh();
+      return;
+    }
+
+    const activeCol = findColumn(activeId);
+    if (!activeCol) return;
+
+    const task = activeCol.tasks.find((t) => t.id === activeId);
+    if (!task) return;
+
+    if (activeCol.id === overColId && activeId === over.id) return;
 
     const updatedColumns = localColumns.map((col) => ({
       ...col,
@@ -119,7 +161,7 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
     const srcCol = updatedColumns.find((c) => c.id === activeCol.id)!;
     const dstCol = updatedColumns.find((c) => c.id === overColId)!;
 
-    const taskIndex = srcCol.tasks.findIndex((t) => t.id === active.id);
+    const taskIndex = srcCol.tasks.findIndex((t) => t.id === activeId);
     if (taskIndex < 0) return;
 
     const [moved] = srcCol.tasks.splice(taskIndex, 1);
@@ -153,24 +195,28 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {assignedTasks && assignedTasks.length > 0 && (
-          <div className="w-[85vw] sm:w-80 shrink-0 flex-col rounded-xl border bg-amber-50 dark:bg-amber-950/20">
+          <AssignedDropArea>
             <div className="flex items-center gap-2 border-b px-4 py-3">
               <UserCheck className="h-4 w-4 text-amber-600" />
               <h3 className="font-semibold text-sm">Назначено мне</h3>
               <span className="text-xs text-muted-foreground">{assignedTasks.length}</span>
             </div>
-            <div className="p-3 space-y-2">
-              {assignedTasks.map((task: any) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  columns={columns}
-                  onUpdate={onUpdateTask}
-                  onDelete={onDeleteTask}
-                />
-              ))}
-            </div>
-          </div>
+            <ScrollArea className="flex-1 p-3">
+              <SortableContext items={assignedTaskIds} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {assignedTasks.map((task: any) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      columns={columns}
+                      onUpdate={onUpdateTask}
+                      onDelete={onDeleteTask}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </ScrollArea>
+          </AssignedDropArea>
         )}
         {localColumns.map((column) => (
           <ColumnDropArea key={column.id} column={column}>

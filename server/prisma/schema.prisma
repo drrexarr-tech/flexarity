@@ -122,7 +122,6 @@ model Message {
 model Recipe {
   id           String       @id @default(uuid())
   title        String
-  description  String?
   url          String?
   ingredients  String       @default("[]")
   instructions String       @default("[]")

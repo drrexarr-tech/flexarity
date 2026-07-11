@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { MessageSquare, Plus, Search, Send, LogOut, Mic, Square, Play, Pause, ChevronLeft, Check, CheckCheck, Lock, UnlockKeyhole, Shield } from 'lucide-react';
+import { MessageSquare, Plus, Search, Send, LogOut, Mic, Square, Play, Pause, ChevronLeft, Check, CheckCheck, Lock, UnlockKeyhole, Shield, X, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -172,7 +172,7 @@ export function ChatsPage() {
             m.audio = await decryptAudio(m.audio, key);
           }
         } catch {
-          if (m.content && !m.content.startsWith('🎤')) m.content = '🔒 Не удалось расшифровать';
+          // If decryption fails, content was never encrypted (pre-encryption messages)
         }
         return m;
       }));
@@ -220,13 +220,23 @@ export function ChatsPage() {
 
   const pollRef = useRef<ReturnType<typeof setInterval>>();
 
-  async function handleDeleteChat(chatId: string) {
-    if (!confirm('Выйти из чата?')) return;
+  async function handleLeaveChat(chatId: string) {
+    if (!confirm('Выйти из чата? История сохранится, и вы сможете вернуться.')) return;
     try {
       await api.chat.delete(chatId);
       if (selectedChat?.id === chatId) { setSelectedChat(null); clearInterval(pollRef.current); }
       loadChats();
       toast.success('Вы вышли из чата');
+    } catch (err: any) { toast.error(err.message); }
+  }
+
+  async function handleDeleteChat(chatId: string) {
+    if (!confirm('Удалить чат для всех? Это действие необратимо.')) return;
+    try {
+      await api.chat.deleteChat(chatId);
+      if (selectedChat?.id === chatId) { setSelectedChat(null); clearInterval(pollRef.current); }
+      loadChats();
+      toast.success('Чат удалён');
     } catch (err: any) { toast.error(err.message); }
   }
 
@@ -354,14 +364,24 @@ export function ChatsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-sm font-medium">{other?.name || 'Чат'}</p>
-                        {hasKey && <Lock className="h-3 w-3 shrink-0 text-green-500" />}
-                        {!hasKey && <UnlockKeyhole className="h-3 w-3 shrink-0 text-muted-foreground/40" />}
+                        <div className="flex items-center gap-1.5">
+                          {chat.unreadCount > 0 && (
+                            <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground animate-in fade-in zoom-in">
+                              {chat.unreadCount}
+                            </span>
+                          )}
+                          {hasKey && <Lock className="h-3 w-3 shrink-0 text-green-500" />}
+                          {!hasKey && <UnlockKeyhole className="h-3 w-3 shrink-0 text-muted-foreground/40" />}
+                        </div>
                       </div>
                       <p className="truncate text-[11px] text-muted-foreground">{other?.email || ''}</p>
                       {chat.messages?.[0] && <p className="truncate text-[11px] text-muted-foreground/60">{chat.messages[0].content}</p>}
                     </div>
                   </button>
-                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-destructive" onClick={() => handleDeleteChat(chat.id)} title="Выйти из чата">
+                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-destructive" onClick={() => handleDeleteChat(chat.id)} title="Удалить чат">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="invisible group-hover:visible h-8 w-8 shrink-0 mr-1 text-muted-foreground" onClick={() => handleLeaveChat(chat.id)} title="Выйти из чата">
                     <LogOut className="h-3 w-3" />
                   </Button>
                 </div>
@@ -394,7 +414,10 @@ export function ChatsPage() {
                   <Shield className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleDeleteChat(selectedChat.id)} title="Выйти из чата">
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => handleDeleteChat(selectedChat.id)} title="Удалить чат для всех">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => handleLeaveChat(selectedChat.id)} title="Выйти из чата">
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -417,11 +440,16 @@ export function ChatsPage() {
                           <span className="text-[12px] font-medium text-primary">{msg.user?.name}</span>
                           <span className="text-[10px] text-muted-foreground/50">{formatTime(msg.createdAt)}</span>
                         </div>
-                        <div className={cn('px-3 py-1.5 text-sm leading-relaxed bg-muted rounded-2xl rounded-bl-md inline-block', msg.content === '🎤' && !msg.audio && 'opacity-60')}>
+                        <div className={cn('group relative px-3 py-1.5 text-sm leading-relaxed bg-muted rounded-2xl rounded-bl-md inline-block', msg.content === '🎤' && !msg.audio && 'opacity-60')}>
                           {msg.audio ? (
                             <AudioMessage base64={msg.audio} duration={msg.audioDuration} />
                           ) : (
                             <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                          )}
+                          {isMine && (
+                            <button className="absolute -top-1 -right-1 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px]" onClick={async (e) => { e.stopPropagation(); try { await api.chat.deleteMessage(selectedChat!.id, msg.id); loadMessages(selectedChat!.id); } catch {} }}>
+                              <X className="h-2.5 w-2.5" />
+                            </button>
                           )}
                         </div>
                         {isMine && (
