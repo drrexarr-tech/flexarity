@@ -255,7 +255,14 @@ export function ProfilePage() {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
             <div className="relative cursor-crosshair w-fit" onMouseDown={handleMouseDown}>
-              <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => setPreviewKey(k => k + 1)} />
+              <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => {
+                setPreviewKey(k => k + 1);
+                const img = cropImgRef.current;
+                if (img) {
+                  const rect = img.getBoundingClientRect();
+                  setCropR(Math.min(72, rect.width / 2, rect.height / 2));
+                }
+              }} />
               <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at ${cropPos.x * 100}% ${cropPos.y * 100}%, transparent ${cropR}px, rgba(0,0,0,0.45) ${cropR}px)` }}>
                 <div className="absolute rounded-full border-4 border-primary pointer-events-none" style={{ width: cropR * 2, height: cropR * 2, left: `calc(${cropPos.x * 100}% - ${cropR}px)`, top: `calc(${cropPos.y * 100}% - ${cropR}px)` }} />
               </div>
