@@ -80,7 +80,7 @@ function NoteImages({ imagesJson }: { imagesJson: string | null }) {
     <>
       <div className="mt-2 flex flex-wrap gap-2">
         {images.map((img: string, i: number) => (
-          <img key={i} src={imgSrc(img)} alt="" className="h-16 w-16 rounded-md object-cover border cursor-pointer" loading="lazy" onClick={() => setLightbox(img)} />
+          <img key={i} src={imgSrc(img)} alt="" className="h-16 w-16 rounded-md object-cover border cursor-pointer" loading="lazy" onClick={(e) => { e.stopPropagation(); setLightbox(img); }} />
         ))}
       </div>
       <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
@@ -105,6 +105,7 @@ export function NotesPage() {
   const [audios, setAudios] = useState<{ url: string; duration: number }[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [dialogLightbox, setDialogLightbox] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); }, []);
@@ -215,7 +216,7 @@ export function NotesPage() {
               </Button>
               {images.map((img, i) => (
                 <div key={i} className="relative group/image">
-                  <img src={img.startsWith('data:') ? img : img} alt="" className="h-10 w-10 rounded-md object-cover border" />
+                  <img src={img.startsWith('data:') ? img : img} alt="" className="h-10 w-10 rounded-md object-cover border cursor-pointer" onClick={() => setDialogLightbox(img)} />
                   <button className="absolute -top-1 -right-1 hidden group-hover/image:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground" onClick={() => removeImage(i)}>
                     <X className="h-2.5 w-2.5" />
                   </button>
@@ -234,6 +235,12 @@ export function NotesPage() {
               {saving ? 'Сохранение...' : 'Сохранить'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!dialogLightbox} onOpenChange={() => setDialogLightbox(null)}>
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh]">
+          {dialogLightbox && <img src={dialogLightbox.startsWith('data:') ? dialogLightbox : dialogLightbox} alt="" className="w-full h-auto max-h-[80vh] object-contain rounded-md" />}
         </DialogContent>
       </Dialog>
 

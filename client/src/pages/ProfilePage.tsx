@@ -26,24 +26,31 @@ export function ProfilePage() {
     if (!cropDialog || !cropImgRef.current || !previewRef.current) return;
     const img = cropImgRef.current;
     const canvas = previewRef.current;
-    const onLoad = () => {
+    function drawPreview() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const side = 256;
+      const side = 200;
       canvas.width = side;
       canvas.height = side;
       const size = Math.min(img.naturalWidth, img.naturalHeight);
-      const x = (img.naturalWidth - size) / 2;
-      const y = (img.naturalHeight - size) / 2;
+      const sx = (img.naturalWidth - size) / 2;
+      const sy = (img.naturalHeight - size) / 2;
       ctx.clearRect(0, 0, side, side);
+      ctx.save();
       ctx.beginPath();
       ctx.arc(side / 2, side / 2, side / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img, x, y, size, size, 0, 0, side, side);
-    };
-    if (img.complete) onLoad();
-    else { img.onload = onLoad; }
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, side, side);
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(side / 2, side / 2, side / 2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'hsl(var(--primary))';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    if (img.complete) drawPreview();
+    else img.onload = drawPreview;
   }, [cropDialog, cropDataUrl]);
 
   const [name, setName] = useState(user?.name || '');
@@ -197,14 +204,19 @@ export function ProfilePage() {
         <DialogContent className="w-[90vw] max-w-sm">
           <DialogHeader>
             <DialogTitle>Обрезка аватарки</DialogTitle>
-            <DialogDescription>Предпросмотр круглой аватарки</DialogDescription>
+            <DialogDescription>Центральная часть изображения будет обрезана по кругу</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
-            <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" />
+            <div className="relative">
+              <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-36 h-36 rounded-full border-4 border-primary shadow-[0_0_0_999px_rgba(0,0,0,0.4)]" />
+              </div>
+            </div>
             <canvas ref={canvasRef} width={256} height={256} className="hidden" />
             <div className="text-center">
-              <p className="text-xs text-muted-foreground mb-2">Предпросмотр:</p>
-              <canvas ref={previewRef} className="rounded-full border-2 border-border mx-auto" style={{ width: 128, height: 128 }} />
+              <p className="text-xs text-muted-foreground mb-2">Результат:</p>
+              <canvas ref={previewRef} className="rounded-full border-2 border-border mx-auto" style={{ width: 100, height: 100 }} />
             </div>
           </div>
           <DialogFooter>
