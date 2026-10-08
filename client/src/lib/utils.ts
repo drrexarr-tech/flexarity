@@ -26,3 +26,19 @@ export function formatDateTime(date: string | Date) {
     minute: '2-digit',
   });
 }
+
+export function formatMoney(amount: number) {
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export function daysUntil(date: string | Date) {
+  const target = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+}

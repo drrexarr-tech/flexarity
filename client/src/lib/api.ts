@@ -1,3 +1,5 @@
+import type { Plan, PlanEntry } from '@/types';
+
 const API_URL = '/api';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -91,6 +93,17 @@ export const api = {
     create: (data: any) => request<any>('/recipes', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<any>(`/recipes/${id}`, { method: 'DELETE' }),
+  },
+  plans: {
+    getAll: () => request<Plan[]>('/plans'),
+    getById: (id: string) => request<Plan>(`/plans/${id}`),
+    create: (data: any) => request<Plan>('/plans', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<Plan>(`/plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<any>(`/plans/${id}`, { method: 'DELETE' }),
+    addEntry: (id: string, data: any) =>
+      request<PlanEntry>(`/plans/${id}/entries`, { method: 'POST', body: JSON.stringify(data) }),
+    deleteEntry: (id: string, entryId: string) =>
+      request<any>(`/plans/${id}/entries/${entryId}`, { method: 'DELETE' }),
   },
   tasks: {
     getColumns: () => request<{ columns: any[]; assignedTasks: any[] }>('/tasks/columns'),

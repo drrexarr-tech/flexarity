@@ -48,3 +48,36 @@ export interface TaskColumn {
   order: number;
   tasks: Task[];
 }
+
+export interface PlanEntry {
+  id: string;
+  amount: number;
+  type: 'income' | 'expense';
+  note: string | null;
+  date: string;
+  createdAt: string;
+  userId: string;
+  user?: { id: string; name: string };
+}
+
+export interface Plan {
+  id: string;
+  title: string;
+  description: string | null;
+  targetAmount: number;
+  deadline: string | null;
+  color: string | null;
+  visibility: 'private' | 'family' | 'public';
+  familyId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  user?: { id: string; name: string };
+  entries?: PlanEntry[];
+  canEdit?: boolean;
+  saved: number;
+  income: number;
+  expense: number;
+  percent: number;
+  remaining: number;
+}

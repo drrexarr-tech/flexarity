@@ -30,6 +30,8 @@ model User {
   messages    Message[]
   notes       Note[]
   chatKeys    ChatKey[]
+  plans       Plan[]
+  planEntries PlanEntry[]
 }
 
 model Family {
@@ -177,6 +179,36 @@ model Note {
   audio     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Plan {
+  id           String      @id @default(uuid())
+  title        String
+  description  String?
+  targetAmount Int         @default(0)
+  deadline     DateTime?
+  color        String?
+  visibility   String      @default("private")
+  familyId     String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries      PlanEntry[]
+}
+
+model PlanEntry {
+  id        String   @id @default(uuid())
+  amount    Int
+  type      String   @default("income")
+  note      String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ const links = [
   { to: '/recipes', icon: BookOpen, label: 'Рецепты' },
   { to: '/tasks', icon: CheckSquare, label: 'Задачи' },
   { to: '/notes', icon: StickyNote, label: 'Заметки' },
+  { to: '/plans', icon: PiggyBank, label: 'Планы' },
   { to: '/family', icon: Users, label: 'Семья' },
   { to: '/chats', icon: MessageSquare, label: 'Чаты' },
 ];
