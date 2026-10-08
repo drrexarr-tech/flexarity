@@ -81,3 +81,38 @@ export interface Plan {
   percent: number;
   remaining: number;
 }
+
+export interface WishItem {
+  id: string;
+  title: string;
+  price: number | null;
+  url: string | null;
+  note: string | null;
+  priority: 'low' | 'medium' | 'high' | null;
+  bought: boolean;
+  boughtAt: string | null;
+  createdAt: string;
+  wishlistId: string;
+  ownerId: string;
+  owner?: { id: string; name: string };
+  recipientId: string | null;
+  recipient?: { id: string; name: string } | null;
+}
+
+export interface Wishlist {
+  id: string;
+  title: string;
+  description: string | null;
+  visibility: 'private' | 'family' | 'public';
+  familyId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  user?: { id: string; name: string };
+  items?: WishItem[];
+  canEdit?: boolean;
+  itemCount: number;
+  boughtCount: number;
+  totalPrice: number;
+  unboughtTotal: number;
+}

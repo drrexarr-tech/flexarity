@@ -32,6 +32,9 @@ model User {
   chatKeys    ChatKey[]
   plans       Plan[]
   planEntries PlanEntry[]
+  wishlists     Wishlist[]
+  wishItems     WishItem[]   @relation("WishItemOwner")
+  wishedGifts   WishItem[]   @relation("WishItemRecipient")
 }
 
 model Family {
@@ -217,4 +220,36 @@ enum Priority {
   low
   medium
   high
+}
+
+model Wishlist {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  visibility  String     @default("private")
+  familyId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       WishItem[]
+}
+
+model WishItem {
+  id          String    @id @default(uuid())
+  title       String
+  price       Int?
+  url         String?
+  note        String?
+  priority    Priority?
+  bought      Boolean   @default(false)
+  boughtAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  wishlistId  String
+  wishlist    Wishlist  @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  ownerId     String
+  owner       User      @relation("WishItemOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  recipientId String?
+  recipient   User?     @relation("WishItemRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
 }

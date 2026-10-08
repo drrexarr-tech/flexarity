@@ -1,18 +1,19 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const links = [
-  { to: '/', icon: LayoutDashboard, label: 'Главная' },
-  { to: '/recipes', icon: BookOpen, label: 'Рецепты' },
-  { to: '/tasks', icon: CheckSquare, label: 'Задачи' },
-  { to: '/notes', icon: StickyNote, label: 'Заметки' },
-  { to: '/plans', icon: PiggyBank, label: 'Планы' },
-  { to: '/family', icon: Users, label: 'Семья' },
-  { to: '/chats', icon: MessageSquare, label: 'Чаты' },
+  { to: '/', icon: LayoutDashboard, label: 'Главная', bottom: true },
+  { to: '/recipes', icon: BookOpen, label: 'Рецепты', bottom: true },
+  { to: '/tasks', icon: CheckSquare, label: 'Задачи', bottom: true },
+  { to: '/notes', icon: StickyNote, label: 'Заметки', bottom: true },
+  { to: '/plans', icon: PiggyBank, label: 'Планы', bottom: true },
+  { to: '/wishes', icon: Gift, label: 'Хотелки', bottom: false },
+  { to: '/family', icon: Users, label: 'Семья', bottom: false },
+  { to: '/chats', icon: MessageSquare, label: 'Чаты', bottom: false },
 ];
 
 interface SidebarProps {
@@ -100,7 +101,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex border-t bg-card lg:hidden safe-area-bottom">
-        {links.map(({ to, icon: Icon, label }) => {
+        {links.filter((l) => l.bottom).map(({ to, icon: Icon, label }) => {
           const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
           return (
             <NavLink

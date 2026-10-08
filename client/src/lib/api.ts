@@ -1,4 +1,4 @@
-import type { Plan, PlanEntry } from '@/types';
+import type { Plan, PlanEntry, Wishlist, WishItem } from '@/types';
 
 const API_URL = '/api';
 
@@ -104,6 +104,20 @@ export const api = {
       request<PlanEntry>(`/plans/${id}/entries`, { method: 'POST', body: JSON.stringify(data) }),
     deleteEntry: (id: string, entryId: string) =>
       request<any>(`/plans/${id}/entries/${entryId}`, { method: 'DELETE' }),
+  },
+  wishes: {
+    getAll: () => request<Wishlist[]>('/wishes'),
+    getById: (id: string) => request<Wishlist>(`/wishes/${id}`),
+    recipients: () => request<{ id: string; name: string }[]>('/wishes/recipients'),
+    create: (data: any) => request<Wishlist>('/wishes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<Wishlist>(`/wishes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<any>(`/wishes/${id}`, { method: 'DELETE' }),
+    addItem: (id: string, data: any) =>
+      request<WishItem>(`/wishes/${id}/items`, { method: 'POST', body: JSON.stringify(data) }),
+    updateItem: (id: string, itemId: string, data: any) =>
+      request<WishItem>(`/wishes/${id}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteItem: (id: string, itemId: string) =>
+      request<any>(`/wishes/${id}/items/${itemId}`, { method: 'DELETE' }),
   },
   tasks: {
     getColumns: () => request<{ columns: any[]; assignedTasks: any[] }>('/tasks/columns'),

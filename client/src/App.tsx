@@ -15,6 +15,8 @@ import { ChatsPage } from '@/pages/ChatsPage';
 import { NotesPage } from '@/pages/NotesPage';
 import { PlansPage } from '@/pages/PlansPage';
 import { PlanDetailPage } from '@/pages/PlanDetailPage';
+import { WishesPage } from '@/pages/WishesPage';
+import { WishlistDetailPage } from '@/pages/WishlistDetailPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { InvitePage } from '@/pages/InvitePage';
 import { OAuthHandler } from '@/components/layout/OAuthHandler';
@@ -61,6 +63,8 @@ function AnimatedRoutes() {
           <Route path="/notes" element={<PageTransition><NotesPage /></PageTransition>} />
           <Route path="/plans" element={<PageTransition><PlansPage /></PageTransition>} />
           <Route path="/plans/:id" element={<PageTransition><PlanDetailPage /></PageTransition>} />
+          <Route path="/wishes" element={<PageTransition><WishesPage /></PageTransition>} />
+          <Route path="/wishes/:id" element={<PageTransition><WishlistDetailPage /></PageTransition>} />
           <Route path="/profile" element={<PageTransition><ProfilePage /></PageTransition>} />
         </Route>
       </Routes>
