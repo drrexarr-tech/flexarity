@@ -24,6 +24,15 @@ jobs:
               exit 1
             fi
 
+            echo "=== Loading secrets from server/.env ==="
+            # Export into the shell rather than relying on
+            # `docker compose --env-file`: that flag only exists in newer
+            # Compose v2 and the installed version rejects it. Exported vars
+            # are picked up by Compose interpolation regardless of version.
+            set -a
+            . /opt/flex/server/.env
+            set +a
+
             echo "=== Pulling latest code ==="
             git fetch origin && git reset --hard origin/main
 
@@ -39,10 +48,10 @@ jobs:
             cd /opt/flex
 
             echo "=== Building API image ==="
-            docker compose --env-file server/.env build server
+            docker compose build server
 
             echo "=== Applying Prisma schema ==="
-            docker compose --env-file server/.env run --rm server \
+            docker compose run --rm server \
               npx prisma db push --accept-data-loss --skip-generate
 
             echo "=== Restarting API container ==="
@@ -50,7 +59,7 @@ jobs:
             # plus any host process left from older launch schemes. Otherwise
             # the container starts, dies on EADDRINUSE and, because of
             # restart: unless-stopped, crash-loops forever.
-            docker compose --env-file server/.env stop server 2>/dev/null || true
+            docker compose stop server 2>/dev/null || true
             screen -X -S flex-server quit 2>/dev/null || true
             pkill -f "tsx watch" 2>/dev/null || true
 
@@ -66,7 +75,7 @@ jobs:
             fi
             echo "Port 3001 released"
 
-            docker compose --env-file server/.env up -d server
+            docker compose up -d server
 
             echo "=== Waiting for API ==="
             for i in $(seq 1 40); do

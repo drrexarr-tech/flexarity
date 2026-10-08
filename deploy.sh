@@ -8,10 +8,13 @@ set -e
 
 cd /opt/flex
 
-if [ ! -f server/.env ]; then
-  echo "ERROR: /opt/flex/server/.env not found (see server/.env.example)"
-  exit 1
-fi
+echo "=== Loading secrets from server/.env ==="
+# Export into the shell rather than relying on `docker compose --env-file`:
+# that flag only exists in newer Compose v2, and the installed version here
+# rejects it. Exported vars are picked up by Compose interpolation either way.
+set -a
+. /opt/flex/server/.env
+set +a
 
 echo "=== Pulling latest code ==="
 git fetch origin && git reset --hard origin/main
@@ -28,17 +31,17 @@ mkdir -p /opt/flex/server/uploads
 cd /opt/flex
 
 echo "=== Building API image ==="
-docker compose --env-file server/.env build server
+docker compose build server
 
 echo "=== Applying Prisma schema ==="
-docker compose --env-file server/.env run --rm server \
+docker compose run --rm server \
   npx prisma db push --accept-data-loss --skip-generate
 
 echo "=== Restarting API container ==="
 # Сначала гасим всё, что держит порт: контейнер и возможные хостовые
 # процессы от прошлых схем запуска. Иначе контейнер стартует, падает на
 # EADDRINUSE и с restart: unless-stopped уходит в бесконечный цикл.
-docker compose --env-file server/.env stop server 2>/dev/null || true
+docker compose stop server 2>/dev/null || true
 screen -X -S flex-server quit 2>/dev/null || true
 pkill -f "tsx watch" 2>/dev/null || true
 
@@ -54,7 +57,7 @@ if sudo ss -tln | grep -q ':3001'; then
 fi
 echo "Port 3001 released"
 
-docker compose --env-file server/.env up -d server
+docker compose up -d server
 
 echo "=== Waiting for API ==="
 for i in $(seq 1 40); do
