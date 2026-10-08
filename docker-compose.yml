@@ -1,46 +1,20 @@
-# Flex — контейнерная часть.
+# Flex — API в docker.
 #
-# Что где живёт:
-#   postgres — БД (docker, restart: unless-stopped)
-#   server   — API (docker, restart: unless-stopped, порт 3001 наружу)
+# PostgreSQL здесь НЕТ намеренно. Он уже запущен как отдельный контейнер
+# flex-postgres (создан через docker run, без compose-меток) и хранит данные в
+# томе flex_data. Если объявить сервис postgres в этом файле, compose попытается
+# создать свой контейнер с другим именем — либо упрётся в конфликт имён, либо,
+# что хуже, поднимет пустую базу на томе postgres_data. Поэтому compose
+# управляет только API, а к БД идёт через опубликованный порт хоста.
 #
-# nginx и TLS остаются НА ХОСТЕ намеренно: порт 443 занят xray
-# (tls-терминатор, проксирует на nginx), поэтому контейнер клиента
-# не может подняться на 80/443. Статику клиента деплой копирует в
-# /var/www/html, хостовый nginx отдаёт её сам.
+# nginx и TLS остаются на хосте: 443 занят xray. Статику клиента копирует
+# деплой в /var/www/html.
 #
-# Секреты — из server/.env, который деплой экспортирует в окружение:
-# так работают и Compose v1, и v2 (флаг --env-file есть только у v2).
-# В самом файле тоже задан env_file, поэтому контейнер получает все
-# переменные приложения независимо от интерполяции.
-#
-# version: 2.4 — из-за отсутствия сети с собственным именем и ради
-# совместимости с установленным Compose; v2 это поле просто игнорирует.
-
-version: "2.4"
+# Готовность БД обеспечивается не healthcheck'ом compose, а повторными
+# попытками подключения в server/src/index.ts — это работает одинаково
+# независимо от того, кто запустил процесс.
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: flex-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-flexdb}
-      POSTGRES_USER: ${POSTGRES_USER:-flex}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in server/.env}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    # Без healthcheck compose считает контейнер готовым сразу после старта,
-    # и API падает при первом же подключении, если БД ещё инициализируется.
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flex} -d ${POSTGRES_DB:-flexdb}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
-
   server:
     build:
       context: .
@@ -50,32 +24,20 @@ services:
     env_file:
       - server/.env
     environment:
-      # Внутри сети docker хост БД — имя сервиса, а не localhost.
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-flex}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flexdb}?schema=public"
+      # host.docker.internal вместо имени сервиса: БД живёт вне compose.
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-flex}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB:-flexdb}?schema=public"
       NODE_ENV: production
-    depends_on:
-      postgres:
-        condition: service_healthy
+    extra_hosts:
+      # host-gateway резолвится в IP хоста, чтобы контейнер достучался до
+      # опубликованного на хосте порта 5432.
+      - "host.docker.internal:host-gateway"
     ports:
       - "3001:3001"
     volumes:
-      # Загруженные файлы живут в образе только до пересборки — без этого
-      # монтирования аватары и картинки в заметках/чатах пропадают.
+      # Загруженные файлы в образе живут только до пересборки — без этого
+      # аватары и картинки в заметках/чатах пропадают при каждом деплое.
       - ./server/uploads:/app/uploads
-    healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
 
 networks:
   default:
     driver: bridge
-
-volumes:
-  postgres_data:

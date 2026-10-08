@@ -63,10 +63,33 @@ function fatal(kind: string, err: unknown): void {
 process.on('uncaughtException', (err) => fatal('Uncaught exception:', err));
 process.on('unhandledRejection', (err) => fatal('Unhandled rejection:', err));
 
+/**
+ * PostgreSQL is a separate container, so it can still be starting up (or
+ * briefly restarting) when this process comes up. Retrying here means the API
+ * never listens before the database can serve it, without depending on a
+ * Compose healthcheck — and it behaves the same whether it was launched by
+ * Compose, by systemd or by hand.
+ */
+async function connectWithRetry(attempts = 30, delayMs = 2000): Promise<void> {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      await prisma.$connect();
+      console.log('Connected to PostgreSQL');
+      return;
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      console.error(
+        `Database not ready (attempt ${attempt}/${attempts}), retrying in ${delayMs / 1000}s:`,
+        (error as Error).message
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 async function main() {
   try {
-    await prisma.$connect();
-    console.log('Connected to PostgreSQL');
+    await connectWithRetry();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
