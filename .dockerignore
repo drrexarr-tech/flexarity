@@ -1,0 +1,22 @@
+# Контекст сборки — только то, что реально нужно образам.
+# Без этого в Docker уезжают node_modules (сотни МБ), .git и .env,
+# что и медленно, и небезопасно.
+
+.git
+.gitignore
+.github
+
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/*.log
+
+# Секреты не должны попадать даже в слои сборки
+**/.env
+!**/.env.example
+
+ssl
+server/uploads
+electron
+nginx
+README.md

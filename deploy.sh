@@ -35,10 +35,24 @@ docker compose --env-file server/.env run --rm server \
   npx prisma db push --accept-data-loss --skip-generate
 
 echo "=== Restarting API container ==="
-# Разовая чистка возможных хостовых процессов от прошлых схем запуска.
-# Контейнер не трогаем: им управляет compose.
+# Сначала гасим всё, что держит порт: контейнер и возможные хостовые
+# процессы от прошлых схем запуска. Иначе контейнер стартует, падает на
+# EADDRINUSE и с restart: unless-stopped уходит в бесконечный цикл.
+docker compose --env-file server/.env stop server 2>/dev/null || true
 screen -X -S flex-server quit 2>/dev/null || true
 pkill -f "tsx watch" 2>/dev/null || true
+
+for i in $(seq 1 15); do
+  if ! sudo ss -tln | grep -q ':3001'; then break; fi
+  sleep 1
+done
+
+if sudo ss -tln | grep -q ':3001'; then
+  echo "ERROR: port 3001 is still busy, container would crash-loop."
+  sudo ss -tlnp | grep 3001 || true
+  exit 1
+fi
+echo "Port 3001 released"
 
 docker compose --env-file server/.env up -d server
 
@@ -50,8 +64,8 @@ for i in $(seq 1 40); do
   fi
   if [ "$i" = "40" ]; then
     echo "ERROR: API did not come up."
-    echo "--- who holds 3001 ---"
-    sudo ss -tlnp | grep 3001 || true
+    echo "--- container status ---"
+    docker compose ps || true
     echo "--- container logs ---"
     docker compose logs --tail 50 server || true
     exit 1
