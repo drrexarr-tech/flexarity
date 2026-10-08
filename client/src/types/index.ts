@@ -116,3 +116,42 @@ export interface Wishlist {
   totalPrice: number;
   unboughtTotal: number;
 }
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  date: string;
+  time: string | null;
+  color: string | null;
+  visibility: 'private' | 'family' | 'public';
+  familyId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  user?: { id: string; name: string };
+}
+
+export interface Birthday {
+  id: string;
+  name: string;
+  date: string;
+  age: number;
+}
+
+export interface CalendarMonth {
+  events: CalendarEvent[];
+  birthdays: Birthday[];
+}
+
+export interface UpcomingItem {
+  kind: 'event' | 'birthday';
+  id: string;
+  title: string;
+  description: string | null;
+  date: string;
+  time: string | null;
+  color: string | null;
+  age?: number;
+  daysLeft: number;
+}

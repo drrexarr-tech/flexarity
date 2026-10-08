@@ -1,4 +1,4 @@
-import type { Plan, PlanEntry, Wishlist, WishItem } from '@/types';
+import type { Plan, PlanEntry, Wishlist, WishItem, CalendarEvent, CalendarMonth, UpcomingItem } from '@/types';
 
 const API_URL = '/api';
 
@@ -118,6 +118,15 @@ export const api = {
       request<WishItem>(`/wishes/${id}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteItem: (id: string, itemId: string) =>
       request<any>(`/wishes/${id}/items/${itemId}`, { method: 'DELETE' }),
+  },
+  calendar: {
+    getMonth: (from: string, to: string) =>
+      request<CalendarMonth>(`/calendar/events?from=${from}&to=${to}`),
+    getUpcoming: (days = 90) => request<UpcomingItem[]>(`/calendar/upcoming?days=${days}`),
+    create: (data: any) => request<CalendarEvent>('/calendar', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+      request<CalendarEvent>(`/calendar/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<any>(`/calendar/${id}`, { method: 'DELETE' }),
   },
   tasks: {
     getColumns: () => request<{ columns: any[]; assignedTasks: any[] }>('/tasks/columns'),

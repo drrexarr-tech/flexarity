@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, CalendarDays, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { Button } from '@/components/ui/button';
@@ -7,13 +7,14 @@ import { cn } from '@/lib/utils';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Главная', bottom: true },
-  { to: '/recipes', icon: BookOpen, label: 'Рецепты', bottom: true },
   { to: '/tasks', icon: CheckSquare, label: 'Задачи', bottom: true },
+  { to: '/calendar', icon: CalendarDays, label: 'Календарь', bottom: true },
   { to: '/notes', icon: StickyNote, label: 'Заметки', bottom: true },
-  { to: '/plans', icon: PiggyBank, label: 'Планы', bottom: true },
+  { to: '/chats', icon: MessageSquare, label: 'Чаты', bottom: true },
+  { to: '/recipes', icon: BookOpen, label: 'Рецепты', bottom: false },
+  { to: '/plans', icon: PiggyBank, label: 'Планы', bottom: false },
   { to: '/wishes', icon: Gift, label: 'Хотелки', bottom: false },
   { to: '/family', icon: Users, label: 'Семья', bottom: false },
-  { to: '/chats', icon: MessageSquare, label: 'Чаты', bottom: false },
 ];
 
 interface SidebarProps {
@@ -113,7 +114,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               )}
             >
               <Icon className="h-5 w-5" />
-              {label}
+              <span className="max-w-full truncate">{label}</span>
             </NavLink>
           );
         })}
