@@ -11,3 +11,6 @@ ssl/
 
 # Build info
 *.tsbuildinfo
+
+# User uploads (avatars, note/chat images, voice notes)
+server/uploads/

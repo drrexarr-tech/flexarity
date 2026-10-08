@@ -1,8 +1,17 @@
-version: '3.8'
-
-# Secrets come from a root .env file (git-ignored) — see .env.example.
-# POSTGRES_PASSWORD and JWT_SECRET have no default on purpose: compose fails
-# loudly instead of silently starting with a known password.
+# Flex — контейнерная часть.
+#
+# Что где живёт:
+#   postgres — БД (docker, restart: unless-stopped)
+#   server   — API (docker, restart: unless-stopped, порт 3001 наружу)
+#
+# nginx и TLS остаются НА ХОСТЕ намеренно: порт 443 занят xray
+# (tls-терминатор, проксирует на nginx), поэтому контейнер клиента
+# не может подняться на 80/443. Статику клиента деплой копирует в
+# /var/www/html, хостовый nginx отдаёт её сам.
+#
+# Секреты — из server/.env (в git не попадает). Compose читает его
+# и для подстановки переменных, поэтому он указан в --env-file
+# в deploy.sh / deploy.yml. Одного файла достаточно, дрейфа быть не может.
 
 services:
   postgres:
@@ -12,13 +21,19 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-flexdb}
       POSTGRES_USER: ${POSTGRES_USER:-flex}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in server/.env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    networks:
-      - flex-network
+    # Без healthcheck compose считает контейнер готовым сразу после старта,
+    # и API падает при первом же подключении, если БД ещё инициализируется.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flex} -d ${POSTGRES_DB:-flexdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   server:
     build:
@@ -26,43 +41,35 @@ services:
       dockerfile: Dockerfile.server
     container_name: flex-server
     restart: unless-stopped
+    env_file:
+      - server/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-flex}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flexdb}?schema=public
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-      PORT: 3001
-      CLIENT_URL: ${CLIENT_URL:-https://veheys.online}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      # Внутри сети docker хост БД — имя сервиса, а не localhost.
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-flex}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flexdb}?schema=public"
+      NODE_ENV: production
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "3001:3001"
-    networks:
-      - flex-network
-
-  client:
-    build:
-      context: .
-      dockerfile: Dockerfile.client
-    container_name: flex-client
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - server
     volumes:
-      - ./ssl:/etc/nginx/ssl
-    networks:
-      - flex-network
+      # Загруженные файлы живут в образе только до пересборки — без этого
+      # монтирования аватары и картинки в заметках/чатах пропадают.
+      - ./server/uploads:/app/uploads
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 networks:
-  flex-network:
-    driver: bridge
+  default:
+    name: flex-network
 
 volumes:
   postgres_data:
