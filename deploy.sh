@@ -3,6 +3,8 @@
 # Секреты берутся из server/.env (в git не попадает) либо из переменных окружения.
 set -e
 
+cd /opt/flex
+
 if [ -f /opt/flex/server/.env ]; then
   echo "=== Loading secrets from server/.env ==="
   set -a
@@ -17,24 +19,43 @@ if [ -z "$DATABASE_URL" ] || [ -z "$JWT_SECRET" ]; then
 fi
 
 echo "=== Pulling latest code ==="
-git pull
+git fetch origin && git reset --hard origin/main
 
 echo "=== Building server ==="
 cd /opt/flex/server
-npm install
+npm install --silent
 npx prisma generate
 npx prisma db push --accept-data-loss
 npm run build
 
 echo "=== Building client ==="
 cd /opt/flex/client
-npm install
+npm install --silent
 npm run build
 sudo cp -r dist/* /var/www/html/
 
 echo "=== Restarting server ==="
-sudo pkill -f "node /opt/flex/server/dist" || true
-nohup node /opt/flex/server/dist/index.js > /tmp/flex-server.log 2>&1 &
+# The previous process may be a `tsx watch` dev process, so stop whatever holds
+# the port rather than matching a command line.
+sudo fuser -k 3001/tcp 2>/dev/null || true
+pkill -f "tsx watch" 2>/dev/null || true
+screen -X -S flex-server quit 2>/dev/null || true
+sleep 2
+
+screen -dmS flex-server bash -c 'cd /opt/flex/server && exec node dist/index.js'
+
+echo "=== Waiting for API ==="
+for i in $(seq 1 20); do
+  if curl -fsS http://localhost:3001/api/health >/dev/null 2>&1; then
+    echo "API is up"
+    break
+  fi
+  if [ "$i" = "20" ]; then
+    echo "ERROR: API did not come up. Check: screen -r flex-server"
+    exit 1
+  fi
+  sleep 1
+done
 
 echo "=== Reloading nginx ==="
 sudo systemctl reload nginx || sudo systemctl start nginx
