@@ -4,14 +4,22 @@
 # Раскладка: postgres и API — в docker (restart: unless-stopped),
 # nginx и TLS — на хосте (443 занят xray). Статика клиента копируется в
 # /var/www/html. Секреты — только из server/.env, в репозитории их нет.
-set -e
+#
+# Compose v2 на сервере может отсутствовать, поэтому скрипт не требует его:
+# без него API поднимается процессом на хосте, с ним — контейнером.
+set -euo pipefail
 
 cd /opt/flex
 
+if [ ! -f server/.env ]; then
+  echo "ERROR: /opt/flex/server/.env not found (see server/.env.example)"
+  exit 1
+fi
+
 echo "=== Loading secrets from server/.env ==="
 # Export into the shell rather than relying on `docker compose --env-file`:
-# that flag only exists in newer Compose v2, and the installed version here
-# rejects it. Exported vars are picked up by Compose interpolation either way.
+# the flag only exists in newer Compose, and interpolation from the
+# environment works on every version.
 set -a
 . /opt/flex/server/.env
 set +a
@@ -30,34 +38,49 @@ mkdir -p /opt/flex/server/uploads
 
 cd /opt/flex
 
-echo "=== Building API image ==="
-docker compose build server
+if docker compose version >/dev/null 2>&1; then
+  echo "=== Compose available: deploying API as a container ==="
 
-echo "=== Applying Prisma schema ==="
-docker compose run --rm server \
-  npx prisma db push --accept-data-loss --skip-generate
+  docker compose build server
+  docker compose run --rm server \
+    npx prisma db push --accept-data-loss --skip-generate
 
-echo "=== Restarting API container ==="
-# Сначала гасим всё, что держит порт: контейнер и возможные хостовые
-# процессы от прошлых схем запуска. Иначе контейнер стартует, падает на
-# EADDRINUSE и с restart: unless-stopped уходит в бесконечный цикл.
-docker compose stop server 2>/dev/null || true
-screen -X -S flex-server quit 2>/dev/null || true
-pkill -f "tsx watch" 2>/dev/null || true
+  # Release the port from every holder first: the container itself plus any
+  # host process left from an older scheme. Otherwise the container starts,
+  # dies on EADDRINUSE and, with restart: unless-stopped, crash-loops.
+  docker compose stop server 2>/dev/null || true
+  screen -X -S flex-server quit 2>/dev/null || true
+  pkill -f "tsx watch" 2>/dev/null || true
 
-for i in $(seq 1 15); do
-  if ! sudo ss -tln | grep -q ':3001'; then break; fi
-  sleep 1
-done
+  for i in $(seq 1 15); do
+    if ! sudo ss -tln | grep -q ':3001'; then break; fi
+    sleep 1
+  done
 
-if sudo ss -tln | grep -q ':3001'; then
-  echo "ERROR: port 3001 is still busy, container would crash-loop."
-  sudo ss -tlnp | grep 3001 || true
-  exit 1
+  if sudo ss -tln | grep -q ':3001'; then
+    echo "ERROR: port 3001 is still busy, container would crash-loop."
+    sudo ss -tlnp | grep 3001 || true
+    exit 1
+  fi
+  echo "Port 3001 released"
+
+  docker compose up -d server
+else
+  echo "=== Compose v2 not available: deploying API on the host ==="
+  echo "Install it for auto-restart: see docker-compose optional notes."
+
+  cd /opt/flex/server
+  npm install --silent
+  npx prisma generate
+  npx prisma db push --accept-data-loss
+  npm run build
+
+  screen -X -S flex-server quit 2>/dev/null || true
+  pkill -f "tsx watch" 2>/dev/null || true
+  sleep 2
+
+  screen -dmS flex-server bash -c 'cd /opt/flex/server && exec node dist/index.js'
 fi
-echo "Port 3001 released"
-
-docker compose up -d server
 
 echo "=== Waiting for API ==="
 for i in $(seq 1 40); do
@@ -67,10 +90,12 @@ for i in $(seq 1 40); do
   fi
   if [ "$i" = "40" ]; then
     echo "ERROR: API did not come up."
-    echo "--- container status ---"
-    docker compose ps || true
-    echo "--- container logs ---"
-    docker compose logs --tail 50 server || true
+    sudo ss -tlnp | grep 3001 || true
+    if docker compose version >/dev/null 2>&1; then
+      docker compose ps || true
+      docker compose logs --tail 50 server || true
+    fi
+    screen -ls || true
     exit 1
   fi
   sleep 2
