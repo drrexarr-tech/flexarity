@@ -155,3 +155,21 @@ export interface UpcomingItem {
   age?: number;
   daysLeft: number;
 }
+
+export interface ShoppingItem {
+  id: string;
+  title: string;
+  quantity: number | null;
+  unit: string | null;
+  price: number | null;
+  category: string | null;
+  done: boolean;
+  doneAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  familyId: string | null;
+  userId: string;
+  user?: { id: string; name: string };
+  buyerId: string | null;
+  buyer?: { id: string; name: string } | null;
+}

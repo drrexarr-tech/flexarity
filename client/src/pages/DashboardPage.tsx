@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, CalendarDays, ArrowRight } from 'lucide-react';
+import { BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, CalendarDays, ShoppingCart, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const apps = [
@@ -44,6 +44,13 @@ const apps = [
     icon: CalendarDays,
     path: '/calendar',
     color: 'from-cyan-500 to-blue-500',
+  },
+  {
+    title: 'Список покупок',
+    description: 'Общий список покупок для семьи.',
+    icon: ShoppingCart,
+    path: '/shopping',
+    color: 'from-lime-500 to-green-500',
   },
   {
     title: 'Моя семья',

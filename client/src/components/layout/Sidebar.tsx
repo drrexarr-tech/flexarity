@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, CalendarDays, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, CalendarDays, ShoppingCart, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,8 @@ const links = [
   { to: '/', icon: LayoutDashboard, label: 'Главная', bottom: true },
   { to: '/tasks', icon: CheckSquare, label: 'Задачи', bottom: true },
   { to: '/calendar', icon: CalendarDays, label: 'Календарь', bottom: true },
-  { to: '/notes', icon: StickyNote, label: 'Заметки', bottom: true },
+  { to: '/notes', icon: StickyNote, label: 'Заметки', bottom: false },
+  { to: '/shopping', icon: ShoppingCart, label: 'Покупки', bottom: true },
   { to: '/chats', icon: MessageSquare, label: 'Чаты', bottom: true },
   { to: '/recipes', icon: BookOpen, label: 'Рецепты', bottom: false },
   { to: '/plans', icon: PiggyBank, label: 'Планы', bottom: false },

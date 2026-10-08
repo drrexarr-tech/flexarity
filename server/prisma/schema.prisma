@@ -36,6 +36,8 @@ model User {
   wishItems     WishItem[]   @relation("WishItemOwner")
   wishedGifts   WishItem[]   @relation("WishItemRecipient")
   events        CalendarEvent[]
+  shoppingItems ShoppingItem[] @relation("ShoppingOwner")
+  boughtItems   ShoppingItem[] @relation("ShoppingBuyer")
 }
 
 model Family {
@@ -268,4 +270,22 @@ model CalendarEvent {
   updatedAt   DateTime @updatedAt
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ShoppingItem {
+  id        String    @id @default(uuid())
+  title     String
+  quantity  Float?
+  unit      String?
+  price     Int?
+  category  String?
+  done      Boolean   @default(false)
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  familyId  String?
+  userId    String
+  user      User      @relation("ShoppingOwner", fields: [userId], references: [id], onDelete: Cascade)
+  buyerId   String?
+  buyer     User?     @relation("ShoppingBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
 }

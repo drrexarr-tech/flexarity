@@ -12,6 +12,7 @@ import { uploadRouter } from './routes/upload';
 import { plansRouter } from './routes/plans';
 import { wishesRouter } from './routes/wishes';
 import { calendarRouter } from './routes/calendar';
+import { shoppingRouter } from './routes/shopping';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/upload', uploadRouter);
 app.use('/api/plans', plansRouter);
 app.use('/api/wishes', wishesRouter);
 app.use('/api/calendar', calendarRouter);
+app.use('/api/shopping', shoppingRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
