@@ -1,3 +1,8 @@
+// Must be first: Express 4 drops promise rejections from async handlers, so
+// every `throw new AppError(...)` in a route would become an unhandled
+// rejection and hang the request instead of reaching errorHandler. This patch
+// forwards them, and it only works when imported before the routers.
+import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
 import { prisma } from './lib/prisma';
