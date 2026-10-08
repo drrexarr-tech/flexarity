@@ -40,13 +40,23 @@ app.get('/api/health', (_req, res) => {
 
 app.use(errorHandler);
 
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception:', err);
-});
+/**
+ * A fatal error leaves the process in an undefined state — requests hang while
+ * the event loop is compromised. Exiting non-zero hands the restart to the
+ * platform (Docker `restart: unless-stopped`); merely logging would leave the
+ * API alive but broken with no way to notice.
+ */
+let shuttingDown = false;
+function fatal(kind: string, err: unknown): void {
+  console.error(`${kind}:`, err);
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // stdout to a pipe is async in Node, so give the log a moment to flush.
+  setTimeout(() => process.exit(1), 250);
+}
 
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled rejection:', err);
-});
+process.on('uncaughtException', (err) => fatal('Uncaught exception:', err));
+process.on('unhandledRejection', (err) => fatal('Unhandled rejection:', err));
 
 async function main() {
   try {

@@ -7,9 +7,11 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    // dvh instead of vh: on mobile 100vh includes the URL bar, so a vh-based
+    // min-height always leaves a few pixels of scroll even on an empty page.
+    <div className="flex min-h-dvh bg-background">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex min-h-screen w-full flex-col lg:ml-64 pb-16 lg:pb-0">
+      <div className="flex min-h-dvh w-full flex-col lg:ml-64 pb-16 lg:pb-0">
         <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b bg-card/80 backdrop-blur-sm px-4 lg:px-6">
           <SidebarToggle onClick={() => setSidebarOpen(true)} />
           <div className="flex items-center gap-2">

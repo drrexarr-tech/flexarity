@@ -43,6 +43,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AnimatedRoutes() {
   const location = useLocation();
 
+  // Every navigation and every full reload must start at the top. Without this
+  // the browser restores the previous offset and, combined with scroll
+  // anchoring, the page creeps further down on every reload.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
@@ -83,6 +90,11 @@ export default function App() {
   useEffect(() => {
     initAuth();
     initTheme();
+    // Take over reload scrolling: 'auto' lets the browser restore a stale
+    // offset, which fights the reset in AnimatedRoutes.
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
   }, []);
 
   return (
