@@ -1,14 +1,18 @@
 version: '3.8'
 
+# Secrets come from a root .env file (git-ignored) — see .env.example.
+# POSTGRES_PASSWORD and JWT_SECRET have no default on purpose: compose fails
+# loudly instead of silently starting with a known password.
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: flex-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: flexdb
-      POSTGRES_USER: flex
-      POSTGRES_PASSWORD: flex_password
+      POSTGRES_DB: ${POSTGRES_DB:-flexdb}
+      POSTGRES_USER: ${POSTGRES_USER:-flex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -23,10 +27,16 @@ services:
     container_name: flex-server
     restart: unless-stopped
     environment:
-      DATABASE_URL: "postgresql://flex:flex_password@postgres:5432/flexdb?schema=public"
-      JWT_SECRET: "change-this-to-a-secure-random-string"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flex}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-flexdb}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       PORT: 3001
-      CLIENT_URL: "https://veheys.online"
+      CLIENT_URL: ${CLIENT_URL:-https://veheys.online}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     depends_on:
       - postgres
     ports:
