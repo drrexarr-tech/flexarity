@@ -25,4 +25,8 @@ export const optionalNumber = () =>
 export const optionalAmount = (
   min = 0,
   message = 'Значение не может быть отрицательным'
-) => z.preprocess((v) => (v === '' ? null : v), z.coerce.number().min(min, message).nullable());
+) =>
+  z.preprocess(
+    (v) => (v === '' ? null : v),
+    z.coerce.number().min(min, message).nullable().optional()
+  );
