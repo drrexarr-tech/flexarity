@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Clock, Trash2, Edit3 } from 'lucide-react';
+import { Plus, Search, Clock, Trash2, Edit3, Wand2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
+import type { RecipePrefill } from '@/components/recipes/RecipeForm';
+import { RecipeImportDialog } from '@/components/recipes/RecipeImportDialog';
 import type { Recipe } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -26,6 +28,8 @@ export function RecipesPage() {
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [prefill, setPrefill] = useState<RecipePrefill | null>(null);
   const navigate = useNavigate();
 
   async function load() {
@@ -63,7 +67,18 @@ export function RecipesPage() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Книга рецептов</h1>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            // Fires only from the trigger, not when the importer opens the
+            // dialog itself, so a manual "add" never inherits imported data.
+            if (open) {
+              setEditing(null);
+              setPrefill(null);
+            }
+          }}
+        >
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="mr-1 h-3.5 w-3.5" /> Добавить рецепт
@@ -75,17 +90,32 @@ export function RecipesPage() {
             </DialogHeader>
             <RecipeForm
               recipe={editing}
+              prefill={prefill}
               onSuccess={() => {
                 setEditing(null);
+                setPrefill(null);
                 setDialogOpen(false);
                 load();
               }}
             />
           </DialogContent>
         </Dialog>
+        <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+          <Wand2 className="mr-1 h-3.5 w-3.5" /> Импорт
+        </Button>
       </div>
       </div>
       <p className="text-sm text-muted-foreground">Ваши кулинарные рецепты</p>
+
+      <RecipeImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={(data) => {
+          setEditing(null);
+          setPrefill(data);
+          setDialogOpen(true);
+        }}
+      />
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

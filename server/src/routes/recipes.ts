@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { optionalText, optionalNumber } from '../lib/validation';
+import { parseRecipe } from '../lib/recipeParser';
+import { safeFetchHtml, BlockedUrlError } from '../lib/safeFetch';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -82,4 +84,34 @@ recipesRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
 
   await prisma.recipe.delete({ where: { id: String(req.params.id) } });
   res.json({ message: 'Рецепт удалён' });
+});
+
+/**
+ * Parse an arbitrary recipe page into the shape the form expects. Runs before
+ * the ':id' routes conceptually, but those only answer GET/PUT/DELETE so there is
+ * no route conflict.
+ */
+recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
+  const { url } = z.object({ url: z.string().min(1, 'Ссылка обязательна') }).parse(req.body);
+
+  let html: string;
+  try {
+    html = await safeFetchHtml(url);
+  } catch (err: any) {
+    if (err instanceof BlockedUrlError) throw new AppError(400, err.message);
+    throw new AppError(422, err.message || 'Не удалось загрузить страницу');
+  }
+
+  const parsed = parseRecipe(html);
+  if (!parsed) {
+    throw new AppError(422, 'Не удалось распознать рецепт на этой странице');
+  }
+
+  res.json({
+    title: parsed.title,
+    ingredients: parsed.ingredients,
+    instructions: parsed.instructions,
+    cookingTime: parsed.cookingTime,
+    source: parsed.source,
+  });
 });

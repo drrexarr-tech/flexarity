@@ -90,6 +90,14 @@ export const api = {
   recipes: {
     getAll: () => request<any[]>('/recipes'),
     getById: (id: string) => request<any>(`/recipes/${id}`),
+    import: (url: string) =>
+      request<{
+        title: string;
+        ingredients: string[];
+        instructions: string[];
+        cookingTime?: number;
+        source: 'json-ld' | 'microdata' | 'heuristic';
+      }>('/recipes/import', { method: 'POST', body: JSON.stringify({ url }) }),
     create: (data: any) => request<any>('/recipes', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<any>(`/recipes/${id}`, { method: 'DELETE' }),

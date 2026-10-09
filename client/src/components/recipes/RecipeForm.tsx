@@ -25,12 +25,20 @@ const schema = z.object({
   familyId: z.string().optional(),
 });
 
+export interface RecipePrefill {
+  title?: string;
+  ingredients?: string[];
+  instructions?: string[];
+  cookingTime?: number | null;
+}
+
 interface Props {
   recipe?: Recipe | null;
+  prefill?: RecipePrefill | null;
   onSuccess: () => void;
 }
 
-export function RecipeForm({ recipe, onSuccess }: Props) {
+export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [families, setFamilies] = useState<any[]>([]);
   const isEdit = !!recipe;
@@ -38,6 +46,10 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
   useEffect(() => {
     api.family.getAll().then(setFamilies).catch(() => {});
   }, []);
+
+  // An imported recipe fills a fresh form; an existing recipe always wins so an
+  // edit is never overwritten by a previous import.
+  const imported = !recipe && prefill ? prefill : null;
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -53,12 +65,12 @@ export function RecipeForm({ recipe, onSuccess }: Props) {
           familyId: recipe.familyId || undefined,
         }
       : {
-          title: '',
+          title: imported?.title || '',
           url: '',
           category: '',
-          cookingTime: undefined,
-          ingredients: '',
-          instructions: '',
+          cookingTime: imported?.cookingTime ?? undefined,
+          ingredients: imported?.ingredients?.join('\n') || '',
+          instructions: imported?.instructions?.join('\n') || '',
           visibility: 'private',
           familyId: undefined,
         },

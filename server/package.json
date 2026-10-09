@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js",
+    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js && node scripts/check-recipe-parser.js && node scripts/check-ssrf.js",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -13,6 +13,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.5",
     "express": "^4.21.1",
     "express-async-errors": "^3.1.1",
