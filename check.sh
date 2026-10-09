@@ -36,19 +36,40 @@ for p in 80 443 3001 5432; do
 done
 
 head_ "Server binary vs deployed commit"
-if [ -f /opt/flex/server/dist/index.js ]; then
-  echo "  host dist built: $(date -r /opt/flex/server/dist/index.js '+%Y-%m-%d %H:%M')"
-  [ -f /opt/flex/server/dist/lib/validation.js ] \
-    && ok "host dist contains the null-tolerant schemas" \
-    || bad "host dist is MISSING lib/validation.js — old build"
-else
-  warn "no host dist"
-fi
+running_in="none"
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx flex-server; then
-  echo "  container running, health: $(docker inspect flex-server --format '{{.State.Health.Status}}' 2>/dev/null)"
-else
-  bad "flex-server container is NOT running — the API on 3001 is a host process"
+  running_in="container"
+elif curl -fsS --max-time 3 http://localhost:3001/api/health >/dev/null 2>&1; then
+  running_in="host"
 fi
+echo "  API running in: $running_in"
+
+case "$running_in" in
+  container)
+    health=$(docker inspect flex-server --format '{{.State.Health.Status}}' 2>/dev/null)
+    if [ "$health" = "healthy" ]; then ok "container healthy"; else warn "container health: $health"; fi
+    if docker exec flex-server test -f /app/dist/lib/validation.js 2>/dev/null; then
+      ok "container has the null-tolerant schemas"
+    else
+      bad "container MISSING dist/lib/validation.js — stale image"
+    fi
+    ;;
+  host)
+    if [ -f /opt/flex/server/dist/lib/validation.js ]; then
+      ok "host build contains the null-tolerant schemas"
+    else
+      bad "host build MISSING lib/validation.js — stale binary"
+    fi
+    ;;
+  *)
+    bad "API not answering"
+    ;;
+esac
+
+head_ "Web root growth"
+echo "  /var/www/html: $(du -sh /var/www/html 2>/dev/null | cut -f1)"
+echo "  hashed assets: $(find /var/www/html -maxdepth 2 -type f -name '*.js' 2>/dev/null | wc -l) js, $(find /var/www/html -maxdepth 2 -type f -name '*.css' 2>/dev/null | wc -l) css"
+echo "  built now   : $(find /opt/flex/client/dist -maxdepth 2 -type f -name '*.js' 2>/dev/null | wc -l) js"
 
 head_ "API"
 if resp=$(curl -fsS --max-time 5 http://localhost:3001/api/health 2>&1); then
