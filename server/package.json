@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js && node scripts/check-recipe-parser.js && node scripts/check-ssrf.js",
+    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js && node scripts/check-recipe-parser.js && node scripts/check-auth.js && node scripts/check-ssrf.js",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -22,6 +22,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
     "nodemailer": "^10.0.16",
+    "otpauth": "^9.5.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { Camera, CheckCheck, Unlink, X } from 'lucide-react';
+import { Camera, CheckCheck, ShieldCheck, Unlink, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function ProfilePage() {
@@ -25,6 +25,73 @@ export function ProfilePage() {
   const [cropR, setCropR] = useState(72);
   const [unlinkTarget, setUnlinkTarget] = useState<'telegram' | 'vk' | null>(null);
   const [deleteAvatarDialog, setDeleteAvatarDialog] = useState(false);
+  const [totpEnabled, setTotpEnabled] = useState(!!user?.totpEnabled);
+  const [setupDialog, setSetupDialog] = useState(false);
+  const [disableDialog, setDisableDialog] = useState(false);
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [disablePassword, setDisablePassword] = useState('');
+  const [disableCode, setDisableCode] = useState('');
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const [logoutAllBusy, setLogoutAllBusy] = useState(false);
+
+  useEffect(() => { setTotpEnabled(!!user?.totpEnabled); }, [user?.totpEnabled]);
+
+  async function startTwoFactorSetup() {
+    setTwoFactorBusy(true);
+    try {
+      const res = await api.auth.setupTwoFactor();
+      setTwoFactorSecret(res.secret);
+      setTwoFactorCode('');
+      setSetupDialog(true);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }
+
+  async function finishTwoFactorSetup() {
+    setTwoFactorBusy(true);
+    try {
+      await api.auth.enableTwoFactor(twoFactorCode);
+      setTotpEnabled(true);
+      setSetupDialog(false);
+      toast.success('Двухфакторная аутентификация включена');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }
+
+  async function finishTwoFactorDisable() {
+    setTwoFactorBusy(true);
+    try {
+      await api.auth.disableTwoFactor({ password: disablePassword, code: disableCode });
+      setTotpEnabled(false);
+      setDisableDialog(false);
+      setDisablePassword('');
+      setDisableCode('');
+      toast.success('Двухфакторная аутентификация отключена');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }
+
+  async function handleLogoutAll() {
+    setLogoutAllBusy(true);
+    try {
+      await api.auth.logoutAll();
+      toast.success('Все остальные сессии завершены');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLogoutAllBusy(false);
+    }
+  }
   function handleMouseDown(e: React.MouseEvent<HTMLImageElement>) {
     e.preventDefault();
     const img = cropImgRef.current;
@@ -259,6 +326,106 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            Безопасность
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Двухфакторная аутентификация</p>
+              <p className="text-xs text-muted-foreground">
+                {totpEnabled
+                  ? 'Включена: при входе потребуется код из приложения'
+                  : 'Рекомендуется: один пароль не защищает аккаунт'}
+              </p>
+            </div>
+            <Button
+              variant={totpEnabled ? 'outline' : 'default'}
+              onClick={() => (totpEnabled ? setDisableDialog(true) : void startTwoFactorSetup())}
+              disabled={twoFactorBusy}
+              className="shrink-0"
+            >
+              {totpEnabled ? 'Отключить' : 'Включить'}
+            </Button>
+          </div>
+
+          <Button variant="outline" className="w-full" onClick={handleLogoutAll} disabled={logoutAllBusy}>
+            {logoutAllBusy ? 'Выходим...' : 'Выйти со всех устройств'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Dialog open={setupDialog} onOpenChange={setSetupDialog}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Подтвердите двухфакторную аутентификацию</DialogTitle>
+            <DialogDescription>
+              Отсканируйте код в приложении-аутентификаторе, затем введите код подтверждения
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="break-all rounded-md bg-muted p-3 text-center font-mono text-xs">
+              {twoFactorSecret}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Если приложение не сканирует QR-код, введите этот ключ вручную.
+            </p>
+            <Input
+              value={twoFactorCode}
+              onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              inputMode="numeric"
+              className="text-center text-lg tracking-[0.4em]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSetupDialog(false)}>Отмена</Button>
+            <Button onClick={finishTwoFactorSetup} disabled={twoFactorBusy || twoFactorCode.length !== 6}>
+              {twoFactorBusy ? 'Проверка...' : 'Включить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={disableDialog} onOpenChange={setDisableDialog}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Отключить двухфакторную аутентификацию?</DialogTitle>
+            <DialogDescription>
+              Потребуются пароль и код из приложения. После этого аккаунт будет защищён только паролем.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              type="password"
+              value={disablePassword}
+              onChange={(e) => setDisablePassword(e.target.value)}
+              placeholder="Пароль"
+            />
+            <Input
+              value={disableCode}
+              onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Код из приложения"
+              inputMode="numeric"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisableDialog(false)}>Отмена</Button>
+            <Button
+              variant="destructive"
+              onClick={finishTwoFactorDisable}
+              disabled={twoFactorBusy || !disablePassword || disableCode.length !== 6}
+            >
+              {twoFactorBusy ? 'Проверка...' : 'Отключить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={cropDialog} onOpenChange={setCropDialog}>
         <DialogContent className="w-[90vw] max-w-sm">

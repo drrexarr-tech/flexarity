@@ -50,7 +50,7 @@ export function AuthCallbackPage() {
           navigate('/profile');
         } else {
           const res = await api.auth.oauth(provider as any, data);
-          setAuth(res.user, res.token);
+          setAuth(res.user, res.token, res.refreshToken);
           toast.success('Вход выполнен');
           navigate('/');
         }

@@ -27,6 +27,8 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [pendingTwoFactor, setPendingTwoFactor] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -48,7 +50,30 @@ export function LoginPage() {
     setError('');
     try {
       const res = await api.auth.login(data);
-      setAuth(res.user, res.token, rememberMe);
+      // Password accepted but the second factor is still owed: keep the short
+      // lived ticket and ask for the code instead of signing in.
+      if ('requiresTwoFactor' in res && res.requiresTwoFactor) {
+        setPendingTwoFactor(res.twoFactorToken);
+        return;
+      }
+      if ('refreshToken' in res) {
+        setAuth(res.user as any, res.token, res.refreshToken, rememberMe);
+        navigate('/');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onTwoFactor(code: string) {
+    if (!pendingTwoFactor) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.auth.loginTwoFactor({ twoFactorToken: pendingTwoFactor, code });
+      setAuth(res.user as any, res.token, res.refreshToken, rememberMe);
       navigate('/');
     } catch (err: any) {
       setError(err.message);
@@ -62,7 +87,7 @@ export function LoginPage() {
     setError('');
     try {
       const res = await api.auth.register(data);
-      setAuth(res.user, res.token, rememberMe);
+      setAuth(res.user as any, res.token, res.refreshToken, rememberMe);
       navigate('/');
     } catch (err: any) {
       setError(err.message);
@@ -82,6 +107,43 @@ export function LoginPage() {
           <CardDescription>Ваш персональный сборник приложений</CardDescription>
         </CardHeader>
         <CardContent>
+          {pendingTwoFactor ? (
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void onTwoFactor(code);
+              }}
+            >
+              <p className="text-sm text-muted-foreground">
+                Введите код из приложения-аутентификатора для этого аккаунта.
+              </p>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                className="text-center text-lg tracking-[0.4em]"
+                autoFocus
+              />
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setPendingTwoFactor(null); setCode(''); setError(''); }}
+                >
+                  Назад
+                </Button>
+                <Button type="submit" className="flex-1" disabled={loading || code.length !== 6}>
+                  {loading ? 'Проверка...' : 'Подтвердить'}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <>
           <Tabs defaultValue="login">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Вход</TabsTrigger>
@@ -170,6 +232,8 @@ export function LoginPage() {
               VK ID (недоступно)
             </Button>
           </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

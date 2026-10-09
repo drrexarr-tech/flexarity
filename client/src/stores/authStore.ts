@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '@/types';
-import { getToken } from '@/lib/token';
+import { getToken, getRefreshToken, setTokens, clearTokens, onSessionLost } from '@/lib/token';
 
 /** Crypto material must not survive a sign-out on a shared device. */
 function purgeLocalSecrets() {
@@ -31,14 +31,10 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isInitialized: boolean;
-  setAuth: (user: User, token: string, remember?: boolean) => void;
+  setAuth: (user: User, token: string, refreshToken: string, remember?: boolean) => void;
   setUser: (user: User) => void;
   logout: () => void;
   init: () => void;
-}
-
-function getStorage(remember: boolean) {
-  return remember ? localStorage : sessionStorage;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -46,15 +42,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   isAuthenticated: false,
   isInitialized: false,
-  setAuth: (user, token, remember = true) => {
-    const storage = getStorage(remember);
-    storage.setItem('token', token);
-    storage.setItem('user', JSON.stringify(user));
+  setAuth: (user, token, refreshToken, remember = true) => {
+    setTokens(token, refreshToken, remember);
     localStorage.setItem('userId', user.id);
-    if (!remember) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    }
     set({ user, token, isAuthenticated: true, isInitialized: true });
   },
   setUser: (user) => {
@@ -65,19 +55,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     void purgeCaches();
     purgeLocalSecrets();
-    localStorage.removeItem('token');
+    clearTokens();
     localStorage.removeItem('user');
-    sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     set({ user: null, token: null, isAuthenticated: false, isInitialized: true });
   },
   init: () => {
-    let token = getToken();
-    let userStr = localStorage.getItem('user') ?? sessionStorage.getItem('user');
-    if (!token || !userStr) {
-      token = getToken();
-      userStr = localStorage.getItem('user') ?? sessionStorage.getItem('user');
-    }
+    const token = getToken();
+    const userStr = localStorage.getItem('user') ?? sessionStorage.getItem('user');
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
@@ -88,12 +73,19 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ user, token, isAuthenticated: true, isInitialized: true });
         return;
       } catch {
-        localStorage.removeItem('token');
+        clearTokens();
         localStorage.removeItem('user');
-        sessionStorage.removeItem('token');
         sessionStorage.removeItem('user');
       }
     }
     set({ isInitialized: true });
   },
 }));
+
+// A refresh that fails is a lost session: clear it here rather than letting
+// every page render an authenticated shell that fails to load data.
+onSessionLost(() => {
+  useAuthStore.getState().logout();
+});
+
+export { getRefreshToken };

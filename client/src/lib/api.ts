@@ -1,9 +1,38 @@
 import type { Plan, PlanEntry, Wishlist, WishItem, CalendarEvent, CalendarMonth, UpcomingItem, ShoppingItem } from '@/types';
-import { getToken } from './token';
+import { getToken, getRefreshToken, setAccessToken, setTokens, notifySessionLost } from './token';
 
 const API_URL = '/api';
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+const REFRESH_PATHS = ['/auth/refresh', '/auth/login', '/auth/register', '/auth/oauth', '/auth/login/2fa'];
+
+/**
+ * Swapping the access token is shared by every caller. Without the promise the
+ * six simultaneous requests a page load fires would each burn the same
+ * single-use refresh token, and all but the first would be rejected.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const remember = !!localStorage.getItem('token');
+    setTokens(data.token, data.refreshToken, remember);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -28,6 +57,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     );
   }
 
+  // The access token lives 15 minutes, so an expired one is expected rather
+  // than exceptional: redeem the refresh token once and replay the request.
+  if (res.status === 401 && retry && !REFRESH_PATHS.some((p) => path.startsWith(p))) {
+    refreshInFlight = refreshInFlight ?? refreshAccessToken();
+    const refreshed = await refreshInFlight.finally(() => { refreshInFlight = null; });
+    if (refreshed) return request<T>(path, options, false);
+    notifySessionLost();
+  }
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Ошибка запроса' }));
     throw new Error(error.error || `HTTP ${res.status}`);
@@ -36,19 +74,44 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+export interface AuthResult {
+  token: string;
+  refreshToken: string;
+  user: { id: string; email: string; name: string; totpEnabled?: boolean };
+}
+
+/** The password was right but a second factor is still owed. */
+export interface TwoFactorRequired {
+  requiresTwoFactor: true;
+  twoFactorToken: string;
+  user: { id: string; email: string; name: string };
+}
+
 export const api = {
   auth: {
     login: (data: { email: string; password: string }) =>
-      request<{ token: string; user: { id: string; email: string; name: string } }>('/auth/login', {
+      request<AuthResult | TwoFactorRequired>('/auth/login', {
+        method: 'POST', body: JSON.stringify(data),
+      }),
+    loginTwoFactor: (data: { twoFactorToken: string; code: string }) =>
+      request<AuthResult>('/auth/login/2fa', {
         method: 'POST', body: JSON.stringify(data),
       }),
     register: (data: { email: string; password: string; name: string }) =>
-      request<{ token: string; user: { id: string; email: string; name: string } }>('/auth/register', {
+      request<AuthResult>('/auth/register', {
         method: 'POST', body: JSON.stringify(data),
       }),
-    me: () => request<{ id: string; email: string; name: string }>('/auth/me'),
+    logout: (refreshToken: string | null) =>
+      request<any>('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+    logoutAll: () => request<any>('/auth/logout-all', { method: 'POST' }),
+    setupTwoFactor: () => request<{ secret: string; otpauthUri: string }>('/auth/2fa/setup', { method: 'POST' }),
+    enableTwoFactor: (code: string) =>
+      request<any>('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
+    disableTwoFactor: (data: { password: string; code: string }) =>
+      request<any>('/auth/2fa/disable', { method: 'POST', body: JSON.stringify(data) }),
+    me: () => request<{ id: string; email: string; name: string; totpEnabled: boolean }>('/auth/me'),
     oauth: (provider: 'telegram' | 'vk', data: any) =>
-      request<{ token: string; user: { id: string; email: string; name: string } }>('/auth/oauth', {
+      request<AuthResult>('/auth/oauth', {
         method: 'POST', body: JSON.stringify({ provider, data }),
       }),
     link: (provider: 'telegram' | 'vk', data: any) =>

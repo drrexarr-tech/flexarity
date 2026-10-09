@@ -6,6 +6,7 @@ export interface User {
   vkId?: string | null;
   avatarUrl?: string | null;
   dateOfBirth?: string | null;
+  totpEnabled?: boolean;
 }
 
 export interface Recipe {

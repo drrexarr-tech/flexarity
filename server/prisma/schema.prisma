@@ -17,8 +17,26 @@ model User {
   avatarUrl   String?
   dateOfBirth DateTime?
   publicKey   String?
+
+  // Brute-force protection. Without a per-account counter the only brake was a
+  // per-IP rate limit, which does nothing against a slow distributed guessing
+  // run or one attacker spreading requests across many addresses.
+  failedLogins Int        @default(0)
+  lockedUntil  DateTime?
+
+  // Bumping this invalidates every access token already issued for the user,
+  // which is what makes "log out everywhere" and password changes possible.
+  tokenVersion Int        @default(0)
+
+  // AES-256-GCM ciphertext of the TOTP seed; never the plaintext.
+  totpSecret   String?
+  totpEnabled  Boolean     @default(false)
+  /// Timestep of the last accepted code, so the same one cannot be replayed.
+  totpLastStep Int?
+
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  sessions    Session[]
   recipes     Recipe[]
   tasks       Task[]
   assignedTasks Task[]       @relation("TaskAssignee")
@@ -175,6 +193,25 @@ model Task {
   column      TaskColumn   @relation(fields: [columnId], references: [id], onDelete: Cascade)
   userId      String
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// A refresh token, stored as a SHA-256 hash so a database read cannot be
+/// replayed as a credential. Rotating on every use means a stolen refresh token
+/// is single-use: the legitimate client redeems it once and the thief's copy is
+/// dead, which `revokedAt` records.
+model Session {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Note {

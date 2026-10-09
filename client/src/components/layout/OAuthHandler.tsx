@@ -38,7 +38,7 @@ export function OAuthHandler() {
         .catch((err: any) => toast.error(err.message));
     } else {
       api.auth.oauth('telegram', data)
-        .then((res) => { useAuthStore.getState().setAuth(res.user, res.token); navigate('/', { replace: true }); })
+        .then((res) => { useAuthStore.getState().setAuth(res.user, res.token, res.refreshToken); navigate('/', { replace: true }); })
         .catch((err: any) => toast.error(err.message));
     }
   }, [navigate]);
