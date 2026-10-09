@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText, optionalNumber } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 export const chatRouter = Router();
@@ -8,9 +9,9 @@ chatRouter.use(authenticate);
 
 const messageSchema = z.object({
   content: z.string().min(1),
-  audio: z.string().optional(),
-  audioDuration: z.number().int().optional(),
-  image: z.string().optional(),
+  audio: optionalText(),
+  audioDuration: optionalNumber(),
+  image: optionalText(),
 });
 
 const createChatSchema = z.object({

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -228,11 +229,11 @@ authRouter.get('/public-key/:userId', authenticate, async (req: AuthRequest, res
 
 // Update profile
 const updateProfileSchema = z.object({
-  name: z.string().min(2).optional(),
-  email: z.string().email().optional(),
-  avatarUrl: z.string().nullable().optional(),
-  dateOfBirth: z.string().optional(),
-});
+    name: z.string().min(2).optional(),
+    email: z.string().email().optional(),
+    avatarUrl: optionalText(),
+    dateOfBirth: optionalText(),
+  });
 
 authRouter.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
   const data = updateProfileSchema.parse(req.body);

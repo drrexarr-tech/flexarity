@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText, optionalAmount } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -9,19 +10,19 @@ plansRouter.use(authenticate);
 
 const planSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  description: z.string().optional(),
-  targetAmount: z.coerce.number().min(0, 'Сумма не может быть отрицательной').default(0),
-  deadline: z.string().optional(),
-  color: z.string().optional(),
+  description: optionalText(),
+  targetAmount: optionalAmount(0, 'Сумма не может быть отрицательной'),
+  deadline: optionalText(),
+  color: optionalText(),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
-  familyId: z.string().optional(),
+  familyId: optionalText(),
 });
 
 const entrySchema = z.object({
   amount: z.coerce.number().int('Сумма должна быть целым числом').positive('Сумма должна быть больше нуля'),
   type: z.enum(['income', 'expense']).default('income'),
-  note: z.string().optional(),
-  date: z.string().optional(),
+  note: optionalText(),
+  date: optionalText(),
 });
 
 type EntryShape = { amount: number; type: string };
@@ -106,7 +107,7 @@ plansRouter.post('/', async (req: AuthRequest, res: Response) => {
     data: {
       title: data.title,
       description: data.description || null,
-      targetAmount: Math.round(data.targetAmount),
+      targetAmount: Math.round(data.targetAmount ?? 0),
       deadline: data.deadline ? new Date(data.deadline) : null,
       color: data.color || null,
       visibility: data.visibility,
@@ -130,7 +131,7 @@ plansRouter.put('/:id', async (req: AuthRequest, res: Response) => {
     data: {
       ...(data.title !== undefined ? { title: data.title } : {}),
       ...(data.description !== undefined ? { description: data.description || null } : {}),
-      ...(data.targetAmount !== undefined ? { targetAmount: Math.round(data.targetAmount) } : {}),
+      ...(data.targetAmount !== undefined ? { targetAmount: Math.round(data.targetAmount ?? 0) } : {}),
       ...(data.deadline !== undefined
         ? { deadline: data.deadline ? new Date(data.deadline) : null }
         : {}),

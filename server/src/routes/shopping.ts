@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText, optionalNumber, optionalAmount } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -9,11 +10,13 @@ shoppingRouter.use(authenticate);
 
 const itemSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  quantity: z.coerce.number().positive('Количество должно быть больше нуля').optional(),
-  unit: z.string().optional(),
-  price: z.coerce.number().min(0, 'Цена не может быть отрицательной').optional(),
-  category: z.string().optional(),
-  familyId: z.string().optional(),
+  quantity: optionalNumber().refine((v) => v === null || v === undefined || v > 0, {
+    message: 'Количество должно быть больше нуля',
+  }),
+  unit: optionalText(),
+  price: optionalAmount(0, 'Цена не может быть отрицательной'),
+  category: optionalText(),
+  familyId: optionalText(),
 });
 
 const userSelect = { select: { id: true, name: true } } as const;
@@ -60,7 +63,7 @@ shoppingRouter.post('/', async (req: AuthRequest, res: Response) => {
       title: data.title,
       quantity: data.quantity ?? null,
       unit: data.unit || null,
-      price: data.price === undefined ? null : Math.round(data.price),
+      price: data.price == null ? null : Math.round(data.price),
       category: data.category || null,
       familyId,
       userId: req.userId!,

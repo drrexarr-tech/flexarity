@@ -17,7 +17,8 @@ const schema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   url: z.string().optional(),
   category: z.string().optional(),
-  cookingTime: z.coerce.number().optional(),
+  // Number('') is 0, which would store "0 мин" instead of leaving it unset.
+  cookingTime: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional()),
   ingredients: z.string().optional(),
   instructions: z.string().optional(),
   visibility: z.enum(['private', 'family', 'public']).default('private'),

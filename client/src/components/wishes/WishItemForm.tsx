@@ -14,7 +14,9 @@ import toast from 'react-hot-toast';
 
 const schema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  price: z.coerce.number().min(0, 'Цена не может быть отрицательной').optional(),
+  // Number('') is 0, so an untouched field would be sent as a price of zero
+  // instead of staying empty.
+  price: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(0, 'Цена не может быть отрицательной').optional()),
   url: z.string().optional(),
   note: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']).optional(),

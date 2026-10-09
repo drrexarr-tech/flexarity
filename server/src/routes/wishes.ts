@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText, optionalAmount } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -9,18 +10,18 @@ wishesRouter.use(authenticate);
 
 const wishlistSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  description: z.string().optional(),
+  description: optionalText(),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
-  familyId: z.string().optional(),
+  familyId: optionalText(),
 });
 
 const itemSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  price: z.coerce.number().min(0, 'Цена не может быть отрицательной').optional(),
-  url: z.string().optional(),
-  note: z.string().optional(),
+  price: optionalAmount(0, 'Цена не может быть отрицательной'),
+  url: optionalText(),
+  note: optionalText(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
-  recipientId: z.string().optional(),
+  recipientId: optionalText(),
 });
 
 const userSelect = { select: { id: true, name: true } } as const;
@@ -195,7 +196,7 @@ wishesRouter.post('/:id/items', async (req: AuthRequest, res: Response) => {
   const item = await prisma.wishItem.create({
     data: {
       title: data.title,
-      price: data.price === undefined ? null : Math.round(data.price),
+      price: data.price == null ? null : Math.round(data.price),
       url: data.url || null,
       note: data.note || null,
       priority: data.priority ?? null,

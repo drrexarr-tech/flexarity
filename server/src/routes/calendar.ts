@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -9,12 +10,12 @@ calendarRouter.use(authenticate);
 
 const eventSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  description: z.string().optional(),
+  description: optionalText(),
   date: z.string().min(1, 'Дата обязательна'),
-  time: z.string().optional(),
-  color: z.string().optional(),
+  time: optionalText(),
+  color: optionalText(),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
-  familyId: z.string().optional(),
+  familyId: optionalText(),
 });
 
 const userSelect = { select: { id: true, name: true } } as const;

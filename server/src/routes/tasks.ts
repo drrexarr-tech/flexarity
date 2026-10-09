@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -9,20 +10,20 @@ tasksRouter.use(authenticate);
 
 const columnSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  color: z.string().optional(),
+  color: optionalText(),
   order: z.number().optional(),
 });
 
 const taskSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  description: z.string().optional(),
+  description: optionalText(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
-  dueDate: z.string().optional(),
+  dueDate: optionalText(),
   order: z.number().optional(),
   columnId: z.string(),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
-  familyId: z.string().optional(),
-  assigneeId: z.string().optional(),
+  familyId: optionalText(),
+  assigneeId: optionalText(),
 });
 
 // Columns

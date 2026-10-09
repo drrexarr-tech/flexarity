@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText, optionalNumber } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -9,15 +10,15 @@ recipesRouter.use(authenticate);
 
 const recipeSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  url: z.string().optional(),
+  url: optionalText(),
   ingredients: z.string().default('[]'),
   instructions: z.string().default('[]'),
-  cookingTime: z.coerce.number().optional(),
-  category: z.string().optional(),
-  imageUrl: z.string().optional(),
+  cookingTime: optionalNumber(),
+  category: optionalText(),
+  imageUrl: optionalText(),
   isPublic: z.boolean().default(false),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
-  familyId: z.string().optional(),
+  familyId: optionalText(),
 });
 
 recipesRouter.get('/', async (req: AuthRequest, res: Response) => {

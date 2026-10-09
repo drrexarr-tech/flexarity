@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { optionalText } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 export const notesRouter = Router();
@@ -8,7 +9,7 @@ notesRouter.use(authenticate);
 
 const noteSchema = z.object({
   title: z.string().min(1),
-  content: z.string().optional(),
+  content: optionalText(),
   images: z.string().nullable().optional(),
   audio: z.string().nullable().optional(),
 });
