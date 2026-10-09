@@ -43,7 +43,7 @@ function safeFilename(original: string, mimetype?: string): string {
     .replace(/^[-._]+|[-._]+$/g, '')
     .slice(0, 60);
 
-  const ext = EXT_BY_TYPE[String(mimetype || '').toLowerCase()] ?? '.bin';
+  const ext = EXT_BY_TYPE[String(mimetype || '').split(';')[0].trim().toLowerCase()] ?? '.bin';
   return `${Date.now()}-${stem || 'file'}${ext}`;
 }
 
@@ -57,25 +57,47 @@ const storage = multer.diskStorage({
  * serves the SPA and /api from one origin, an uploaded .html or .svg became a
  * same-origin script URL reachable by anyone who was sent the link. Traversal
  * was already blocked; this closes the executable-upload hole next to it.
+ *
+ * The check is on the top-level type, because browsers send parameters with it:
+ * ChatsPage records with 'audio/webm;codecs=opus', so an exact match on the raw
+ * value would have rejected every voice message. SVG is excluded explicitly, as
+ * it is a document type that executes script when loaded directly.
  */
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-const AUDIO_TYPES = new Set(['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/wav']);
-
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'image/gif': '.gif',
   'image/webp': '.webp',
+  'image/avif': '.avif',
+  'image/bmp': '.bmp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+  'image/tiff': '.tiff',
   'audio/webm': '.weba',
   'audio/ogg': '.ogg',
   'audio/mpeg': '.mp3',
+  'audio/mp3': '.mp3',
   'audio/mp4': '.m4a',
+  'audio/x-m4a': '.m4a',
+  'audio/aac': '.aac',
   'audio/wav': '.wav',
+  'audio/x-wav': '.wav',
+  'audio/flac': '.flac',
 };
 
-function typeFilter(allowed: Set<string>, label: string) {
+/** image/* and audio/* are inert when rendered; svg/xml/html are not. */
+function isAllowedMedia(mimetype: string): boolean {
+  const type = mimetype.split(';')[0].trim().toLowerCase();
+  if (type === 'image/svg+xml' || type === 'image/svg') return false;
+  return type.startsWith('image/') || type.startsWith('audio/');
+}
+
+function typeFilter(allowed: 'image' | 'media', label: string) {
   return (_req: unknown, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    if (allowed.has(file.mimetype.toLowerCase())) return cb(null, true);
+    const type = file.mimetype.split(';')[0].trim().toLowerCase();
+    const ok =
+      allowed === 'image' ? type.startsWith('image/') && type !== 'image/svg+xml' : isAllowedMedia(type);
+    if (ok) return cb(null, true);
     cb(new AppError(400, `Разрешены только ${label}`));
   };
 }
@@ -83,13 +105,13 @@ function typeFilter(allowed: Set<string>, label: string) {
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: typeFilter(IMAGE_TYPES, 'изображения'),
+  fileFilter: typeFilter('image', 'изображения'),
 });
 
 const uploadMedia = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: typeFilter(new Set([...IMAGE_TYPES, ...AUDIO_TYPES]), 'изображения и аудио'),
+  fileFilter: typeFilter('media', 'изображения и аудио'),
 });
 
 uploadRouter.post('/avatar', authenticate, upload.single('avatar'), async (req: AuthRequest, res: Response) => {
@@ -118,18 +140,14 @@ uploadRouter.post('/audio', authenticate, uploadMedia.single('file'), async (req
   res.json({ url });
 });
 
-/** Serve with an explicit type so a stray extension can never be re-interpreted. */
-const EXT_TO_TYPE: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.png': 'image/png',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.weba': 'audio/webm',
-  '.ogg': 'audio/ogg',
-  '.mp3': 'audio/mpeg',
-  '.m4a': 'audio/mp4',
-  '.wav': 'audio/wav',
-};
+/**
+ * Serve with an explicit type so a stray extension can never be re-interpreted.
+ * Derived from EXT_BY_TYPE so every extension safeFilename can produce is also
+ * readable here; an allowed upload that 404s on read would be its own bug.
+ */
+const EXT_TO_TYPE: Record<string, string> = Object.fromEntries(
+  Object.entries(EXT_BY_TYPE).map(([type, ext]) => [ext, type])
+);
 
 uploadRouter.get('/file/:filename', async (req: AuthRequest, res: Response) => {
   // This route is intentionally public so <img> tags can load without a
