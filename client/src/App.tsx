@@ -5,6 +5,8 @@ import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { RecipesPage } from '@/pages/RecipesPage';
@@ -98,15 +100,18 @@ export default function App() {
   }, []);
 
   return (
-    <BrowserRouter>
-      <OAuthHandler />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          className: '!bg-card !text-card-foreground !border !border-border',
-        }}
-      />
-      <AnimatedRoutes />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <OfflineBanner />
+        <OAuthHandler />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            className: '!bg-card !text-card-foreground !border !border-border',
+          }}
+        />
+        <AnimatedRoutes />
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

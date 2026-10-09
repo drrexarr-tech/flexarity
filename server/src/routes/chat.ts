@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { optionalText, optionalNumber } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { AppError } from '../middleware/errorHandler';
 
 export const chatRouter = Router();
 chatRouter.use(authenticate);
@@ -219,8 +220,22 @@ chatRouter.get('/search/participants', async (req: AuthRequest, res: Response) =
   res.json(participants.map((p) => ({ ...p.user, chatId: p.chat.id })));
 });
 
+/**
+ * Membership check for anything scoped to a chat. Without it, any authenticated
+ * user holding a chat id could read the history, post into it, and overwrite the
+ * E2E key rows of people who are not even in the conversation.
+ */
+async function requireParticipant(userId: string, chatId: string): Promise<void> {
+  const participant = await prisma.chatParticipant.findFirst({
+    where: { chatId, userId },
+    select: { userId: true },
+  });
+  if (!participant) throw new AppError(403, 'Вы не участник чата');
+}
+
 chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
   const chatId = String(req.params.id);
+  await requireParticipant(req.userId!, chatId);
 
   await prisma.message.updateMany({
     where: { chatId, userId: { not: req.userId }, readAt: null },
@@ -238,6 +253,8 @@ chatRouter.get('/:id/messages', async (req: AuthRequest, res: Response) => {
 
 chatRouter.post('/:id/messages', async (req: AuthRequest, res: Response) => {
   const chatId = String(req.params.id);
+  await requireParticipant(req.userId!, chatId);
+
   const { content, audio, audioDuration, image } = messageSchema.parse(req.body);
 
   const message = await prisma.message.create({
@@ -303,6 +320,19 @@ chatRouter.put('/:id/encrypt', async (req: AuthRequest, res: Response) => {
     where: { chatId, userId: req.userId },
   });
   if (!participant) return res.status(403).json({ error: 'Вы не участник чата' });
+
+  // Keys may only be written for actual members. z.record accepts any key, so
+  // without this a member could overwrite the key material of users who are not
+  // in the chat and corrupt what they will later fetch.
+  const members = await prisma.chatParticipant.findMany({
+    where: { chatId },
+    select: { userId: true },
+  });
+  const memberIds = new Set(members.map((m) => m.userId));
+  const foreign = Object.keys(encryptedKeys).filter((id) => !memberIds.has(id));
+  if (foreign.length) {
+    throw new AppError(400, 'Ключи можно сохранить только для участников чата');
+  }
 
   for (const [userId, key] of Object.entries(encryptedKeys)) {
     await prisma.chatKey.upsert({

@@ -82,3 +82,31 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Sticky headers sit under the notch once viewport-fit=cover is enabled. */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* iOS Safari zooms the viewport when a focused field is under 16px, which on a
+   form means a zoom on every tap. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Standalone Android otherwise shows pull-to-refresh overscroll glow over the UI. */
+html {
+  overscroll-behavior-y: contain;
+}
+
+:where(html, body) {
+  color-scheme: light;
+}
+
+.dark :where(html, body) {
+  color-scheme: dark;
+}

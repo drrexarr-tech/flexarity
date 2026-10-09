@@ -33,7 +33,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     data: { email, password: hashedPassword, name },
   });
 
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '30d' });
 
   await prisma.taskColumn.createMany({
     data: [
@@ -67,7 +67,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     throw new AppError(400, 'Неверный email или пароль');
   }
 
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '30d' });
 
   const profile = await prisma.user.findUnique({
     where: { id: user.id },
@@ -87,63 +87,82 @@ const oauthSchema = z.object({
 
 import crypto from 'crypto';
 
+/**
+ * Verify a Telegram Login Widget payload.
+ *
+ * Telegram signs the fields with a key derived from the bot token, so the token
+ * is mandatory here: without it there is no signature to check and accepting the
+ * payload would let anyone claim any Telegram id. auth_date is also bounded so a
+ * captured payload cannot be replayed indefinitely.
+ */
+function verifyTelegramLogin(data: Record<string, any>): { id: string; name: string } {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
+    throw new AppError(503, 'Вход через Telegram не настроен на сервере');
+  }
+
+  const { hash, auth_date: authDate, ...rest } = data;
+  if (typeof hash !== 'string' || !hash) {
+    throw new AppError(400, 'Отсутствует подпись Telegram');
+  }
+
+  const checkArr = Object.keys(rest)
+    .sort()
+    .map((k) => `${k}=${rest[k]}`)
+    .join('\n');
+  const secretKey = crypto.createHash('sha256').update(botToken).digest();
+  const expected = crypto.createHmac('sha256', secretKey).update(checkArr).digest('hex');
+
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(hash, 'utf8');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    throw new AppError(400, 'Недействительные данные Telegram');
+  }
+
+  // 24h matches Telegram's own guidance for treating a login payload as stale.
+  const age = Date.now() / 1000 - Number(authDate);
+  if (!Number.isFinite(age) || age < 0 || age > 86400) {
+    throw new AppError(400, 'Данные Telegram устарели, попробуйте войти заново');
+  }
+
+  const id = String(rest.id ?? '');
+  if (!/^-?\d+$/.test(id)) {
+    throw new AppError(400, 'Некорректный идентификатор Telegram');
+  }
+
+  const name = [rest.first_name, rest.last_name].filter(Boolean).join(' ');
+  return { id, name };
+}
+
 authRouter.post('/oauth', async (req: Request, res: Response) => {
   const { provider, data } = oauthSchema.parse(req.body);
 
-  if (provider === 'telegram') {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (botToken) {
-      const checkHash = data.hash;
-      const checkArr = Object.keys(data)
-        .filter((k) => k !== 'hash')
-        .sort()
-        .map((k) => `${k}=${data[k]}`)
-        .join('\n');
-      const secretKey = crypto.createHash('sha256').update(botToken).digest();
-      const hmac = crypto.createHmac('sha256', secretKey).update(checkArr).digest('hex');
-      if (hmac !== checkHash) {
-        throw new AppError(400, 'Недействительные данные Telegram');
-      }
-    }
-
-    const telegramId = String(data.id);
-    const name = data.first_name + (data.last_name ? ` ${data.last_name}` : '');
-    let user = await prisma.user.findUnique({ where: { telegramId } });
-    if (!user) {
-      const email = data.email || `tg_${data.id}@telegram.placeholder`;
-      user = await prisma.user.findUnique({ where: { email } });
-    }
-    if (!user) {
-      user = await prisma.user.create({
-        data: { email: `tg_${data.id}@telegram.placeholder`, password: '', name, telegramId },
-      });
-    } else if (!user.telegramId) {
-      user = await prisma.user.update({ where: { id: user.id }, data: { telegramId } });
-    }
-    const profile = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
-    });
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
-    return res.json({ token, user: profile });
+  if (provider === 'vk') {
+    // A VK login cannot be trusted without a server-side code exchange, and the
+    // app id / service key are not configured. The previous implementation
+    // looked accounts up by the client-supplied data.email, which let anyone
+    // take over any registered address:
+    //   POST /api/auth/oauth {"provider":"vk","data":{"id":"1","email":"victim@x"}}
+    throw new AppError(503, 'Вход через VK пока не настроен на сервере');
   }
 
-  if (provider === 'vk') {
-    const vkId = String(data.id);
-    const email = data.email || `vk_${data.id}@vk.placeholder`;
-    const name = data.first_name + (data.last_name ? ` ${data.last_name}` : '');
-    let user = await prisma.user.findUnique({ where: { vkId } });
-    if (!user) user = await prisma.user.findUnique({ where: { email } });
+  if (provider === 'telegram') {
+    const { id: telegramId, name } = verifyTelegramLogin(data);
+
+    // Only ever resolve by the verified Telegram id. Falling back to an email
+    // would let a verified login of one account bind itself to another.
+    let user = await prisma.user.findUnique({ where: { telegramId } });
     if (!user) {
-      user = await prisma.user.create({ data: { email, password: '', name, vkId } });
-    } else if (!user.vkId) {
-      user = await prisma.user.update({ where: { id: user.id }, data: { vkId } });
+      user = await prisma.user.create({
+        data: { email: `tg_${telegramId}@telegram.placeholder`, password: '', name, telegramId },
+      });
     }
+
     const profile = await prisma.user.findUnique({
       where: { id: user.id },
       select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '30d' });
     return res.json({ token, user: profile });
   }
 
@@ -177,8 +196,15 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
     return res.json(user);
   }
 
+  if (provider === 'vk') {
+    throw new AppError(503, 'Вход через VK пока не настроен на сервере');
+  }
+
   if (provider === 'telegram') {
-    const telegramId = String(data.id);
+    // Binding was previously authenticated but unverified: any logged-in user
+    // could claim any Telegram id, and the real owner would then be logged into
+    // the attacker's account. The same signature check as /oauth applies here.
+    const { id: telegramId } = verifyTelegramLogin(data);
     const existing = await prisma.user.findUnique({ where: { telegramId } });
     if (existing && existing.id !== req.userId) {
       throw new AppError(400, 'Telegram уже привязан к другому аккаунту');
@@ -186,20 +212,6 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { telegramId },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
-    });
-    return res.json(user);
-  }
-
-  if (provider === 'vk') {
-    const vkId = String(data.id);
-    const existing = await prisma.user.findUnique({ where: { vkId } });
-    if (existing && existing.id !== req.userId) {
-      throw new AppError(400, 'VK уже привязан к другому аккаунту');
-    }
-    const user = await prisma.user.update({
-      where: { id: req.userId },
-      data: { vkId },
       select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
     return res.json(user);
@@ -258,7 +270,7 @@ authRouter.get('/me', async (req: Request, res: Response) => {
   }
 
   const token = authHeader.split(' ')[1];
-  const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string };
+  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
   const user = await prisma.user.findUnique({
     where: { id: decoded.userId },
     select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },

@@ -1,9 +1,10 @@
 import type { Plan, PlanEntry, Wishlist, WishItem, CalendarEvent, CalendarMonth, UpcomingItem, ShoppingItem } from '@/types';
+import { getToken } from './token';
 
 const API_URL = '/api';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -13,7 +14,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  } catch {
+    // fetch rejects with an English TypeError ("Failed to fetch") when the
+    // network is down, which surfaced as a raw English string in an all-Russian
+    // UI. Offline is a normal state for an installed PWA, so name it.
+    throw new Error(
+      typeof navigator !== 'undefined' && navigator.onLine === false
+        ? 'Нет подключения к интернету'
+        : 'Сервер недоступен, попробуйте позже'
+    );
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Ошибка запроса' }));
@@ -49,7 +62,7 @@ export const api = {
     uploadAvatar: (file: File) => {
       const formData = new FormData();
       formData.append('avatar', file);
-      const token = localStorage.getItem('token');
+      const token = getToken();
       return fetch('/api/upload/avatar', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -59,7 +72,7 @@ export const api = {
   uploadImage: (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
-      const token = localStorage.getItem('token');
+      const token = getToken();
       return fetch('/api/upload/image', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -70,7 +83,7 @@ export const api = {
   uploadImage: (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
-      const token = localStorage.getItem('token');
+      const token = getToken();
       return fetch('/api/upload/image', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -80,7 +93,7 @@ export const api = {
   uploadAudio: (blob: Blob) => {
       const formData = new FormData();
       formData.append('file', blob, 'audio.webm');
-      const token = localStorage.getItem('token');
+      const token = getToken();
       return fetch('/api/upload/audio', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},

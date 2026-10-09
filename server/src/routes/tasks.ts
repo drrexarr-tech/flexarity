@@ -117,7 +117,20 @@ tasksRouter.put('/reorder/all', async (req: AuthRequest, res: Response) => {
     })),
   }).parse(req.body);
 
-  for (const item of items) {
+  // Every other :id route here resolves the task against the caller first. This
+  // one only validated shape, so any authenticated user could reorder or
+  // relocate any task in the system by id. Skip what is not theirs rather than
+  // failing the whole batch, so a stale drag does not break the board.
+  for (const item of items.slice(0, 200)) {
+    const owned = await prisma.task.findFirst({
+      where: {
+        id: item.id,
+        OR: [{ userId: req.userId }, { assigneeId: req.userId }],
+      },
+      select: { id: true },
+    });
+    if (!owned) continue;
+
     await prisma.task.update({
       where: { id: item.id },
       data: { order: item.order, columnId: item.columnId },

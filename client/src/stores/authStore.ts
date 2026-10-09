@@ -1,5 +1,30 @@
 import { create } from 'zustand';
 import type { User } from '@/types';
+import { getToken } from '@/lib/token';
+
+/** Crypto material must not survive a sign-out on a shared device. */
+function purgeLocalSecrets() {
+  localStorage.removeItem('userId');
+  for (const key of ['flex_private_key', 'flex_pubkey', 'flex_pubkey_sent']) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+}
+
+/**
+ * Drop every cache the service worker owns. Without this a signed-out user's
+ * runtime cache survives on the device and the next person to sign in can be
+ * served their data while offline.
+ */
+async function purgeCaches() {
+  if (typeof caches === 'undefined') return;
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((key) => caches.delete(key)));
+  } catch {
+    // A failed purge must not prevent the local sign-out.
+  }
+}
 
 interface AuthState {
   user: User | null;
@@ -38,6 +63,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user });
   },
   logout: () => {
+    void purgeCaches();
+    purgeLocalSecrets();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     sessionStorage.removeItem('token');
@@ -45,11 +72,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, token: null, isAuthenticated: false, isInitialized: true });
   },
   init: () => {
-    let token = localStorage.getItem('token');
-    let userStr = localStorage.getItem('user');
+    let token = getToken();
+    let userStr = localStorage.getItem('user') ?? sessionStorage.getItem('user');
     if (!token || !userStr) {
-      token = sessionStorage.getItem('token');
-      userStr = sessionStorage.getItem('user');
+      token = getToken();
+      userStr = localStorage.getItem('user') ?? sessionStorage.getItem('user');
     }
     if (token && userStr) {
       try {
