@@ -33,6 +33,26 @@ npm install --silent
 npm run build
 sudo cp -r dist/* /var/www/html/
 
+echo "=== Removing stale web assets ==="
+# Every build emits a new hashed bundle name and nothing ever deleted the old
+# one, so the web root grew by a full copy per deploy. Remove only what the
+# current build did not produce: files outside the app build (templates,
+# images/, index.nginx-debian.html) must stay untouched.
+if [ -d /opt/flex/client/dist/assets ]; then
+  ( cd /opt/flex/client/dist/assets && find . -type f -printf '%P\n' ) | while read -r rel; do
+    [ -e "/opt/flex/client/dist/assets/$rel" ] || sudo rm -f "/var/www/html/assets/$rel"
+  done
+fi
+sudo find /var/www/html -maxdepth 1 -name 'workbox-*.js' -type f 2>/dev/null | while read -r f; do
+  base=$(basename "$f")
+  [ -e "/opt/flex/client/dist/$base" ] || sudo rm -f "$f"
+done
+
+echo "=== Pruning dangling images ==="
+# Targets only untagged leftovers from previous builds. `image prune -a` would
+# delete the postgres image, which must survive a server reboot.
+docker image prune -f >/dev/null 2>&1 || true
+
 echo "=== Ensuring uploads volume exists ==="
 mkdir -p /opt/flex/server/uploads
 
