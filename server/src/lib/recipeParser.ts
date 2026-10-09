@@ -6,6 +6,7 @@ export interface ParsedRecipe {
   ingredients: string[];
   instructions: string[];
   cookingTime?: number;
+  image?: string;
   source: 'json-ld' | 'microdata' | 'heuristic';
 }
 
@@ -119,6 +120,7 @@ function fromJsonLd($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     ingredients,
     instructions,
     cookingTime: parseDuration(recipe.totalTime ?? recipe.cookTime ?? recipe.prepTime),
+    image: imageFromLd(recipe.image) ?? imageFromLd(recipe.thumbnailUrl),
   };
 }
 
@@ -142,6 +144,7 @@ function fromMicrodata($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     ingredients,
     instructions,
     cookingTime: parseDuration($('[itemprop="totalTime"]').attr('content')),
+    image: imageFromLd($('[itemprop="image"]').attr('content')),
   };
 }
 
@@ -160,6 +163,88 @@ function pickLongest(candidates: string[][], min: number): string[] {
 const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'strong', 'summary']);
 /** How far past a heading to keep looking for its list. */
 const LOOKAHEAD = 30;
+
+const SIDEBAR_TAGS = 'nav, aside, header, footer, script, style, noscript, form, iframe';
+const QUANTITY = /\d/;
+const UNIT = /(г|кг|мг|мл|л|шт|ст|ч\.?\s*л|стак|пуч|головк|кг\.?)/i;
+
+/**
+ * Restrict parsing to the page body proper. Without this, any recipe page with a
+ * sidebar of "other recipes" or an SEO block yields those lists instead: a real
+ * report imported a page whose ingredients were things like "Чем питаться в
+ * жару?" because the popular-recipes rail was parsed as the recipe.
+ */
+function scopeToContent($: CheerioAPI): void {
+  // Deliberately narrow: an earlier version also matched ".content", which on one
+  // fixture hit a <ul class="content"> and deleted the h1 along with everything
+  // else outside that list.
+  const main = $('main, article, [role="main"]').first();
+  if (main.length) {
+    const keep = main.find('*').add(main);
+    $('body > *').not(keep).remove();
+    return;
+  }
+  $(SIDEBAR_TAGS).remove();
+}
+
+/**
+ * Score how much a candidate list looks like ingredients rather than navigation,
+ * reviews or SEO copy. Questions and long sentences are strong negatives; an
+ * amount with a unit is the strongest positive.
+ */
+function ingredientScore(items: string[]): number {
+  if (items.length < 2) return -Infinity;
+  let score = Math.min(items.length, 12) / 2;
+  for (const item of items) {
+    if (item.includes('?')) score -= 3;
+    if (item.length > 120) score -= 2;
+    if (item.length < 3) score -= 1;
+    if (QUANTITY.test(item)) score += 1;
+    if (UNIT.test(item)) score += 1;
+  }
+  return score;
+}
+
+function instructionScore(items: string[]): number {
+  if (items.length < 2) return -Infinity;
+  let score = Math.min(items.length, 12) / 2;
+  for (const item of items) {
+    if (item.length < 8) score -= 1;
+    if (item.length > 600) score -= 2;
+    if (/^\d+[.)]/.test(item)) score += 1;
+  }
+  return score;
+}
+
+function pickBest(candidates: string[][], score: (items: string[]) => number): string[] {
+  let best: string[] = [];
+  let bestScore = -Infinity;
+  for (const list of candidates) {
+    const cleaned = clean(list);
+    const value = score(cleaned);
+    if (value > bestScore) {
+      bestScore = value;
+      best = cleaned;
+    }
+  }
+  return bestScore === -Infinity ? [] : best;
+}
+
+/**
+ * og:title first: sites set it to the dish name, whereas an h1 is often a
+ * promo banner ("Лучшие рецепты недели (113)"), and that banner can be well
+ * under any sensible length limit. h1 and <title> are the fallbacks.
+ */
+function titleFrom($: CheerioAPI): string {
+  const og = $('meta[property="og:title"]').attr('content');
+  if (normalize(og)) return normalize(og);
+
+  const h1 = normalize($('h1').first().text());
+  if (h1) return h1;
+
+  const raw = normalize($('title').first().text());
+  return normalize(raw.split(/\s+[|—–-]\s+/)[0]) || raw;
+}
 
 function textsOf($: CheerioAPI, elements: unknown[]): string[] {
   return elements.map((el) => $(el as never).text());
@@ -243,25 +328,51 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     if (wantsInstructions) instructionCandidates.push(listItems.length ? listItems : paragraphs);
   }
 
-  let ingredients = pickLongest(ingredientCandidates, 2);
-  const instructions = pickLongest(instructionCandidates, 2);
+  let ingredients = pickBest(ingredientCandidates, ingredientScore);
+  const instructions = pickBest(instructionCandidates, instructionScore);
 
-  // Last resort: the longest list on the page is usually the ingredient list.
+  // Last resort: the most ingredient-looking list on the page.
   if (!ingredients.length) {
     const lists: string[][] = [];
     $('ul, ol').each((_, el) => {
       lists.push(textsOf($, $(el).find('li').toArray()));
     });
-    ingredients = pickLongest(lists, 3);
+    ingredients = pickBest(lists, ingredientScore);
   }
 
   if (!ingredients.length && !instructions.length) return null;
 
-  return {
-    title: normalize($('h1').first().text()),
-    ingredients,
-    instructions,
-  };
+  return { title: titleFrom($), ingredients, instructions };
+}
+
+/** schema.org image is a string, an array, or an object with url/contentUrl. */
+function imageFromLd(value: unknown): string | undefined {
+  const candidates: unknown[] = Array.isArray(value) ? value : [value];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate)) return candidate;
+    if (candidate && typeof candidate === 'object') {
+      const obj = candidate as Record<string, unknown>;
+      for (const key of ['url', 'contentUrl']) {
+        const url = obj[key];
+        if (typeof url === 'string' && /^https?:\/\//i.test(url)) return url;
+      }
+    }
+  }
+  return undefined;
+}
+
+function imageFromMeta($: CheerioAPI): string | undefined {
+  const candidates = [
+    $('meta[property="og:image"]').attr('content'),
+    $('meta[name="twitter:image"]').attr('content'),
+    $('meta[itemprop="image"]').attr('content'),
+    $('link[rel="image_src"]').attr('href'),
+  ];
+  for (const candidate of candidates) {
+    const url = normalize(candidate);
+    if (/^https?:\/\//i.test(url)) return url;
+  }
+  return undefined;
 }
 
 export function parseRecipe(html: string): ParsedRecipe | null {
@@ -269,16 +380,26 @@ export function parseRecipe(html: string): ParsedRecipe | null {
   if (!html || html.length < 120) return null;
   const $ = cheerio.load(html);
 
+  // The image is looked up before scoping, because social tags usually live in
+  // the head while the body markup is what needs narrowing down.
+  const metaImage = imageFromMeta($);
+
   const attempts: [Omit<ParsedRecipe, 'source'> | null, ParsedRecipe['source']][] = [
     [fromJsonLd($), 'json-ld'],
     [fromMicrodata($), 'microdata'],
-    [fromHeuristics($), 'heuristic'],
   ];
 
   for (const [result, source] of attempts) {
     if (!result) continue;
     if (!result.ingredients.length && !result.instructions.length) continue;
-    return { ...result, source };
+    return { ...result, image: result.image ?? metaImage, source };
+  }
+
+  scopeToContent($);
+
+  const heuristic = fromHeuristics($);
+  if (heuristic && (heuristic.ingredients.length || heuristic.instructions.length)) {
+    return { ...heuristic, image: metaImage, source: 'heuristic' };
   }
   return null;
 }

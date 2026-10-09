@@ -16,6 +16,7 @@ interface Parsed {
   ingredients: string[];
   instructions: string[];
   cookingTime?: number;
+  image?: string | null;
   source: 'json-ld' | 'microdata' | 'heuristic';
   charset: string;
   charsetGuessed: boolean;
@@ -54,6 +55,8 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
       const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
       const parsed = await api.recipes.import(candidate);
       setResult(parsed);
+      // Keep the normalised form so the link stored on the recipe is usable.
+      setUrl(candidate);
       if (!parsed.ingredients.length && !parsed.instructions.length) {
         toast.error('На странице не нашлось ни ингредиентов, ни шагов');
       }
@@ -68,9 +71,11 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
     if (!result) return;
     onImported({
       title: result.title || '',
+      url: url.trim(),
       ingredients: result.ingredients,
       instructions: result.instructions,
       cookingTime: result.cookingTime ?? null,
+      imageUrl: result.image ?? null,
     });
     reset();
   }
@@ -125,6 +130,16 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
                   {result.charsetGuessed ? ' (угадана)' : ''}
                 </Badge>
               </div>
+
+              {result.image && (
+                <img
+                  src={result.image}
+                  alt=""
+                  className="h-32 w-full rounded-md object-cover"
+                  loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
 
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>Ингредиентов: {result.ingredients.length}</span>

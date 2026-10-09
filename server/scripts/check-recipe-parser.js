@@ -148,6 +148,69 @@ check(
   (r) => r.ingredients.length === 3 && !r.ingredients.includes('Отличный рецепт')
 );
 
+check(
+  'ignores SEO keyword blocks and a related-recipes rail',
+  // Reproduces a real import that came back with "Чем питаться в жару?" as an
+  // ingredient and the site promo banner as the title.
+  `<html><head><meta property="og:title" content="Овсяноблин с вареньем"></head><body>
+   <div class="promo"><h1>Для уютных моментов. Лучшие рецепты ПИРОГОВ (113)</h1></div>
+   <main>
+     <article>
+       <h1>Овсяноблин с клубничным вареньем</h1>
+       <h2>Ингредиенты</h2>
+       <ul><li>Овсяные хлопья 40 г</li><li>Мягкий творог 100 г</li><li>Клубничное варенье 2 ч. л.</li></ul>
+       <h2>Приготовление</h2>
+       <ol><li>Измельчить хлопья в блендере.</li><li>Смешать с творогом.</li><li>Обжарить на сковороде.</li></ol>
+     </article>
+     <aside><h3>Популярные рецепты</h3>
+       <ul><li>Как жарить картошку</li><li>Как вкусно приготовить макароны</li></ul>
+     </aside>
+     <section class="seo"><h3>Как питаться, чтобы жить дольше</h3>
+       <ul><li>Чем питаться в жару?</li><li>10 продуктов, которые делают человека красивее</li></ul>
+     </section>
+   </main>
+   </body></html>`,
+  (r) =>
+    r.source === 'heuristic' &&
+    // og:title wins over the in-article h1 by design: the site declares the dish
+    // name there, while an h1 is more often a banner.
+    r.title === 'Овсяноблин с вареньем' &&
+    r.ingredients.length === 3 &&
+    r.ingredients[0] === 'Овсяные хлопья 40 г' &&
+    !r.ingredients.some((i) => i.includes('?')) &&
+    !r.ingredients.includes('Как жарить картошку') &&
+    r.instructions.length === 3
+);
+
+check('falls back to og:title when h1 is a long promo banner', 
+  `<html><head><meta property="og:title" content="Борщ по-домашнему"></head><body>
+   <h1>Для уютных вечеров. Подборка из ста рецептов на любой случай и настроение</h1>
+   <h2>Ингредиенты</h2>
+   <ul><li>Свёкла 300 г</li><li>Капуста 150 г</li><li>Вода 2 л</li></ul>
+   <h2>Приготовление</h2>
+   <ol><li>Натереть свёклу.</li><li>Сварить овощи.</li><li>Добавить капусту.</li></ol>
+   </body></html>`,
+  (r) => r.title === 'Борщ по-домашнему' && r.ingredients.length === 3
+);
+
+check('reads the image from schema.org or og:image', 
+  `<html><head><meta property="og:image" content="https://cdn.example.com/photo.jpg">
+   <script type="application/ld+json">
+   {"@type":"Recipe","name":"Сырники","image":["https://cdn.example.com/a.jpg","https://cdn.example.com/b.jpg"],
+    "recipeIngredient":["Творог 500 г"],"recipeInstructions":["Смешать"]}
+   </script></head><body></body></html>`,
+  (r) => r.image === 'https://cdn.example.com/a.jpg'
+);
+
+check('image falls back to og:image when schema.org omits it', 
+  `<html><head><meta property="og:image" content="https://cdn.example.com/photo.jpg">
+   <script type="application/ld+json">
+   {"@type":"Recipe","name":"Сырники","image":{"url":"data:image/gif;base64,xx"},
+    "recipeIngredient":["Творог 500 г"],"recipeInstructions":["Смешать"]}
+   </script></head><body></body></html>`,
+  (r) => r.image === 'https://cdn.example.com/photo.jpg'
+);
+
 check('page with no recipe at all returns null', `<html><body><p>Новости</p></body></html>`, () => false);
 
 check('empty input returns null', '', () => false);

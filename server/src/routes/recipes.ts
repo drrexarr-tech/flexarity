@@ -112,6 +112,7 @@ recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
     ingredients: parsed.ingredients,
     instructions: parsed.instructions,
     cookingTime: parsed.cookingTime,
+    image: parsed.image ?? null,
     source: parsed.source,
     // Surfaced so a garbled import can be explained: a guessed encoding or the
     // heuristic layer both point at what the markup on the site actually is.

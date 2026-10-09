@@ -27,9 +27,11 @@ const schema = z.object({
 
 export interface RecipePrefill {
   title?: string;
+  url?: string;
   ingredients?: string[];
   instructions?: string[];
   cookingTime?: number | null;
+  imageUrl?: string | null;
 }
 
 interface Props {
@@ -66,7 +68,7 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
         }
       : {
           title: imported?.title || '',
-          url: '',
+          url: imported?.url || '',
           category: '',
           cookingTime: imported?.cookingTime ?? undefined,
           ingredients: imported?.ingredients?.join('\n') || '',
@@ -85,6 +87,7 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
         ...data,
         ingredients: JSON.stringify(data.ingredients?.split('\n').filter(Boolean) || []),
         instructions: JSON.stringify(data.instructions?.split('\n').filter(Boolean) || []),
+        imageUrl: imported?.imageUrl || undefined,
       };
       if (data.visibility !== 'family') delete payload.familyId;
 
