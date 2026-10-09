@@ -19,6 +19,7 @@ const schema = z.object({
   category: z.string().optional(),
   // Number('') is 0, which would store "0 мин" instead of leaving it unset.
   cookingTime: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional()),
+  imageUrl: z.string().optional(),
   ingredients: z.string().optional(),
   instructions: z.string().optional(),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
@@ -32,6 +33,7 @@ export interface RecipePrefill {
   instructions?: string[];
   cookingTime?: number | null;
   imageUrl?: string | null;
+  category?: string | null;
 }
 
 interface Props {
@@ -61,6 +63,7 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
           url: recipe.url || '',
           category: recipe.category || '',
           cookingTime: recipe.cookingTime || undefined,
+          imageUrl: recipe.imageUrl || '',
           ingredients: recipe.ingredients ? JSON.parse(recipe.ingredients).join('\n') : '',
           instructions: recipe.instructions ? JSON.parse(recipe.instructions).join('\n') : '',
           visibility: recipe.visibility || 'private',
@@ -69,8 +72,9 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
       : {
           title: imported?.title || '',
           url: imported?.url || '',
-          category: '',
+          category: imported?.category || '',
           cookingTime: imported?.cookingTime ?? undefined,
+          imageUrl: imported?.imageUrl || '',
           ingredients: imported?.ingredients?.join('\n') || '',
           instructions: imported?.instructions?.join('\n') || '',
           visibility: 'private',
@@ -79,6 +83,11 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
   });
 
   const visibility = form.watch('visibility');
+  const imageUrl = form.watch('imageUrl');
+  const [imageBroken, setImageBroken] = useState(false);
+
+  // A new URL deserves a fresh attempt, so clear the "broken" flag when it changes.
+  useEffect(() => { setImageBroken(false); }, [imageUrl]);
 
   async function onSubmit(data: z.infer<typeof schema>) {
     setLoading(true);
@@ -87,7 +96,7 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
         ...data,
         ingredients: JSON.stringify(data.ingredients?.split('\n').filter(Boolean) || []),
         instructions: JSON.stringify(data.instructions?.split('\n').filter(Boolean) || []),
-        imageUrl: imported?.imageUrl || undefined,
+        imageUrl: data.imageUrl?.trim() || undefined,
       };
       if (data.visibility !== 'family') delete payload.familyId;
 
@@ -129,6 +138,40 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
         <div className="space-y-2">
           <Label htmlFor="cookingTime">Время готовки (мин)</Label>
           <Input id="cookingTime" type="number" {...form.register('cookingTime')} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="recipe-image">Фото</Label>
+        {imageUrl && !imageBroken && (
+          <img
+            src={imageUrl}
+            alt=""
+            className="h-40 w-full rounded-md border object-cover"
+            onError={() => setImageBroken(true)}
+          />
+        )}
+        {imageUrl && imageBroken && (
+          <p className="text-xs text-destructive">
+            Не удалось загрузить изображение по этой ссылке
+          </p>
+        )}
+        <div className="flex gap-2">
+          <Input
+            id="recipe-image"
+            type="url"
+            placeholder="https://..."
+            {...form.register('imageUrl')}
+          />
+          {imageUrl && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => form.setValue('imageUrl', '')}
+            >
+              Убрать
+            </Button>
+          )}
         </div>
       </div>
 

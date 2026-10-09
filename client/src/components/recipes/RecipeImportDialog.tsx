@@ -17,6 +17,7 @@ interface Parsed {
   instructions: string[];
   cookingTime?: number;
   image?: string | null;
+  category?: string | null;
   source: 'json-ld' | 'microdata' | 'heuristic';
   charset: string;
   charsetGuessed: boolean;
@@ -81,8 +82,12 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
       instructions: result.instructions,
       cookingTime: result.cookingTime ?? null,
       imageUrl: result.image ?? null,
+      category: result.category ?? null,
     });
     reset();
+    // reset() clears the state but leaves the dialog mounted; without this the
+    // import window stayed open on top of the freshly populated form.
+    onOpenChange(false);
   }
 
   return (

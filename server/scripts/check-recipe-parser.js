@@ -243,6 +243,48 @@ check(
   (r) => r !== null && r.ingredients.length === 2 && r.instructions.length === 2
 );
 
+check(
+  'russianfood recipe.php shape: table.ingr, step_n divs, protocol-relative image',
+  // Reproduces the reported failure for rid=107392, where the import returned
+  // comment metadata as steps ("цитировать", "Екатерина Пятница ... #") and the
+  // instructions as ingredients. The page has no "Ингредиенты" heading at all,
+  // nests a layout table inside the ingredient table, marks its section title
+  // with class "area_title_stepbystep", and advertises a protocol-relative
+  // og:image that an absolute-only check discards.
+  `<html><head><meta property="og:image" content="//www.russianfood.com/dycontent/images_upl/64/big_63397.jpg"></head>
+   <body><div id="layout">
+     <h2>рецепт с фото пошаговый</h2>
+     <h1>Борщ с говядиной</h1>
+     <div class="area_title area_title_stepbystep">Пошаговый фото рецепт Борщ с говядиной</div>
+     <table><tr><td>
+       <table class="ingr">
+         <tr><td class="padding_l padding_r">Продукты (на 6 порций)</td></tr>
+         <tr><td class="padding_l padding_r">Говядина - 500 г</td></tr>
+         <tr><td class="padding_l padding_r">Свёкла - 1 шт.</td></tr>
+         <tr><td class="padding_l padding_r">Картофель - 2 шт.</td></tr>
+         <tr><td class="padding_l padding_r">Соль - 2 ч. ложки (по вкусу)</td></tr>
+       </table>
+     </td></tr></table>
+     <div class="step_images_n">
+       <div class="step_n"><p>Подготовить продукты.</p></div>
+       <div class="step_n"><p>Говядину нарезать крупными кусками.</p></div>
+       <div class="step_n"><p>Залить мясо холодной водой, довести до кипения.</p></div>
+     </div>
+     <div class="steped" id="stick_fly_banners_right_step"></div>
+     <div class="tag_recipes"><a href="#">Борщ «Классический»</a><a href="#">Борщ на курином бульоне</a></div>
+   </div></body></html>`,
+  (r) =>
+    r !== null &&
+    r.title === 'Борщ с говядиной' &&
+    r.image === 'https://www.russianfood.com/dycontent/images_upl/64/big_63397.jpg' &&
+    r.category === 'Борщ «Классический»' &&
+    r.ingredients.length === 4 &&
+    r.ingredients[0] === 'Говядина - 500 г' &&
+    !r.ingredients.some((i) => i.includes('Продукты (на 6 порций)')) &&
+    r.instructions.length === 3 &&
+    !r.instructions.some((s) => s.includes('фото рецепт'))
+);
+
 check('page with no recipe at all returns null', `<html><body><p>Новости</p></body></html>`, () => false);
 
 check('empty input returns null', '', () => false);

@@ -102,7 +102,7 @@ recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
     throw new AppError(422, err.message || 'Не удалось загрузить страницу');
   }
 
-  const parsed = parseRecipe(page.html);
+  const parsed = parseRecipe(page.html, url);
   if (!parsed) {
     throw new AppError(
       422,
@@ -116,6 +116,7 @@ recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
     instructions: parsed.instructions,
     cookingTime: parsed.cookingTime,
     image: parsed.image ?? null,
+    category: parsed.category ?? null,
     source: parsed.source,
     // Surfaced so a garbled import can be explained: a guessed encoding or the
     // heuristic layer both point at what the markup on the site actually is.

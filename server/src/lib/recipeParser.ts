@@ -10,6 +10,7 @@ export interface ParsedRecipe {
   source: 'json-ld' | 'microdata' | 'heuristic';
   /** True when a recipe was found but a part of it is missing. */
   incomplete?: boolean;
+  category?: string;
 }
 
 const NBSP = /[\u00a0\u2007\u202f]/g;
@@ -99,7 +100,16 @@ function stringsFromLd(value: unknown): string[] {
   return out;
 }
 
-function fromJsonLd($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
+/** schema.org often puts the course in a list; take the first usable label. */
+function firstString(value: unknown): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string') return undefined;
+  const text = normalize(raw);
+  if (!text || text.length > 60) return undefined;
+  return text;
+}
+
+function fromJsonLd($: CheerioAPI, pageUrl?: string): Omit<ParsedRecipe, 'source'> | null {
   const nodes: Record<string, any>[] = [];
   $('script[type="application/ld+json"]').each((_, el) => {
     try {
@@ -122,11 +132,12 @@ function fromJsonLd($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     ingredients,
     instructions,
     cookingTime: parseDuration(recipe.totalTime ?? recipe.cookTime ?? recipe.prepTime),
-    image: imageFromLd(recipe.image) ?? imageFromLd(recipe.thumbnailUrl),
+    image: imageFromLd(recipe.image, pageUrl) ?? imageFromLd(recipe.thumbnailUrl, pageUrl),
+    category: firstString(recipe.recipeCategory ?? recipe.recipeCuisine),
   };
 }
 
-function fromMicrodata($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
+function fromMicrodata($: CheerioAPI, pageUrl?: string): Omit<ParsedRecipe, 'source'> | null {
   const ingredients = clean($('[itemprop="recipeIngredient"]').toArray().map((el) => $(el).text()));
   const instructionNodes = $('[itemprop="recipeInstructions"]').toArray();
 
@@ -146,12 +157,33 @@ function fromMicrodata($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     ingredients,
     instructions,
     cookingTime: parseDuration($('[itemprop="totalTime"]').attr('content')),
-    image: imageFromLd($('[itemprop="image"]').attr('content')),
+    image: imageFromLd($('[itemprop="image"]').attr('content'), pageUrl),
+    category: firstString($('[itemprop="recipeCategory"]').attr('content')),
   };
 }
 
 const INGREDIENT_HINT = /(ингредиент|ingredient|состав|продукт)/i;
-const INSTRUCTION_HINT = /(приготовлен|инструкц|ход действия|рецепт|готовка|instruction|direction|method|step|how to)/i;
+/**
+ * "рецепт" was in this pattern and that matched page chrome rather than a
+ * section title: russianfood's recipe page opens with <h2>рецепт с фото
+ * пошаговый</h2>, and the lookahead from there walked into the comments and
+ * returned "цитировать" and author/date lines as the cooking steps. Keep only
+ * phrases that actually introduce a method section. "пошагов" is deliberately
+ * absent: as an adjective it is part of the same chrome title, and its lookahead
+ * then collected the ingredient table instead.
+ */
+const INSTRUCTION_HINT =
+  /(приготовлен|инструкц|ход действия|способ приготов|правила приготов|готовка|instruction|recipe instructions|direction|how to (cook|make|prepare))/i;
+/**
+ * Heading lines that introduce the ingredient list without being ingredients.
+ * No \b here: JS defines a word boundary with \w = [A-Za-z0-9_], and Cyrillic is
+ * not \w, so /^(продукты)\b/ never matches "Продукты (на 6 порций)".
+ */
+const INGREDIENT_HEADING_LINE = /^(продукты|ингредиенты|состав)(\s|\(|$)/i;
+
+/** Section titles and ad slots also carry "step" in their name. */
+const NON_STEP_MARKER =
+  /(area_?title|title|caption|crumb|banner|fly_|stick|advert|\bad_|_ad\b|comment|otzyv|reply|review|date|author)/i;
 
 function pickLongest(candidates: string[][], min: number): string[] {
   let best: string[] = [];
@@ -298,16 +330,86 @@ function looksLikeHeading($: CheerioAPI, element: any): boolean {
  * inspects siblings. Plenty of pages wrap the heading and its list in separate
  * containers, and nextAll() then finds nothing at all.
  */
+/**
+ * Course or category label for sites that publish no schema.org recipeCategory.
+ * russianfood tags each recipe with links such as "Борщ «Классический»" and
+ * "Борщ на курином бульоне" in div.tag_recipes; the first one is a reasonable
+ * course guess, which is better than leaving the field blank.
+ */
+function categoryFrom($: CheerioAPI): string | undefined {
+  const labelled = $('[class*="tag_recipe" i] a, [class*="category" i] a, [rel="tag"]').first();
+  const explicit = $('[itemprop="recipeCategory"], [class*="recipeCategory" i]').first();
+  const candidates = [
+    firstString(explicit.attr('content') ?? explicit.text()),
+    firstString(labelled.text()),
+  ];
+  return candidates.find(Boolean);
+}
+
 function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
-  const ingredientCandidates: string[][] = [
-    textsOf($, $('[class*="ingredient" i] li, [id*="ingredient" i] li').toArray()),
-    textsOf($, $('[class*="ingredient" i] p, [id*="ingredient" i] p').toArray()),
-  ];
-  const instructionCandidates: string[][] = [
-    textsOf($, $('[class*="instruction" i] li, [id*="instruction" i] li').toArray()),
-    textsOf($, $('[class*="step" i] li, [id*="step" i] li').toArray()),
-    textsOf($, $('[class*="instruction" i] p, [id*="instruction" i] p').toArray()),
-  ];
+  const ingredientCandidates: string[][] = [];
+  const instructionCandidates: string[][] = [];
+  // Steps are one element per step, so they have to be gathered into a single
+  // candidate: scored individually each list holds one item and is discarded.
+  const stepTexts: string[] = [];
+
+  // Class and id names first. russianfood.com recipe pages carry no "Ingredients"
+  // heading at all: the list is table.ingr and the method is one div.step_n per
+  // step, so heading matching cannot find either without these.
+  $('table[class*="ingr" i], table[id*="ingr" i], [class*="ingredient" i], [id*="ingredient" i], [class*="consist" i]').each(
+    (_, el) => {
+      // These sites nest a layout table inside the recipe table, and the outer
+      // row's text is the entire page block. Keep only rows that hold no nested
+      // table, otherwise "Продукты (на 6 порций) Говядина - 500 г ..." lands in
+      // the ingredient list as one enormous entry.
+      const rows = $(el)
+        .find('tr')
+        .filter((_, row) => $(row).find('table').length === 0)
+        .toArray();
+      if (rows.length) {
+        // "Продукты (на 6 порций)" heads the table but is not an ingredient.
+        const values = rows.map((row) => rowText($, row)).filter((row) => !/^(продукты|ингредиенты|состав)\b/i.test(row));
+        ingredientCandidates.push(values.filter((row) => !INGREDIENT_HEADING_LINE.test(row)));
+        return;
+      }
+      const items = $(el).find('li').toArray();
+      if (items.length) {
+        ingredientCandidates.push(textsOf($, items));
+        return;
+      }
+      const paras = $(el).find('p').toArray();
+      if (paras.length) ingredientCandidates.push(textsOf($, paras));
+    }
+  );
+
+  // Keep only the innermost step containers: russianfood wraps each div.step_n
+  // inside div.step_images_n, and taking both would repeat every step twice.
+  $('[class*="step" i], [id*="step" i], [class*="instruction" i], [id*="instruction" i]').each(
+    (_, el) => {
+      const $el = $(el);
+      const tag = String(el.tagName || '').toLowerCase();
+      const marker = `${el.attribs?.class || ''} ${el.attribs?.id || ''}`;
+      // A wrapper would double-count, so skip anything holding a nested match.
+      if ($el.find('[class*="step" i], [id*="step" i], [class*="instruction" i], [id*="instruction" i]').length) return;
+      // "step" also appears in section titles and ad slots. russianfood has
+      // div.area_title_stepbystep ("Пошаговый фото рецепт Борщ с говядиной")
+      // and div#start_fly_banners_right_step, neither of which is a step.
+      if (NON_STEP_MARKER.test(marker)) return;
+
+      const items = $el.find('li').toArray();
+      if (items.length) {
+        stepTexts.push(...textsOf($, items));
+        return;
+      }
+      const paras = $el.find('p').toArray();
+      if (paras.length) {
+        stepTexts.push(...textsOf($, paras));
+        return;
+      }
+      if (tag === 'li' || tag === 'p' || tag === 'div') stepTexts.push($el.text());
+    }
+  );
+  if (stepTexts.length) instructionCandidates.push(stepTexts);
 
   const flow = $(
     'h1, h2, h3, h4, h5, h6, b, strong, summary, span, ul, ol, p, li, div, table'
@@ -348,7 +450,10 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     if (wantsInstructions) instructionCandidates.push(listItems.length ? listItems : paragraphs);
   }
 
-  let ingredients = pickBest(ingredientCandidates, ingredientScore);
+  let ingredients = pickBest(ingredientCandidates, ingredientScore)
+    // "Продукты (на 6 порций)" introduces the table but is not an ingredient.
+    // It can also arrive from the heading path, so filter after selection too.
+    .filter((item) => !INGREDIENT_HEADING_LINE.test(item));
   const instructions = pickBest(instructionCandidates, instructionScore);
 
   // Last resort: the most ingredient-looking list on the page.
@@ -364,6 +469,7 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     title: titleFrom($),
     ingredients,
     instructions,
+    category: categoryFrom($),
     // Surfaced even when empty so the caller can explain the failure instead of
     // storing a half-empty recipe.
     incomplete: !ingredients.length || !instructions.length,
@@ -371,22 +477,48 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
 }
 
 /** schema.org image is a string, an array, or an object with url/contentUrl. */
-function imageFromLd(value: unknown): string | undefined {
+function imageFromLd(value: unknown, baseUrl?: string): string | undefined {
   const candidates: unknown[] = Array.isArray(value) ? value : [value];
   for (const candidate of candidates) {
-    if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate)) return candidate;
+    if (typeof candidate === 'string') {
+      const url = absoluteImage(candidate, baseUrl);
+      if (url) return url;
+    }
     if (candidate && typeof candidate === 'object') {
       const obj = candidate as Record<string, unknown>;
       for (const key of ['url', 'contentUrl']) {
-        const url = obj[key];
-        if (typeof url === 'string' && /^https?:\/\//i.test(url)) return url;
+        const raw = obj[key];
+        if (typeof raw === 'string') {
+          const url = absoluteImage(raw, baseUrl);
+          if (url) return url;
+        }
       }
     }
   }
   return undefined;
 }
 
-function imageFromMeta($: CheerioAPI): string | undefined {
+/**
+ * Resolve an image reference against the page it came from. Sites routinely
+ * emit protocol-relative or root-relative values: russianfood's og:image is
+ * "//www.russianfood.com/dycontent/images_upl/64/big_63397.jpg", which the
+ * old absolute-only check discarded, so the photo was never carried over.
+ */
+function absoluteImage(value: string, baseUrl?: string): string | undefined {
+  const raw = normalize(value);
+  if (!raw || /^(data|javascript|blob):/i.test(raw)) return undefined;
+
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  try {
+    if (!baseUrl) return raw.startsWith('//') ? `https:${raw}` : undefined;
+    return new URL(raw, baseUrl).toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function imageFromMeta($: CheerioAPI, baseUrl?: string): string | undefined {
   const candidates = [
     $('meta[property="og:image"]').attr('content'),
     $('meta[name="twitter:image"]').attr('content'),
@@ -394,24 +526,24 @@ function imageFromMeta($: CheerioAPI): string | undefined {
     $('link[rel="image_src"]').attr('href'),
   ];
   for (const candidate of candidates) {
-    const url = normalize(candidate);
-    if (/^https?:\/\//i.test(url)) return url;
+    const url = absoluteImage(candidate ?? '', baseUrl);
+    if (url) return url;
   }
   return undefined;
 }
 
-export function parseRecipe(html: string): ParsedRecipe | null {
+export function parseRecipe(html: string, pageUrl?: string): ParsedRecipe | null {
   // Reject stubs and empty shells before spending time on them.
   if (!html || html.length < 120) return null;
   const $ = cheerio.load(html);
 
   // The image is looked up before scoping, because social tags usually live in
   // the head while the body markup is what needs narrowing down.
-  const metaImage = imageFromMeta($);
+  const metaImage = imageFromMeta($, pageUrl);
 
   const attempts: [Omit<ParsedRecipe, 'source'> | null, ParsedRecipe['source']][] = [
-    [fromJsonLd($), 'json-ld'],
-    [fromMicrodata($), 'microdata'],
+    [fromJsonLd($, pageUrl), 'json-ld'],
+    [fromMicrodata($, pageUrl), 'microdata'],
   ];
 
   for (const [result, source] of attempts) {
