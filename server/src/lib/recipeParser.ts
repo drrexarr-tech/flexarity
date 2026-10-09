@@ -157,20 +157,41 @@ function pickLongest(candidates: string[][], min: number): string[] {
   return best;
 }
 
+const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'strong', 'summary']);
+/** How far past a heading to keep looking for its list. */
+const LOOKAHEAD = 30;
+
 function textsOf($: CheerioAPI, elements: unknown[]): string[] {
   return elements.map((el) => $(el as never).text());
 }
 
-/** Text of the first list that follows this heading, or its loose paragraphs. */
-function afterHeading($: CheerioAPI, heading: ReturnType<CheerioAPI>): string[] {
-  const list = heading.nextAll('ul, ol').first();
-  if (list.length) {
-    const items = textsOf($, list.find('li').toArray());
-    if (items.length) return items;
+/**
+ * Text belonging to this element alone, not to its descendants. A <div> that
+ * only wraps a <span>Ингредиенты</span> has empty own text, so using this to
+ * recognise a heading avoids treating every wrapper on the page as one.
+ */
+function ownText($: CheerioAPI, element: any): string {
+  let out = '';
+  for (const node of element.childNodes || []) {
+    if (node.type === 'text') out += node.data ?? '';
   }
-  return textsOf($, heading.nextAll('p, li').toArray());
+  return normalize(out);
 }
 
+function looksLikeHeading($: CheerioAPI, element: any): boolean {
+  const tag = String(element.tagName || '').toLowerCase();
+  if (HEADING_TAGS.has(tag)) return true;
+  // Real sites also label sections with a bare <span> or <div> holding only the
+  // caption, so accept an element whose own text is short and looks like one.
+  const own = ownText($, element);
+  return own.length > 0 && own.length <= 40 && (INGREDIENT_HINT.test(own) || INSTRUCTION_HINT.test(own));
+}
+
+/**
+ * Walk the document in order rather than using jQuery's nextAll(), which only
+ * inspects siblings. Plenty of pages wrap the heading and its list in separate
+ * containers, and nextAll() then finds nothing at all.
+ */
 function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
   const ingredientCandidates: string[][] = [
     textsOf($, $('[class*="ingredient" i] li, [id*="ingredient" i] li').toArray()),
@@ -182,13 +203,45 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     textsOf($, $('[class*="instruction" i] p, [id*="instruction" i] p').toArray()),
   ];
 
-  $('h1, h2, h3, h4, h5, h6, b, strong, summary').each((_, el) => {
+  const flow = $(
+    'h1, h2, h3, h4, h5, h6, b, strong, summary, span, ul, ol, p, li, div, table'
+  ).toArray();
+
+  for (let i = 0; i < flow.length; i++) {
+    const el = flow[i];
+    if (!looksLikeHeading($, el)) continue;
+
     const text = normalize($(el).text());
-    if (!text) return;
-    const $heading = $(el);
-    if (INGREDIENT_HINT.test(text)) ingredientCandidates.push(afterHeading($, $heading));
-    if (INSTRUCTION_HINT.test(text)) instructionCandidates.push(afterHeading($, $heading));
-  });
+    if (!text) continue;
+    const wantsIngredients = INGREDIENT_HINT.test(text);
+    const wantsInstructions = INSTRUCTION_HINT.test(text);
+    if (!wantsIngredients && !wantsInstructions) continue;
+
+    // Collect everything that follows until the next heading, skipping the
+    // wrapper elements so nested markup does not hide the list.
+    const listItems: string[] = [];
+    const paragraphs: string[] = [];
+    for (let j = i + 1; j < flow.length && j <= i + LOOKAHEAD; j++) {
+      const candidate = flow[j];
+      const ctag = String(candidate.tagName || '').toLowerCase();
+      if (looksLikeHeading($, candidate)) break;
+
+      if (ctag === 'li') {
+        listItems.push($(candidate).text());
+      } else if (ctag === 'ul' || ctag === 'ol') {
+        listItems.push(...textsOf($, $(candidate).find('li').toArray()));
+      } else if (ctag === 'p') {
+        paragraphs.push($(candidate).text());
+      } else if (ctag === 'table') {
+        // Many Russian sites use a two-column "ingredient | amount" table.
+        const rows = textsOf($, $(candidate).find('tr').toArray());
+        for (const row of rows) listItems.push(row);
+      }
+    }
+
+    if (wantsIngredients) ingredientCandidates.push(listItems.length ? listItems : paragraphs);
+    if (wantsInstructions) instructionCandidates.push(listItems.length ? listItems : paragraphs);
+  }
 
   let ingredients = pickLongest(ingredientCandidates, 2);
   const instructions = pickLongest(instructionCandidates, 2);
@@ -212,7 +265,8 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
 }
 
 export function parseRecipe(html: string): ParsedRecipe | null {
-  if (!html || html.length < 200) return null;
+  // Reject stubs and empty shells before spending time on them.
+  if (!html || html.length < 120) return null;
   const $ = cheerio.load(html);
 
   const attempts: [Omit<ParsedRecipe, 'source'> | null, ParsedRecipe['source']][] = [

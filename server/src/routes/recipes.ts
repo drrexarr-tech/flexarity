@@ -94,15 +94,15 @@ recipesRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
 recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
   const { url } = z.object({ url: z.string().min(1, 'Ссылка обязательна') }).parse(req.body);
 
-  let html: string;
+  let page: { html: string; charset: string; guessed: boolean };
   try {
-    html = await safeFetchHtml(url);
+    page = await safeFetchHtml(url);
   } catch (err: any) {
     if (err instanceof BlockedUrlError) throw new AppError(400, err.message);
     throw new AppError(422, err.message || 'Не удалось загрузить страницу');
   }
 
-  const parsed = parseRecipe(html);
+  const parsed = parseRecipe(page.html);
   if (!parsed) {
     throw new AppError(422, 'Не удалось распознать рецепт на этой странице');
   }
@@ -113,5 +113,9 @@ recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
     instructions: parsed.instructions,
     cookingTime: parsed.cookingTime,
     source: parsed.source,
+    // Surfaced so a garbled import can be explained: a guessed encoding or the
+    // heuristic layer both point at what the markup on the site actually is.
+    charset: page.charset,
+    charsetGuessed: page.guessed,
   });
 });

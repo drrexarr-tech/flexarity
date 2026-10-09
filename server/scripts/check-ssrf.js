@@ -9,7 +9,7 @@
  * instead of a refusal. A URL literal must be recognised without consulting DNS,
  * so these cases now pass identically on every platform.
  */
-const { safeFetchHtml, BlockedUrlError, isPrivateAddress, bareHostname } = require('../dist/lib/safeFetch');
+const { safeFetchHtml, BlockedUrlError, isPrivateAddress, bareHostname, decodeHtml } = require('../dist/lib/safeFetch');
 
 // Pure checks first. The IPv6 bug shipped because dns.lookup('[::1]') resolves
 // on Windows but fails with ENOTFOUND in alpine, so an end-to-end assertion on
@@ -48,6 +48,51 @@ const targets = [
 
 (async () => {
   let failed = 0;
+
+  // Russian recipe sites still ship single-byte encodings, and decoding those as
+  // UTF-8 turns every Cyrillic letter into U+FFFD, which is what the user saw
+  // as rows of diamonds. The bytes are written out by hand because Node has no
+  // windows-1251 encoder: in that codepage Б=0x91, о=0xEE, р=0xF0, щ=0xF9.
+  const ascii = (s) => Buffer.from(s, 'latin1');
+  // Cyrillic letters in windows-1251: uppercase А..я occupy 0xC0..0xDF and
+  // lowercase а..я occupy 0xE0..0xFF, so Б=0xC1, о=0xEE, р=0xF0, щ=0xF9.
+  const BORSCH = Buffer.from([0xc1, 0xee, 0xf0, 0xf9]);
+  const cp1251Borsch = Buffer.concat([
+    ascii('<title>'), BORSCH,
+    ascii('</title><meta charset="windows-1251"><h1>'), BORSCH,
+    ascii('</h1>'),
+  ]);
+  const cp1251NoMeta = Buffer.concat([
+    ascii('<title>'), BORSCH,
+    ascii('</title><h1>'), BORSCH,
+    ascii('</h1>'),
+  ]);
+
+  const encoding = [
+    ['honours charset from the meta tag', decodeHtml(cp1251Borsch, 'text/html'), 'windows-1251', false],
+    ['honours charset from the http header', decodeHtml(cp1251NoMeta, 'text/html; charset=windows-1251'), 'windows-1251', false],
+    ['accepts cp1251 alias in the header', decodeHtml(cp1251NoMeta, 'text/html; charset=cp1251'), 'windows-1251', false],
+    ['falls back to windows-1251 when bytes are not utf-8', decodeHtml(cp1251NoMeta, 'text/html'), 'windows-1251', true],
+  ];
+
+  for (const [name, got, wantCharset, wantGuessed] of encoding) {
+    const decodedOk = got.html.includes('Борщ');
+    const charsetOk = got.charset === wantCharset;
+    const guessedOk = got.guessed === wantGuessed;
+    const ok = decodedOk && charsetOk && guessedOk;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name} -> ${got.charset} (guessed=${got.guessed})`);
+    if (!ok) {
+      failed++;
+      if (!decodedOk) console.log(`        cyrillic survived: ${decodedOk}, got: ${JSON.stringify(got.html)}`);
+    }
+  }
+
+  const utf8Page = decodeHtml(Buffer.from('<h1>Борщ</h1>', 'utf8'), 'text/html');
+  const utf8Ok = utf8Page.html.includes('Борщ') && utf8Page.charset === 'utf-8';
+  console.log(`  ${utf8Ok ? 'ok  ' : 'FAIL'}  keeps genuine utf-8 as utf-8 -> ${utf8Page.charset}`);
+  if (!utf8Ok) failed++;
+
+  console.log('');
   for (const [name, got, want] of pure) {
     const ok = got === want;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name} -> ${JSON.stringify(got)}${ok ? '' : ` (expected ${JSON.stringify(want)})`}`);

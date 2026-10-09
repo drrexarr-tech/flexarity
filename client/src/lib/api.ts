@@ -97,6 +97,8 @@ export const api = {
         instructions: string[];
         cookingTime?: number;
         source: 'json-ld' | 'microdata' | 'heuristic';
+        charset: string;
+        charsetGuessed: boolean;
       }>('/recipes/import', { method: 'POST', body: JSON.stringify({ url }) }),
     create: (data: any) => request<any>('/recipes', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

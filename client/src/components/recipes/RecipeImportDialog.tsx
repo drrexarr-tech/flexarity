@@ -17,6 +17,8 @@ interface Parsed {
   instructions: string[];
   cookingTime?: number;
   source: 'json-ld' | 'microdata' | 'heuristic';
+  charset: string;
+  charsetGuessed: boolean;
 }
 
 const SOURCE_LABEL: Record<Parsed['source'], string> = {
@@ -117,6 +119,10 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
                 {result.title && <span className="text-sm font-medium">{result.title}</span>}
                 <Badge variant="secondary" className="text-[10px]">
                   {SOURCE_LABEL[result.source]}
+                </Badge>
+                <Badge variant="outline" className="text-[10px]">
+                  {result.charset}
+                  {result.charsetGuessed ? ' (угадана)' : ''}
                 </Badge>
               </div>
 

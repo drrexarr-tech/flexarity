@@ -104,10 +104,94 @@ const DEFAULT_HEADERS = {
   'Accept-Language': 'ru,en;q=0.8',
 };
 
+export interface SafeFetchResult {
+  html: string;
+  charset: string;
+  /** True only when nothing declared the encoding and it had to be inferred. */
+  guessed: boolean;
+}
+
+/** Labels browsers accept, mapped onto names TextDecoder knows. */
+const CHARSET_ALIASES: Record<string, string> = {
+  'cp-1251': 'windows-1251',
+  'cp1251': 'windows-1251',
+  'win-1251': 'windows-1251',
+  '1251': 'windows-1251',
+  'windows1251': 'windows-1251',
+  koi8r: 'koi8-r',
+  koi_ru: 'koi8-r',
+  utf8: 'utf-8',
+};
+
+function normalizeCharset(label: string): string | null {
+  const cleaned = label.trim().toLowerCase().replace(/["']/g, '');
+  if (!cleaned) return null;
+  return CHARSET_ALIASES[cleaned] ?? cleaned;
+}
+
+function decodeWith(bytes: Buffer, charset: string): string | null {
+  try {
+    return new TextDecoder(charset, { fatal: false }).decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+/** First `<meta charset>` / `<meta http-equiv>` declaration in the raw head. */
+function sniffMetaCharset(bytes: Buffer): string | null {
+  const head = bytes.subarray(0, 4096).toString('latin1');
+  const patterns = [
+    /<meta[^>]+charset\s*=\s*["']?([\w-]+)/i,
+    /<meta[^>]+content\s*=\s*["'][^"']*charset\s*=\s*([\w-]+)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(head);
+    if (match) {
+      const normalized = normalizeCharset(match[1]);
+      if (normalized) return normalized;
+    }
+  }
+  return null;
+}
+
+/**
+ * Many Russian recipe sites still ship Windows-1251, and some declare it in the
+ * HTTP header only, or not at all. Decoding those as UTF-8 replaces every
+ * Cyrillic letter with U+FFFD, which is exactly what a user would see as rows of
+ * diamonds. So: trust a declared charset, then the meta tag, then fall back to
+ * UTF-8 only when the bytes really are valid UTF-8.
+ */
+export function decodeHtml(bytes: Buffer, contentType: string): SafeFetchResult {
+  const fromHeader = normalizeCharset(/charset=([\w-]+)/i.exec(contentType)?.[1] ?? '');
+
+  if (fromHeader) {
+    const decoded = decodeWith(bytes, fromHeader);
+    if (decoded) return { html: decoded, charset: fromHeader, guessed: false };
+  }
+
+  const fromMeta = sniffMetaCharset(bytes);
+  if (fromMeta) {
+    const decoded = decodeWith(bytes, fromMeta);
+    // The page states its encoding, so this is not a guess even though the
+    // HTTP header was silent.
+    if (decoded) return { html: decoded, charset: fromMeta, guessed: false };
+  }
+
+  // No usable declaration: if the bytes decode cleanly as UTF-8, that is what
+  // they are. Otherwise single-byte Cyrillic is the overwhelmingly likely case.
+  const utf8 = decodeWith(bytes, 'utf-8');
+  if (utf8 !== null && !utf8.includes('\uFFFD')) {
+    return { html: utf8, charset: 'utf-8', guessed: true };
+  }
+
+  const fallback = decodeWith(bytes, 'windows-1251') ?? utf8 ?? '';
+  return { html: fallback, charset: 'windows-1251', guessed: true };
+}
+
 export async function safeFetchHtml(
   rawUrl: string,
   { timeoutMs = 15000, maxBytes = 3_000_000, maxRedirects = 5 }: SafeFetchOptions = {}
-): Promise<string> {
+): Promise<SafeFetchResult> {
   let current = rawUrl;
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
@@ -145,7 +229,10 @@ export async function safeFetchHtml(
 
     // Cap the body so a hostile page cannot exhaust server memory.
     const reader = response.body?.getReader();
-    if (!reader) return await response.text();
+    if (!reader) {
+      const bytes = Buffer.from(await response.text(), 'utf8');
+      return decodeHtml(bytes, contentType);
+    }
 
     const chunks: Uint8Array[] = [];
     let total = 0;
@@ -159,7 +246,8 @@ export async function safeFetchHtml(
       }
       chunks.push(value);
     }
-    return new TextDecoder('utf-8').decode(Buffer.concat(chunks));
+
+    return decodeHtml(Buffer.concat(chunks), contentType);
   }
 
   throw new Error('Слишком много перенаправлений');

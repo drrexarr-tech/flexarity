@@ -103,6 +103,51 @@ check(
   (r) => r.ingredients.length === 2 && r.instructions.length === 1
 );
 
+check(
+  'heuristic finds a list nested in a sibling container',
+  // nextAll() sees nothing here: the heading and the list have different parents.
+  `<html><body>
+   <h1>Окрошка</h1>
+   <div class="wrapper"><span>Ингредиенты</span></div>
+   <ul class="content"><li>Хлеб 1 кусок</li><li>Квашеная капуста 200 г</li><li>Лук</li></ul>
+   <div class="wrapper"><span>Приготовление</span></div>
+   <ol class="content"><li>Нарезать хлеб</li><li>Залить квасом</li></ol>
+   </body></html>`,
+  (r) =>
+    r.ingredients.length === 3 &&
+    r.instructions.length === 2 &&
+    r.ingredients[0] === 'Хлеб 1 кусок'
+);
+
+check(
+  'heuristic reads a two-column ingredient table',
+  `<html><body>
+   <h1>Рассольник</h1>
+   <h2>Ингредиенты</h2>
+   <table><tbody>
+     <tr><td>Перловка</td><td>100 г</td></tr>
+     <tr><td>Картофель</td><td>2 шт</td></tr>
+     <tr><td>Огурец солёный</td><td>1 шт</td></tr>
+   </tbody></table>
+   <h2>Приготовление</h2>
+   <p>Отварить перловку.</p>
+   <p>Добавить овощи.</p>
+   </body></html>`,
+  (r) => r.ingredients.length === 3 && r.instructions.length === 2
+);
+
+check(
+  'heuristic stops at the next heading instead of bleeding into it',
+  `<html><body>
+   <h1>Борщ классический</h1>
+   <h2>Ингредиенты</h2>
+   <ul><li>Свёкла 300 г</li><li>Капуста 150 г</li><li>Вода 2 л</li></ul>
+   <h2>Отзывы</h2>
+   <ul><li>Отличный рецепт</li><li>Вкусно, готовлю каждую неделю</li></ul>
+   </body></html>`,
+  (r) => r.ingredients.length === 3 && !r.ingredients.includes('Отличный рецепт')
+);
+
 check('page with no recipe at all returns null', `<html><body><p>Новости</p></body></html>`, () => false);
 
 check('empty input returns null', '', () => false);
