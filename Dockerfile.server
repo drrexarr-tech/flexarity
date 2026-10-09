@@ -1,5 +1,10 @@
 FROM node:20-alpine AS build
 
+# Prisma's engines do not run on Alpine out of the box: without OpenSSL the
+# schema engine returns a non-JSON "Error loading..." payload and the CLI dies
+# with "Could not parse schema engine response".
+RUN apk add --no-cache openssl libc6-compat
+
 WORKDIR /app
 COPY server/package*.json ./
 RUN npm ci
@@ -8,6 +13,9 @@ RUN npx prisma generate
 RUN npm run build
 
 FROM node:20-alpine
+
+# Same runtime requirement for the query engine the app loads on first query.
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 ENV NODE_ENV=production
