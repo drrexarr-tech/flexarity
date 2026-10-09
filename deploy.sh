@@ -63,11 +63,27 @@ npm install --silent
 npx prisma generate
 npx prisma db push --accept-data-loss
 
+port_3001_busy() {
+  # Capture into a variable instead of piping into grep: with `set -o pipefail`
+  # an early-exiting grep can SIGPIPE ss, turning a successful match into a
+  # non-zero pipeline and reporting the port as free while it is still bound.
+  local listeners
+  listeners=$(sudo ss -tln 2>/dev/null || true)
+  case "$listeners" in
+    *:3001*) return 0 ;;
+  esac
+  return 1
+}
+
 release_port() {
   screen -X -S flex-server quit 2>/dev/null || true
-  pkill -f "tsx watch" 2>/dev/null || true
-  for i in $(seq 1 15); do
-    if ! sudo ss -tln | grep -q ':3001'; then return 0; fi
+
+  # Free the port by identifying whoever holds it, never by matching a command
+  # pattern. `pkill -f "tsx watch"` terminated this script itself, because the
+  # pattern also appears in the command line of the shell running it.
+  for _ in $(seq 1 15); do
+    if ! port_3001_busy; then return 0; fi
+    sudo fuser -k -TERM 3001/tcp >/dev/null 2>&1 || true
     sleep 1
   done
   return 1
@@ -118,8 +134,8 @@ if docker compose version >/dev/null 2>&1; then
     start_host
     if ! wait_api; then
       echo "ERROR: API is down in both modes."
-      sudo ss -tlnp | grep 3001 || true
-      screen -ls || true
+    port_3001_busy && sudo ss -tlnp 2>/dev/null | grep 3001 || true
+    screen -ls || true
       exit 1
     fi
     echo "=== API is up (host fallback) ==="
@@ -134,7 +150,7 @@ else
   start_host
   if ! wait_api; then
     echo "ERROR: API did not come up."
-    sudo ss -tlnp | grep 3001 || true
+    port_3001_busy && sudo ss -tlnp 2>/dev/null | grep 3001 || true
     screen -ls || true
     exit 1
   fi
