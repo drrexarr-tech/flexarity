@@ -1,9 +1,9 @@
-﻿{
+{
   "name": "flex-server",
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && node scripts/check-validation.js",
+    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
