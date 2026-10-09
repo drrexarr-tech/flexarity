@@ -27,13 +27,28 @@ docker ps -a --format '  {{.Names}}\t{{.Status}}\t{{.Ports}}' 2>/dev/null || war
 
 head_ "Ports"
 for p in 80 443 3001 5432; do
-  holder=$(sudo ss -tlnp 2>/dev/null | grep -w ":$p " | head -1)
+  holder=$(sudo ss -tlnp 2>/dev/null | grep -E "[:.]${p}[[:space:]]" | head -1)
   if [ -n "$holder" ]; then
     echo "  $p  $holder" | sed 's/users:/\n         users:/'
   else
     warn "port $p is not listening"
   fi
 done
+
+head_ "Server binary vs deployed commit"
+if [ -f /opt/flex/server/dist/index.js ]; then
+  echo "  host dist built: $(date -r /opt/flex/server/dist/index.js '+%Y-%m-%d %H:%M')"
+  [ -f /opt/flex/server/dist/lib/validation.js ] \
+    && ok "host dist contains the null-tolerant schemas" \
+    || bad "host dist is MISSING lib/validation.js — old build"
+else
+  warn "no host dist"
+fi
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx flex-server; then
+  echo "  container running, health: $(docker inspect flex-server --format '{{.State.Health.Status}}' 2>/dev/null)"
+else
+  bad "flex-server container is NOT running — the API on 3001 is a host process"
+fi
 
 head_ "API"
 if resp=$(curl -fsS --max-time 5 http://localhost:3001/api/health 2>&1); then
