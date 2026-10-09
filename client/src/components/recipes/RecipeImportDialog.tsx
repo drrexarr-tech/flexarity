@@ -54,12 +54,16 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
       // A bare host is a common paste; assume https rather than rejecting it.
       const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
       const parsed = await api.recipes.import(candidate);
-      setResult(parsed);
       // Keep the normalised form so the link stored on the recipe is usable.
       setUrl(candidate);
-      if (!parsed.ingredients.length && !parsed.instructions.length) {
-        toast.error('На странице не нашлось ни ингредиентов, ни шагов');
+
+      // The server answers 422 when the page is not a recipe at all, so reaching here
+      // means a recipe was found, possibly with one half of it missing.
+      if (!parsed.ingredients.length || !parsed.instructions.length) {
+        const missing = !parsed.ingredients.length ? 'ингредиентов' : 'шагов';
+        toast.error(`Нашлась только часть рецепта — не хватает ${missing}`, { duration: 6000 });
       }
+      setResult(parsed);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -69,6 +73,7 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
 
   function handleApply() {
     if (!result) return;
+    if (!result.ingredients.length && !result.instructions.length) return;
     onImported({
       title: result.title || '',
       url: url.trim(),

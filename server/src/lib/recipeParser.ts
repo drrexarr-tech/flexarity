@@ -8,6 +8,8 @@ export interface ParsedRecipe {
   cookingTime?: number;
   image?: string;
   source: 'json-ld' | 'microdata' | 'heuristic';
+  /** True when a recipe was found but a part of it is missing. */
+  incomplete?: boolean;
 }
 
 const NBSP = /[\u00a0\u2007\u202f]/g;
@@ -166,7 +168,12 @@ const LOOKAHEAD = 30;
 
 const SIDEBAR_TAGS = 'nav, aside, header, footer, script, style, noscript, form, iframe';
 const QUANTITY = /\d/;
-const UNIT = /(г|кг|мг|мл|л|шт|ст|ч\.?\s*л|стак|пуч|головк|кг\.?)/i;
+/** A unit standing on its own. Word boundaries matter: without them "г" matches
+ *  inside any Russian word ("пирогов"), which made every page look like a
+ *  recipe. */
+const UNIT = /(^|\s)(г|кг|мг|мл|л|шт|ст|стак\w*|пуч\w*|головк\w*|щепотк\w*|ч\.?\s*л\.?)(\s|$|\.|,|;)/i;
+/** A number followed by a real measure, the signal that a row lists an amount. */
+const AMOUNT = /\d+\s*(г|кг|мг|мл|л|шт|ст\.?|стак\w*|пуч\w*|головк\w*|щепотк\w*|ч\.?\s*л\.?)/i;
 
 /**
  * Restrict parsing to the page body proper. Without this, any recipe page with a
@@ -199,8 +206,8 @@ function ingredientScore(items: string[]): number {
     if (item.includes('?')) score -= 3;
     if (item.length > 120) score -= 2;
     if (item.length < 3) score -= 1;
-    if (QUANTITY.test(item)) score += 1;
-    if (UNIT.test(item)) score += 1;
+    if (AMOUNT.test(item)) score += 2;
+    else if (QUANTITY.test(item)) score += 0.5;
   }
   return score;
 }
@@ -248,6 +255,20 @@ function titleFrom($: CheerioAPI): string {
 
 function textsOf($: CheerioAPI, elements: unknown[]): string[] {
   return elements.map((el) => $(el as never).text());
+}
+
+/**
+ * Cell text for a "ingredient | amount" table row. Joining with a space matters:
+ * plain .text() glues the columns into "Овсяные хлопья40 г".
+ */
+function rowText($: CheerioAPI, row: unknown): string {
+  const cells = $(row as never).find('th, td');
+  if (!cells.length) return $(row as never).text();
+  return cells
+    .toArray()
+    .map((cell) => $(cell).text().trim())
+    .filter(Boolean)
+    .join(' ');
 }
 
 /**
@@ -319,8 +340,7 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
         paragraphs.push($(candidate).text());
       } else if (ctag === 'table') {
         // Many Russian sites use a two-column "ingredient | amount" table.
-        const rows = textsOf($, $(candidate).find('tr').toArray());
-        for (const row of rows) listItems.push(row);
+        for (const row of $(candidate).find('tr').toArray()) listItems.push(rowText($, row));
       }
     }
 
@@ -340,9 +360,14 @@ function fromHeuristics($: CheerioAPI): Omit<ParsedRecipe, 'source'> | null {
     ingredients = pickBest(lists, ingredientScore);
   }
 
-  if (!ingredients.length && !instructions.length) return null;
-
-  return { title: titleFrom($), ingredients, instructions };
+  return {
+    title: titleFrom($),
+    ingredients,
+    instructions,
+    // Surfaced even when empty so the caller can explain the failure instead of
+    // storing a half-empty recipe.
+    incomplete: !ingredients.length || !instructions.length,
+  };
 }
 
 /** schema.org image is a string, an array, or an object with url/contentUrl. */
@@ -398,8 +423,36 @@ export function parseRecipe(html: string): ParsedRecipe | null {
   scopeToContent($);
 
   const heuristic = fromHeuristics($);
+
+  // A roundup or SEO article links to other recipes and carries keyword lists,
+  // not ingredients. Verified on russianfood.com/reading/?post_id=26531: no
+  // <ol>, no list item with a measurement, and the sidebar holds links to other
+  // recipes (rid=...). Heuristics still find something there, so this gate has
+  // to come before accepting their output, otherwise SEO questions such as
+  // "Чем питаться в жару?" get saved as ingredients.
+  if (!looksLikeRecipePage($)) return null;
+
   if (heuristic && (heuristic.ingredients.length || heuristic.instructions.length)) {
     return { ...heuristic, image: metaImage, source: 'heuristic' };
   }
-  return null;
+  return { title: titleFrom($), ingredients: [], instructions: [], incomplete: true, source: 'heuristic' };
+}
+
+/**
+ * Cheap structural test for a page that plausibly contains a recipe body.
+ * Deliberately structural rather than keyword based: russianfood's roundup
+ * mentions "рецепт" fifteen times yet has no ingredients at all.
+ */
+function looksLikeRecipePage($: CheerioAPI): boolean {
+  if ($('[itemprop="recipeIngredient"], [itemprop="recipeInstructions"]').length) return true;
+
+  let measured = 0;
+  $('li, td, p').each((_, el) => {
+    if (measured >= 2) return;
+    if (AMOUNT.test($(el).text())) measured++;
+  });
+  if (measured >= 2) return true;
+
+  // Numbered or bullet steps in the body are a strong hint even without units.
+  return $('ol > li').length >= 2;
 }

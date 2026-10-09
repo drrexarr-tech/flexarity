@@ -104,7 +104,10 @@ recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
 
   const parsed = parseRecipe(page.html);
   if (!parsed) {
-    throw new AppError(422, 'Не удалось распознать рецепт на этой странице');
+    throw new AppError(
+      422,
+      'Похоже, это не страница рецепта. Подборки и статьи со ссылками на блюда импортировать нельзя — откройте страницу конкретного рецепта.'
+    );
   }
 
   res.json({

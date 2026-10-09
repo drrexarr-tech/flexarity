@@ -211,6 +211,38 @@ check('image falls back to og:image when schema.org omits it',
   (r) => r.image === 'https://cdn.example.com/photo.jpg'
 );
 
+check(
+  'roundup article with no recipe returns null instead of its SEO sidebar',
+  // Shape of russianfood.com/reading/?post_id=26531: keyword lists and links to
+  // other recipes, zero measured list items, no <ol>. It must not be imported.
+  `<html><head><title>Лучшие рецепты пирогов (113) на RussianFood</title></head><body>
+   <div id="layout">
+     <h1>Для уютных моментов. Лучшие рецепты ПИРОГОВ (113)</h1>
+     <ul><li>Как питаться, чтобы жить дольше</li><li>Чем питаться в жару?</li><li>Как жарить картошку</li></ul>
+     <table class="recipe_min_list2">
+       <tr><td><a href="/recipes/recipe.php?rid=47420">Топинамбур жареный</a></td></tr>
+       <tr><td><a href="/recipes/recipe.php?rid=143038">Салат из топинамбура</a></td></tr>
+       <tr><td><a href="/recipes/recipe.php?rid=47408">Топинамбур отварной</a></td></tr>
+     </table>
+     <p>В этой подборке 113 рецептов пирогов на любой случай.</p>
+   </div></body></html>`,
+  (r) => r === null
+);
+
+check(
+  'a real recipe page on the same site is still imported',
+  // russianfood stores recipes as recipe.php?rid=... and lists amounts in table
+  // rows, which is what the unit check keys on.
+  `<html><head><title>Овсяноблин</title></head><body><div id="layout">
+     <h1>Овсяноблин с вареньем</h1>
+     <h2>Ингредиенты</h2>
+     <table><tr><td>Овсяные хлопья</td><td>40 г</td></tr><tr><td>Творог</td><td>100 г</td></tr></table>
+     <h2>Приготовление</h2>
+     <ol><li>Измельчить хлопья.</li><li>Смешать с творогом.</li></ol>
+   </div></body></html>`,
+  (r) => r !== null && r.ingredients.length === 2 && r.instructions.length === 2
+);
+
 check('page with no recipe at all returns null', `<html><body><p>Новости</p></body></html>`, () => false);
 
 check('empty input returns null', '', () => false);
