@@ -14,8 +14,10 @@ export class BlockedUrlError extends Error {}
  * The VPS hosts PostgreSQL, the API itself and xray on loopback, plus private
  * ranges, so an unguarded fetch would let anyone read them or use the box as a
  * proxy.
+ *
+ * Exported so it can be tested without touching DNS.
  */
-function isPrivateAddress(ip: string): boolean {
+export function isPrivateAddress(ip: string): boolean {
   const type = net.isIP(ip);
   if (type === 4) {
     const [a, b] = ip.split('.').map(Number);
@@ -50,11 +52,24 @@ function isPrivateAddress(ip: string): boolean {
  * dispatcher pinned to the validated IP; that is not worth the complexity here,
  * and the reachable targets on this host are already password-protected.
  */
+/**
+ * URL.hostname keeps the brackets around IPv6 literals ("[::1]"), so net.isIP
+ * and dns.lookup both reject the value and the address would fall through to a
+ * DNS lookup instead of being refused outright.
+ *
+ * Exported for the same reason as isPrivateAddress: the bracket case is exactly
+ * what made this test fail only inside the image.
+ */
+export function bareHostname(hostname: string): string {
+  return hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+}
+
 async function assertPublicHost(hostname: string): Promise<void> {
-  const literal = net.isIP(hostname) ? hostname : null;
+  const host = bareHostname(hostname);
+  const literal = net.isIP(host) ? host : null;
   const addresses = literal
     ? [{ address: literal, family: literal.includes(':') ? 6 : 4 }]
-    : await dns.lookup(hostname, { all: true });
+    : await dns.lookup(host, { all: true });
 
   if (!addresses.length) {
     throw new BlockedUrlError('Не удалось разрешить адрес сайта');

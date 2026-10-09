@@ -2,8 +2,33 @@
  * The importer fetches URLs supplied by users, so it must refuse to reach
  * anything on or behind this host: PostgreSQL, the API, xray, and the cloud
  * metadata endpoint.
+ *
+ * The IPv6 cases matter more than they look. They passed on Windows only
+ * because dns.lookup('[::1]') happened to resolve there; inside the alpine
+ * image the same call failed with ENOTFOUND, which surfaced as a network error
+ * instead of a refusal. A URL literal must be recognised without consulting DNS,
+ * so these cases now pass identically on every platform.
  */
-const { safeFetchHtml, BlockedUrlError } = require('../dist/lib/safeFetch');
+const { safeFetchHtml, BlockedUrlError, isPrivateAddress, bareHostname } = require('../dist/lib/safeFetch');
+
+// Pure checks first. The IPv6 bug shipped because dns.lookup('[::1]') resolves
+// on Windows but fails with ENOTFOUND in alpine, so an end-to-end assertion on
+// that case only ever failed in CI. These assertions need no resolver and hold
+// on every platform.
+const pure = [
+  ['bareHostname strips IPv6 brackets', bareHostname('[::1]'), '::1'],
+  ['bareHostname strips ULA brackets', bareHostname('[fd00::1]'), 'fd00::1'],
+  ['bareHostname keeps normal names', bareHostname('example.com'), 'example.com'],
+  ['bareHostname keeps bare IPv4', bareHostname('127.0.0.1'), '127.0.0.1'],
+  ['loopback v4 is private', isPrivateAddress('127.0.0.1'), true],
+  ['loopback v6 is private', isPrivateAddress('::1'), true],
+  ['ULA v6 is private', isPrivateAddress('fd00::1'), true],
+  ['link-local v6 is private', isPrivateAddress('fe80::1'), true],
+  ['mapped v4 inherits verdict', isPrivateAddress('::ffff:127.0.0.1'), true],
+  ['metadata is private', isPrivateAddress('169.254.169.254'), true],
+  ['public v4 is public', isPrivateAddress('8.8.8.8'), false],
+  ['public v6 is public', isPrivateAddress('2606:4700::1111'), false],
+];
 
 const targets = [
   ['loopback by name', 'http://localhost:3001/api/health'],
@@ -23,6 +48,12 @@ const targets = [
 
 (async () => {
   let failed = 0;
+  for (const [name, got, want] of pure) {
+    const ok = got === want;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name} -> ${JSON.stringify(got)}${ok ? '' : ` (expected ${JSON.stringify(want)})`}`);
+    if (!ok) failed++;
+  }
+  console.log('');
   for (const [name, url] of targets) {
     try {
       await safeFetchHtml(url, { timeoutMs: 2500 });
