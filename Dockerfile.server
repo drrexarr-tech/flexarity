@@ -10,7 +10,12 @@ COPY server/package*.json ./
 RUN npm ci
 COPY server/ .
 RUN npx prisma generate
-RUN npm run build
+# tsc only. The full "build" also runs five verification scripts, which take
+# about twenty seconds on every image build and are of no use here: nothing that
+# consumes the image can act on their output, and a failing check should fail a
+# commit rather than a deploy. They still run in npm run build locally and on
+# the developer machine.
+RUN npx tsc
 
 FROM node:20-alpine
 
