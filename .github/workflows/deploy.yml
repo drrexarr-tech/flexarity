@@ -118,6 +118,8 @@ jobs:
 
             phase "stale asset cleanup"
             echo "=== Removing stale web assets ==="
+            _sudo_probe=$( { a=$(date +%s); sudo -n true; b=$(date +%s); echo $((b-a)); } 2>/dev/null || echo "?" )
+            _t0=$(date +%s)
             # Every build emits a new hashed bundle name, and nothing ever
             # deleted the old ones, so the web root grew by a full copy per
             # deploy.
@@ -157,6 +159,8 @@ jobs:
             while read -r name; do
               [ -n "$name" ] && sudo rm -f "/var/www/html/$name"
             done </tmp/_stale_wb.txt
+            _t1=$(date +%s)
+            echo "  cleanup ${_sudo_probe}s(sudo) $(( _t1 - _t0 ))s total, $(wc -l </tmp/_stale.txt) candidate(s)"
 
             phase "docker image prune"
             echo "=== Pruning dangling images ==="
@@ -321,14 +325,16 @@ jobs:
             fi
 
             phase "nginx security headers"
+            _t0=$(date +%s)
             echo "=== Applying security headers to the live vhost ==="
             # The live config is now known: xray terminates TLS on :443 and
             # forwards to nginx on 127.0.0.1:8080, so headers must be added to
             # that plain-HTTP server block - that is what puts them on the wire
             # for TLS clients. The script keeps a .flexbak beside the file and
             # gates on nginx -t, so it can be undone.
-            bash scripts/nginx-security-headers.sh apply || \
+            bash scripts/nginx-security-headers.sh apply 2>&1 | tee -a /tmp/_nginx-step.log || \
               echo "WARNING: nginx header step reported a problem, continuing"
+            echo "  nginx step total: $(($(date +%s) - _t0))s" >>/tmp/_nginx-step.log
 
             # The config dump that found this is retired. It was published to
             # the web root, so it stayed readable by anyone after the deploy
@@ -354,4 +360,5 @@ jobs:
                    { printf "  %-40s %4ds\n", substr($0, index($0,$2)), $1-prev; prev=$1 }
                    END { printf "  %-40s %4ds\n", "TOTAL (script wall time)", prev-first }' /tmp/_phase.log
             } >/tmp/_timing.txt 2>&1 || true
+            sed 's/^/  /' /tmp/_nginx-step.log >>/tmp/_timing.txt 2>/dev/null || true
             sudo cp /tmp/_timing.txt /var/www/html/_timing.txt 2>/dev/null || true

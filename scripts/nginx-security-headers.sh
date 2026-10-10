@@ -94,14 +94,17 @@ read -r -d '' HEADERS <<EOF || true
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://oauth.telegram.org; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'" always;
 EOF
 
+now() { date +%s; }
+
+# How expensive is sudo on this host? If each call costs seconds rather than
+# milliseconds, the number of calls in a step matters more than what they do,
+# and that would explain a step that looks trivial taking over a minute.
+sudo_probe=$( { t0=$(now); sudo -n true; t1=$(now); echo $((t1 - t0)); } 2>/dev/null || echo "?" )
+echo "  sudo -n true took ${sudo_probe}s"
+
 echo "=== Locating the nginx vhost for ${DOMAIN} ==="
 
-# Discovery: any nginx file naming this domain. An earlier version additionally
-# required `listen 443` or `listen ... ssl`, on the assumption that TLS is
-# terminated here. It is not - xray holds :443 and forwards to nginx on
-# 127.0.0.1:8080, which is plain HTTP - so the filter matched nothing and the
-# headers were never applied at all. The outage that followed was a coincidence,
-# not a consequence of this script.
+t0=$(now)
 mapfile -t CANDIDATES < <(
   sudo grep -rl "server_name[^;]*${DOMAIN}" /etc/nginx 2>/dev/null | sort -u | while read -r f; do
     # sites-enabled holds symlinks into sites-available; patch the real file once.
@@ -110,6 +113,7 @@ mapfile -t CANDIDATES < <(
     echo "$real"
   done | sort -u
 )
+echo "  discovery took $(($(now) - t0))s, found ${#CANDIDATES[@]} file(s)"
 
 if [ "${#CANDIDATES[@]}" -eq 0 ]; then
   echo "No nginx vhost found for ${DOMAIN}; leaving the configuration untouched."
@@ -223,7 +227,9 @@ echo "=== Verifying the published headers ==="
 # timeout each it could spend over a minute. A single response contains every
 # header, and the deploy timings showed the step taking 141 seconds.
 sleep 1
+tv=$(now)
 response=$(curl -sSI -m 8 "https://${DOMAIN}/" 2>/dev/null || true)
+echo "  verification request took $(($(now) - tv))s"
 
 missing=0
 for header in Strict-Transport-Security X-Content-Type-Options Content-Security-Policy Referrer-Policy X-Frame-Options; do
