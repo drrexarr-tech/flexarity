@@ -253,9 +253,10 @@ jobs:
               cd /opt/flex
               docker compose build server
 
-              phase "container restart"
-              docker compose stop server 2>/dev/null || true
+              phase "compose stop"
+              docker compose stop -t 5 server 2>/dev/null || true
 
+              phase "release port"
               if ! release_port; then
                 echo "ERROR: port 3001 is still busy, container would crash-loop."
                 sudo ss -tlnp | grep 3001 || true
@@ -263,6 +264,7 @@ jobs:
               fi
               echo "Port 3001 released"
 
+              phase "compose up"
               docker compose up -d server
 
               if wait_api; then

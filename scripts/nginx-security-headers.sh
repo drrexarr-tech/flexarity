@@ -107,9 +107,14 @@ echo "=== Locating the nginx vhost for ${DOMAIN} ==="
 t0=$(now)
 mapfile -t CANDIDATES < <(
   sudo grep -rl "server_name[^;]*${DOMAIN}" /etc/nginx 2>/dev/null | sort -u | while read -r f; do
+    # Never treat a backup as a vhost. An earlier version did, and because it
+    # patches whatever it finds and then writes a .flexbak beside the result,
+    # each deploy created another generation: default.flexbak,
+    # default.flexbak.flexbak, and so on. Seven were piling up on the host.
+    case "$f" in *.flexbak*) continue;; esac
     # sites-enabled holds symlinks into sites-available; patch the real file once.
     real=$(sudo readlink -f "$f" 2>/dev/null || echo "$f")
-    case "$f" in *default*) : ;; esac
+    case "$real" in *.flexbak*) continue;; esac
     echo "$real"
   done | sort -u
 )
