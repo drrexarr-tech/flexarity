@@ -255,6 +255,14 @@ jobs:
               echo "=== API is up (host) ==="
             fi
 
+            echo "=== Publishing security headers on the live vhost ==="
+            # The production nginx config is not in this repository, so the
+            # headers added to nginx/default.conf never reached it - that file is
+            # only used by the unused client image. This patches the real vhost
+            # in place, with a backup, an nginx -t gate and a restore on failure.
+            bash scripts/nginx-security-headers.sh || \
+              echo "WARNING: nginx header step reported a problem, continuing"
+
             echo "=== Reloading nginx ==="
             sudo systemctl reload nginx || sudo systemctl start nginx
 
