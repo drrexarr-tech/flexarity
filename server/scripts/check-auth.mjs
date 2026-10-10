@@ -200,8 +200,15 @@ check('the client guard is actually applied at every href site', () => {
   // of the rule. Check the real source rather than a second implementation of the
   // regex: a regression that dropped safeHttpUrl from a render site would
   // otherwise be silent.
+  //
+  // Skipped inside the image: Dockerfile.server copies only server/, so there is
+  // no client tree to inspect and failing here broke the container build.
   const out = [];
   const clientSrc = path.resolve('..', 'client', 'src');
+  if (!fs.existsSync(clientSrc)) {
+    console.log('       (skipped: no client sources in this build context)');
+    return [];
+  }
 
   const urlsFile = path.join(clientSrc, 'lib', 'urls.ts');
   if (!fs.existsSync(urlsFile)) return ['client/src/lib/urls.ts is missing'];
