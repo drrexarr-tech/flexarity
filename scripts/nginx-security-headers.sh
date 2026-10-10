@@ -13,8 +13,99 @@
 set -uo pipefail
 
 MARKER='# flex-security-headers'
+MIME_MARKER='# flex-webmanifest-mime'
 DOMAIN="${FLEX_DOMAIN:-veheys.online}"
 MODE="${1:-apply}"
+
+# Web app manifest MIME type.
+#
+# nginx ships a mime.types list that, depending on version, has no entry for
+# .webmanifest, so the manifest goes out as application/octet-stream. Safari
+# wants application/manifest+json and does not always recover, which means an
+# installed app can quietly lose its standalone display and themed icon.
+#
+# This is fixed in mime.types rather than in the vhost on purpose. Adding a
+# `types` block inside a server replaces the inherited list rather than adding to
+# it, so every .js, .css and .png would fall back to octet-stream. An exact
+# location block would risk colliding with the one this vhost already has for
+# the manifest. One line in the shared list touches neither.
+patch_mime_types() {
+  local action="$1"
+  local mime=/etc/nginx/mime.types
+
+  if [ ! -f "$mime" ]; then
+    echo "  $mime is missing, skipping the manifest MIME fix"
+    return 0
+  fi
+
+  if [ "$action" = "remove" ]; then
+    if sudo grep -q "$MIME_MARKER" "$mime" 2>/dev/null; then
+      local rbackup
+      rbackup=$(sudo mktemp)
+      sudo cp "$mime" "$rbackup"
+      sudo awk -v marker="$MIME_MARKER" '
+        index($0, marker) { next }
+        /^[[:space:]]*application\/manifest\+json[[:space:]]+webmanifest;/ { next }
+        { print }
+      ' "$mime" > /tmp/_mime_rm.$$ 2>/dev/null
+      sudo cp /tmp/_mime_rm.$$ "$mime"
+      rm -f /tmp/_mime_rm.$$ "$rbackup"
+      echo "  removed the webmanifest MIME mapping"
+    fi
+    return 0
+  fi
+
+  if sudo grep -qE '^[[:space:]]*application/manifest\+json[[:space:]]' "$mime" 2>/dev/null; then
+    echo "  mime.types already maps the manifest"
+    return 0
+  fi
+
+  local backup
+  backup=$(sudo mktemp)
+  sudo cp "$mime" "$backup"
+
+  # The entry has to go *inside* the types block. Appending it to the end of the
+  # file would leave a bare "application/manifest+json webmanifest;" sitting at
+  # http level, which is not a directive nginx accepts there: nginx would refuse
+  # to start, and this host's TLS terminates through xray on the same port, so
+  # taking nginx down takes the site and the VPN with it.
+  sudo awk -v marker="$MIME_MARKER" '
+    { print }
+    !done && /^[[:space:]]*types[[:space:]]*\{/ {
+      print marker
+      print "    application/manifest+json   webmanifest;"
+      done = 1
+    }
+  ' "$mime" > /tmp/_mime_patch.$$ 2>/dev/null
+
+  if [ ! -s /tmp/_mime_patch.$$ ]; then
+    echo "  ERROR: no types block found in $mime, restoring"
+    sudo cp "$backup" "$mime"
+    rm -f "$backup" /tmp/_mime_patch.$$
+    return 1
+  fi
+
+  sudo cp /tmp/_mime_patch.$$ "$mime"
+  rm -f /tmp/_mime_patch.$$
+
+  if ! sudo nginx -t 2>/dev/null; then
+    echo "  ERROR: nginx rejected the mime.types change, restoring"
+    sudo cp "$backup" "$mime"
+    rm -f "$backup"
+    return 1
+  fi
+  rm -f "$backup"
+  echo "  mapped .webmanifest to application/manifest+json"
+
+  # mime.types is only read when nginx starts, so the reload here is what makes
+  # the mapping take effect. Reload only, never restart: xray forwards :443 to
+  # nginx on this host and restarting drops the VPN for everyone using it.
+  if sudo systemctl reload nginx 2>/dev/null; then
+    echo "  reloaded nginx for the new MIME type"
+  else
+    echo "  WARNING: nginx did not reload, the MIME fix will apply on the next reload"
+  fi
+}
 
 # Rollback mode.
 #
@@ -66,6 +157,7 @@ if [ "$MODE" = "remove" ]; then
   done
 
   # Reload only. See the note in the apply path about xray and restarts.
+  patch_mime_types remove
   sudo systemctl reload nginx 2>/dev/null || true
   echo "removed ${removed_total} block(s)"
 
@@ -226,6 +318,8 @@ for file in "${CANDIDATES[@]}"; do
   sudo mv "$backup" "${file}.flexbak" 2>/dev/null || rm -f "$backup"
 done
 
+patch_mime_types apply
+
 echo "=== Verifying the published headers ==="
 # One request, not one per header. This used to curl once for each of four
 # headers and then curl twice more to print the response, so with a ten second
@@ -250,5 +344,16 @@ if [ "$missing" -ne 0 ]; then
   echo "=== response headers ==="
   printf '%s\n' "$response" | head -20
 fi
+
+# A PWA manifest served as octet-stream can be ignored by iOS, which silently
+# costs the installed app its standalone display and themed icon.
+echo "=== Verifying the manifest MIME type ==="
+manifest_type=$(curl -sSI -m 8 "https://${DOMAIN}/manifest.webmanifest" 2>/dev/null \
+  | grep -i '^content-type:' | head -1 | tr -d '\r')
+echo "  ${manifest_type:-no content-type header}"
+case "$manifest_type" in
+  *manifest+json*) echo "  ok      application/manifest+json" ;;
+  *) echo "  WARNING: the manifest is not served as application/manifest+json" ;;
+esac
 
 exit 0
