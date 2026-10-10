@@ -255,14 +255,29 @@ jobs:
               echo "=== API is up (host) ==="
             fi
 
-            echo "=== Reverting the nginx header patch ==="
-            # Adding the security headers took the site down: TLS stopped
-            # completing, so nothing answered on :443. `nginx -t` had passed,
-            # which is why that gate was not enough on its own. Removing the
-            # block restores service; the script also dumps the live config to
-            # /_nginx.txt so it can finally be read before any second attempt.
-            bash scripts/nginx-security-headers.sh remove || true
-            sudo rm -f /var/www/html/_deploy.txt || true
+            echo "=== Publishing the live nginx config (read only) ==="
+            # Adding the security headers to the real vhost coincided with TLS
+            # stopping, and rolling it back restored service. Nothing about the
+            # live config is in this repository, and the listening sockets say it
+            # does not look like the one here: xray holds :443 while nginx listens
+            # on :80 and 127.0.0.1:8080. Patching it a second time without
+            # reading it first is what caused the outage, so this run only looks.
+            {
+              echo "captured at $(date -u +%FT%TZ)"
+              echo "--- listeners ---"
+              sudo ss -tlnp 2>/dev/null | head -30 || true
+              for d in /etc/nginx/sites-enabled /etc/nginx/conf.d; do
+                for f in "$d"/*.conf "$d"/*; do
+                  [ -f "$f" ] || continue
+                  case "$f" in *default*) continue;; esac
+                  echo "----- $f -----"
+                  sudo cat "$f" 2>/dev/null || true
+                done
+              done
+              echo "----- /etc/nginx/nginx.conf (http/server/include lines) -----"
+              sudo grep -nE "include|listen|server_name|ssl_certificate|proxy_pass" /etc/nginx/nginx.conf 2>/dev/null || true
+            } > /tmp/_nginx_dump.txt 2>&1 || true
+            sudo cp /tmp/_nginx_dump.txt /var/www/html/_nginx.txt 2>/dev/null || true
 
             echo "=== Reloading nginx ==="
             sudo systemctl reload nginx || sudo systemctl start nginx
