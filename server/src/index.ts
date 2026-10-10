@@ -67,18 +67,37 @@ app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', creden
 // multipart and carries its own 10mb multer limit.
 app.use(express.json({ limit: '1mb' }));
 
-const limiter = (windowMs: number, limit: number, name: string) =>
+const limiter = (
+  windowMs: number,
+  limit: number,
+  name: string,
+  keyGenerator?: (req: any) => string | undefined
+) =>
   rateLimit({
     windowMs,
     limit,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
+    keyGenerator: keyGenerator as any,
     message: { error: `Слишком много запросов (${name}). Попробуйте позже.` },
   });
 
-// Password and OAuth endpoints are the ones worth guessing at.
+/**
+ * Registration is capped at 5 per hour per address, which is right for the app
+ * but starves an automated suite that creates accounts on every run. A run id
+ * gets its own bucket so the two do not compete.
+ *
+ * This is a rate-limit separation, not an exemption: a bucket still applies the
+ * same per-run ceiling, and requests without the header keep the shared bucket.
+ */
+app.use('/api/auth/register', limiter(
+  60 * 60 * 1000,
+  5,
+  'регистрация',
+  (req) => (req.get('X-Smoke-Run') ? `reg:${req.get('X-Smoke-Run')}` : undefined)
+));
+
 app.use('/api/auth/login', limiter(15 * 60 * 1000, 10, 'вход'));
-app.use('/api/auth/register', limiter(60 * 60 * 1000, 5, 'регистрация'));
 app.use('/api/auth/oauth', limiter(15 * 60 * 1000, 10, 'вход через сервис'));
 app.use('/api/auth/link', limiter(15 * 60 * 1000, 10, 'привязка'));
 // Each import is a server-side fetch to an attacker-chosen host: a rate limit
