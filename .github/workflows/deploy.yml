@@ -19,6 +19,42 @@ jobs:
           script: |
             set -euo pipefail
 
+            # Deploy diagnostics.
+            #
+            # There is no shell access to this host, so when a deploy goes wrong
+            # the only evidence is a log behind GitHub authentication, which is
+            # not readable from here. On failure this dumps the state of the API
+            # into the web root, which nginx serves, so the cause is fetchable
+            # from https://veheys.online/_deploy.txt. Removed on success.
+            deploy_diagnostics() {
+              status=$?
+              if [ "$status" -eq 0 ]; then
+                sudo rm -f /var/www/html/_deploy.txt || true
+                return 0
+              fi
+              {
+                echo "deploy failed with exit $status at $(date -u +%FT%TZ)"
+                echo "--- health on localhost ---"
+                curl -sS -m 5 http://localhost:3001/api/health || echo "(no response)"
+                echo
+                echo "--- listeners ---"
+                sudo ss -tlnp 2>/dev/null | head -30 || true
+                echo "--- compose ps ---"
+                docker compose ps 2>&1 | head -20 || true
+                echo "--- compose logs ---"
+                docker compose logs --tail 60 server 2>&1 || true
+                echo "--- screen sessions ---"
+                screen -ls 2>&1 || true
+                echo "--- last server build output ---"
+                tail -40 /tmp/flex-build.log 2>/dev/null || echo "(not captured)"
+              } > /tmp/_deploy.txt 2>&1 || true
+              sudo mkdir -p /var/www/html || true
+              sudo cp /tmp/_deploy.txt /var/www/html/_deploy.txt || true
+              sudo chmod 644 /var/www/html/_deploy.txt || true
+              exit "$status"
+            }
+            trap deploy_diagnostics EXIT
+
             cd /opt/flex
 
             if [ ! -f server/.env ]; then
@@ -85,6 +121,13 @@ jobs:
             mkdir -p /opt/flex/server/uploads
 
             cd /opt/flex/server
+
+            echo "=== Server build ==="
+            # Kept so the diagnostics trap can show why a build failed.
+            npm run build > /tmp/flex-build.log 2>&1 || {
+              tail -40 /tmp/flex-build.log
+              exit 1
+            }
 
             echo "=== Prisma client and schema ==="
             npm install --silent
