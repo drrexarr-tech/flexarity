@@ -279,6 +279,13 @@ jobs:
             bash scripts/nginx-security-headers.sh apply || \
               echo "WARNING: nginx header step reported a problem, continuing"
 
+            # The config dump that found this is retired. It was published to
+            # the web root, so it stayed readable by anyone after the deploy
+            # that wrote it, describing the host's ports and processes. The
+            # failure diagnostics remain, and are only written when something is
+            # actually broken.
+            sudo rm -f /var/www/html/_nginx.txt || true
+
             echo "=== Reloading nginx ==="
             sudo systemctl reload nginx || sudo systemctl start nginx
 
