@@ -144,6 +144,15 @@ export function RecipesPage() {
               className="group cursor-pointer transition-shadow hover:shadow-md"
               onDoubleClick={() => navigate(`/recipes/${recipe.id}`)}
             >
+              {recipe.imageUrl && (
+                <img
+                  src={recipe.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  className="mb-2 h-32 w-full rounded-lg object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
               <CardHeader className="p-3 lg:p-4">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-sm lg:text-base">{recipe.title}</CardTitle>

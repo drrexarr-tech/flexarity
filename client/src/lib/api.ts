@@ -59,11 +59,17 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
 
   // The access token lives 15 minutes, so an expired one is expected rather
   // than exceptional: redeem the refresh token once and replay the request.
-  if (res.status === 401 && retry && !REFRESH_PATHS.some((p) => path.startsWith(p))) {
-    refreshInFlight = refreshInFlight ?? refreshAccessToken();
-    const refreshed = await refreshInFlight.finally(() => { refreshInFlight = null; });
-    if (refreshed) return request<T>(path, options, false);
+  // This also runs for a tab still holding a bundle from before the refresh
+  // flow existed, which otherwise surfaced the server's raw "Недействительный
+  // токен" instead of returning the user to the login screen.
+  if (res.status === 401 && !REFRESH_PATHS.some((p) => path.startsWith(p))) {
+    if (retry) {
+      refreshInFlight = refreshInFlight ?? refreshAccessToken();
+      const refreshed = await refreshInFlight.finally(() => { refreshInFlight = null; });
+      if (refreshed) return request<T>(path, options, false);
+    }
     notifySessionLost();
+    throw new Error('Сессия истекла, войдите заново');
   }
 
   if (!res.ok) {

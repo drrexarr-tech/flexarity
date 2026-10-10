@@ -4,11 +4,13 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Camera, CheckCheck, ShieldCheck, Unlink, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 
 export function ProfilePage() {
@@ -29,6 +31,7 @@ export function ProfilePage() {
   const [setupDialog, setSetupDialog] = useState(false);
   const [disableDialog, setDisableDialog] = useState(false);
   const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorUri, setTwoFactorUri] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [disablePassword, setDisablePassword] = useState('');
   const [disableCode, setDisableCode] = useState('');
@@ -42,6 +45,7 @@ export function ProfilePage() {
     try {
       const res = await api.auth.setupTwoFactor();
       setTwoFactorSecret(res.secret);
+      setTwoFactorUri(res.otpauthUri);
       setTwoFactorCode('');
       setSetupDialog(true);
     } catch (err: any) {
@@ -319,7 +323,7 @@ export function ProfilePage() {
           </div>
           <div className="space-y-2">
             <Label>Дата рождения</Label>
-            <Input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="[color-scheme:light_dark]" />
+            <DatePicker value={dateOfBirth} onChange={setDateOfBirth} />
           </div>
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? 'Сохранение...' : 'Сохранить'}
@@ -369,12 +373,20 @@ export function ProfilePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="break-all rounded-md bg-muted p-3 text-center font-mono text-xs">
-              {twoFactorSecret}
+            <div className="mx-auto w-fit rounded-lg bg-white p-2">
+              <QRCodeSVG value={twoFactorUri} size={200} level="M" bgColor="#ffffff" fgColor="#0f172a" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Если приложение не сканирует QR-код, введите этот ключ вручную.
+            <p className="text-center text-xs text-muted-foreground">
+              Наведите камеру телефона, чтобы открыть приложение-аутентификатор
             </p>
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none text-center">
+                Ввести ключ вручную
+              </summary>
+              <p className="mt-2 break-all rounded-md bg-muted p-3 text-center font-mono">
+                {twoFactorSecret}
+              </p>
+            </details>
             <Input
               value={twoFactorCode}
               onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}

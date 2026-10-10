@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift,
-  CalendarDays, ShoppingCart, ArrowRight, Cake, Check, ListTodo,
+  CalendarDays, ShoppingCart, ArrowRight, Cake, Check, ListTodo, TrendingUp,
 } from 'lucide-react';
+import { LuxuryBackdrop } from '@/components/dashboard/LuxuryBackdrop';
+import { RevealGroup, RevealItem, StatTile } from '@/components/dashboard/Motion';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -134,23 +137,68 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-4 lg:space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">{greeting()}</h1>
-          {unread > 0 && (
-            <Badge
-              variant="secondary"
-              className="cursor-pointer text-[10px]"
-              onClick={() => navigate('/chats')}
-            >
-              {unread > 9 ? '9+' : unread} новых
-            </Badge>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground capitalize lg:text-base">{today}</p>
-      </div>
+      <LuxuryBackdrop />
 
-      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+      <RevealGroup>
+        <RevealItem>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="bg-gradient-to-br from-foreground via-foreground to-foreground/55 bg-clip-text text-2xl font-semibold tracking-tight text-transparent lg:text-4xl">
+                {greeting()}
+              </h1>
+              <p className="mt-1.5 text-sm capitalize text-muted-foreground lg:text-base">{today}</p>
+            </div>
+            {unread > 0 && (
+              <Badge
+                variant="secondary"
+                className="cursor-pointer text-[10px]"
+                onClick={() => navigate('/chats')}
+              >
+                {unread > 9 ? '9+' : unread} новых
+              </Badge>
+            )}
+          </div>
+        </RevealItem>
+
+        <RevealItem>
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <StatTile
+              label="Сроки"
+              value={dueTasks.length}
+              icon={ListTodo}
+              accent="linear-gradient(135deg,#3B82F6,#6366F1)"
+              hint={overdueCount > 0 ? `Просрочено ${overdueCount}` : 'Ближайшие задачи'}
+              onClick={() => navigate('/tasks')}
+            />
+            <StatTile
+              label="Даты"
+              value={upcoming.length}
+              icon={CalendarDays}
+              accent="linear-gradient(135deg,#F59E0B,#EF4444)"
+              hint="Ближайшие даты"
+              onClick={() => navigate('/calendar')}
+            />
+            <StatTile
+              label="Покупки"
+              value={pendingShopping.length}
+              icon={ShoppingCart}
+              accent="linear-gradient(135deg,#10B981,#14B8A6)"
+              hint="Не куплено"
+              onClick={() => navigate('/shopping')}
+            />
+            <StatTile
+              label="Планы"
+              value={activePlans.length}
+              icon={TrendingUp}
+              accent="linear-gradient(135deg,#8B5CF6,#6366F1)"
+              hint="Активные цели"
+              onClick={() => navigate('/plans')}
+            />
+          </div>
+        </RevealItem>
+
+        <RevealItem className="mt-4 lg:mt-6">
+          <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
         {/* Tasks due */}
         <Card>
           <SectionHead
@@ -320,25 +368,32 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+          </div>
+        </RevealItem>
 
-      <div>
-        <h2 className="mb-2 text-sm font-medium text-muted-foreground">Приложения</h2>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9">
-          {apps.map((app) => (
-            <button
-              key={app.path}
-              onClick={() => navigate(app.path)}
-              className="group flex flex-col items-center gap-1.5 rounded-lg border p-2.5 transition-colors hover:bg-muted/60"
-            >
-              <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${app.color}`}>
-                <app.icon className="h-4 w-4 text-white" />
-              </span>
-              <span className="w-full truncate text-center text-[10px] font-medium">{app.title}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+        <RevealItem>
+          <div className="mt-4 lg:mt-6">
+            <h2 className="mb-2 text-sm font-medium text-muted-foreground">Приложения</h2>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9">
+              {apps.map((app) => (
+                <motion.button
+                  key={app.path}
+                  onClick={() => navigate(app.path)}
+                  whileHover={{ y: -3 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 340, damping: 22 }}
+                  className="group flex flex-col items-center gap-1.5 rounded-xl border bg-card/60 p-2.5 backdrop-blur-sm transition-colors hover:border-primary/40"
+                >
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm ${app.color}`}>
+                    <app.icon className="h-4 w-4 text-white" />
+                  </span>
+                  <span className="w-full truncate text-center text-[10px] font-medium">{app.title}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </RevealItem>
+      </RevealGroup>
     </div>
   );
 }

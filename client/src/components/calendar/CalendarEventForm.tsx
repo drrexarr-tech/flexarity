@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -101,7 +102,7 @@ export function CalendarEventForm({ event, defaultDate, onSuccess }: Props) {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="event-title">Название</Label>
-        <Input id="event-title" placeholder="Например: День рождения Ани" {...form.register('title')} />
+        <Input id="event-title" {...form.register('title')} />
         {form.formState.errors.title && (
           <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
         )}
@@ -110,7 +111,11 @@ export function CalendarEventForm({ event, defaultDate, onSuccess }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="event-date">Дата</Label>
-          <Input id="event-date" type="date" className="[color-scheme:light_dark]" {...form.register('date')} />
+          <DatePicker
+            id="event-date"
+            value={form.watch('date') ?? ''}
+            onChange={(v) => form.setValue('date', v)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="event-time">Время</Label>

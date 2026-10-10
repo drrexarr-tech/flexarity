@@ -89,7 +89,16 @@ export function RecipeDetailPage() {
 
       <div>
         <div className="flex items-start gap-4">
-          <div className="flex-1">
+          {recipe.imageUrl && (
+            <img
+              src={recipe.imageUrl}
+              alt=""
+              className="h-20 w-20 shrink-0 rounded-xl border object-cover sm:h-24 sm:w-24"
+              loading="lazy"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          )}
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold lg:text-3xl">{recipe.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {recipe.category && <Badge>{recipe.category}</Badge>}

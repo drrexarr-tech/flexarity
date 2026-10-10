@@ -1,9 +1,17 @@
+/* Self-hosted so the app renders identically everywhere. With only a system
+   font stack, a device without 'Segoe UI' fell back to whatever condensed face
+   it had, which stretched the date inputs and avatar initials into slivers.
+   Must precede every rule, so it sits above the Tailwind directives. */
+@import '@fontsource-variable/inter/wght.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
+:root {
+    font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -47,7 +55,6 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
   }
-}
 
 @layer base {
   * {
@@ -55,7 +62,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Scroll anchoring shifts the viewport when async content (avatars, cards)
        lands above the current offset, which reads as the page jumping down. */
     overflow-anchor: none;
@@ -96,11 +102,50 @@
   select {
     font-size: 16px;
   }
+
+  /* Placeholder examples are noise on a phone: the label is already right
+     above the field and there is no room to read a sentence of hint text. */
+  input::placeholder,
+  textarea::placeholder {
+    color: transparent;
+  }
 }
 
 /* Standalone Android otherwise shows pull-to-refresh overscroll glow over the UI. */
 html {
   overscroll-behavior-y: contain;
+}
+
+/* Ambient backdrop for the dashboard. Driven by CSS rather than JS so it keeps
+   running on the compositor and costs nothing per frame. */
+@keyframes flex-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6%, -8%, 0) scale(1.12); }
+}
+@keyframes flex-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.08); }
+  50% { transform: translate3d(-7%, 6%, 0) scale(1); }
+}
+@keyframes flex-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(4%, 7%, 0) scale(1.15); }
+}
+
+.backdrop-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  will-change: transform;
+}
+.backdrop-a { animation: flex-drift-a 22s ease-in-out infinite; }
+.backdrop-b { animation: flex-drift-b 28s ease-in-out infinite; }
+.backdrop-c { animation: flex-drift-c 34s ease-in-out infinite; }
+
+/* Motion is decoration here; drop it when the reader has asked for less. */
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-blob {
+    animation: none;
+  }
 }
 
 :where(html, body) {

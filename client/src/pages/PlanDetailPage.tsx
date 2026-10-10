@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -368,13 +369,7 @@ export function PlanDetailPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="entry-date">Дата</Label>
-                <Input
-                  id="entry-date"
-                  type="date"
-                  className="[color-scheme:light_dark]"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
+                <DatePicker id="entry-date" value={date} onChange={setDate} />
               </div>
             </div>
 
