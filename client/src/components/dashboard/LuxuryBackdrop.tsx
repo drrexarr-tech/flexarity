@@ -6,7 +6,7 @@
  */
 export function LuxuryBackdrop() {
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div
         className="backdrop-blob backdrop-a h-[38rem] w-[38rem] -left-24 -top-32"
         style={{
@@ -30,7 +30,7 @@ export function LuxuryBackdrop() {
       />
       {/* Light mode needs a lighter touch: the blobs would otherwise tint a white
           page noticeably, so they are dialled back rather than recoloured. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/70 dark:to-background/40" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/30 to-background/80 dark:from-background/40 dark:via-transparent dark:to-background/60" />
     </div>
   );
 }

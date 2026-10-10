@@ -136,7 +136,7 @@ export function DashboardPage() {
   });
 
   return (
-    <div className="space-y-4 lg:space-y-6">
+    <div className="relative z-10 space-y-4 lg:space-y-6">
       <LuxuryBackdrop />
 
       <RevealGroup>
