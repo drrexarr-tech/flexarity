@@ -102,13 +102,6 @@
   select {
     font-size: 16px;
   }
-
-  /* Placeholder examples are noise on a phone: the label is already right
-     above the field and there is no room to read a sentence of hint text. */
-  input::placeholder,
-  textarea::placeholder {
-    color: transparent;
-  }
 }
 
 /* Standalone Android otherwise shows pull-to-refresh overscroll glow over the UI. */
