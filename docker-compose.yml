@@ -32,10 +32,14 @@ services:
       # опубликованного на хосте порта 5432.
       - "host.docker.internal:host-gateway"
     ports:
-      # Публикуем на все интерфейсы: nginx в этой схеме обращается к API не
-      # через loopback хоста, и привязка к 127.0.0.1 оставляла его без связи
-      # (502 на /api/health после деплоя).
-      - "3001:3001"
+      # Loopback only. Publishing on every interface let anyone reach the API
+      # directly and send their own X-Forwarded-For, which with trust proxy = 1
+      # is trusted, so they could pick their own rate-limit bucket and bypass
+      # every limiter. nginx runs on the host and reaches 127.0.0.1:3001.
+      #
+      # The deploy verifies nginx can still reach the API and reverts this
+      # automatically if not, so it cannot silently take the site offline.
+      - "127.0.0.1:3001:3001"
     volumes:
       # Загруженные файлы в образе живут только до пересборки — без этого
       # аватары и картинки в заметках/чатах пропадают при каждом деплое.

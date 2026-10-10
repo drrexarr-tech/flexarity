@@ -361,8 +361,10 @@ chatRouter.put('/:id/encrypt', async (req: AuthRequest, res: Response) => {
 });
 
 chatRouter.get('/search/users', async (req: AuthRequest, res: Response) => {
-  const q = String(req.query.q || '');
-  if (q.length < 2) return res.json([]);
+  const q = String(req.query.q || '').trim();
+  // Two characters is short enough to walk the whole user table one chunk at a
+  // time. Three, plus a rate limit, turns enumeration into a crawl.
+  if (q.length < 3) return res.json([]);
 
   const users = await prisma.user.findMany({
     where: {
@@ -372,7 +374,11 @@ chatRouter.get('/search/users', async (req: AuthRequest, res: Response) => {
       ],
       NOT: { id: req.userId },
     },
-    select: { id: true, name: true, email: true },
+    // email is deliberately absent. Matching on it is what makes "find someone
+    // to talk to" work, but returning it handed every registered address to any
+    // authenticated caller, for phishing or credential stuffing. The chat UI only
+    // ever rendered the name and the avatar.
+    select: { id: true, name: true, avatarUrl: true },
     take: 10,
   });
 

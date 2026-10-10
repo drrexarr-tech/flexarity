@@ -196,6 +196,31 @@ jobs:
 
               if wait_api; then
                 echo "=== API is up (container) ==="
+
+                # The API is published on loopback so that X-Forwarded-For
+                # cannot be forged from outside. That is only safe while nginx
+                # can still reach it, and this host's nginx config is not in
+                # the repository, so verify through nginx rather than assuming.
+                # If it cannot, fall back to a wide binding and say so: a
+                # reachable site matters more than the header hardening.
+                if ! curl -fsS -m 8 --resolve veheys.online:443:127.0.0.1 \
+                     https://veheys.online/api/health >/dev/null 2>&1; then
+                  echo "=== WARNING: nginx cannot reach the API on loopback ==="
+                  echo "=== Reverting to a wide port binding ==="
+                  sed -i 's|^      - "127.0.0.1:3001:3001"|      - "3001:3001"|' /opt/flex/docker-compose.yml
+                  docker compose up -d server
+                  if wait_api && curl -fsS -m 8 --resolve veheys.online:443:127.0.0.1 \
+                       https://veheys.online/api/health >/dev/null 2>&1; then
+                    echo "=== API reachable again; commit the fallback to the repo ==="
+                    git -C /opt/flex commit -am "chore: widen the published API port, loopback broke nginx" || true
+                    git -C /opt/flex push origin HEAD:main || true
+                  else
+                    echo "ERROR: API unreachable even on a wide binding."
+                    exit 1
+                  fi
+                else
+                  echo "=== nginx reaches the API on loopback ==="
+                fi
               else
                 echo "=== WARNING: container did not come up, falling back to the host ==="
                 docker compose ps || true

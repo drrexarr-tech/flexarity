@@ -40,10 +40,11 @@ if (jwtSecret.length < 32) {
   console.warn('JWT_SECRET is shorter than 32 characters; consider rotating it');
 }
 
-// nginx подставляет настоящий адрес клиента в X-Forwarded-For, и без доверия
-// к прокси все пользователи попали бы в один счётчик лимитов. Значение 1 берёт
-// последний элемент цепочки — тот, что записал nginx.
-app.set('trust proxy', 1);
+// nginx is a host process and supplies the real client address, so it must be
+// trusted for per-user rate limits to be meaningful. 'loopback' trusts the
+// header only when it arrives from localhost, so a client reaching the API on
+// any other route cannot forge X-Forwarded-For and pick its own bucket.
+app.set('trust proxy', 'loopback');
 app.disable('x-powered-by');
 
 // The API returns JSON and serves user uploads; nothing here should be embeddable.
@@ -103,6 +104,9 @@ app.use('/api/auth/link', limiter(15 * 60 * 1000, 10, 'привязка'));
 // Each import is a server-side fetch to an attacker-chosen host: a rate limit
 // here is what keeps the endpoint from being used as a DDoS proxy.
 app.use('/api/recipes/import', limiter(60 * 60 * 1000, 20, 'импорт рецептов'));
+// Directory lookups are the endpoints that answer "does this account exist".
+app.use('/api/chat/search', limiter(60 * 1000, 30, 'поиск людей'));
+app.use('/api/auth/public-key', limiter(60 * 1000, 60, 'запрос ключа'));
 app.use('/api/upload', limiter(60 * 60 * 1000, 60, 'загрузка файлов'));
 app.use('/api/chat', limiter(60 * 1000, 120, 'сообщения'));
 app.use('/api', limiter(60 * 1000, 600, 'общий лимит'));

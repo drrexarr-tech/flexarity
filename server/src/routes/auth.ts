@@ -543,11 +543,20 @@ authRouter.put('/public-key', authenticate, async (req: AuthRequest, res: Respon
 
 authRouter.get('/public-key/:userId', authenticate, async (req: AuthRequest, res: Response) => {
   const userId = String(req.params.userId);
+
+  // Access cannot be narrowed to co-participants: ChatsPage fetches the peer's
+  // key before the chat exists (handleStartChat), so a new conversation would
+  // lose its encryption. Public keys are meant to be readable by the people you
+  // talk to, and user ids are unguessable uuid4, so this is not an enumeration
+  // primitive on its own.
+  //
+  // What is closed is the existence oracle: a missing user and a user who never
+  // set a key up now answer identically, so probing cannot distinguish them.
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { publicKey: true },
   });
-  if (!user || !user.publicKey) throw new AppError(404, 'Пользователь не найден');
+  if (!user || !user.publicKey) throw new AppError(404, 'Ключ не найден');
   res.json({ publicKey: user.publicKey });
 });
 
