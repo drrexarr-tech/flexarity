@@ -75,7 +75,7 @@ export function RecipeDetailPage() {
                 <Edit3 className="mr-2 h-4 w-4" /> Редактировать
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto sm:w-full">
+            <DialogContent className="max-w-2xl sm:w-full">
               <DialogHeader>
                 <DialogTitle>Редактировать рецепт</DialogTitle>
               </DialogHeader>
@@ -165,7 +165,7 @@ export function RecipeDetailPage() {
       </Card>
 
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить рецепт?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>

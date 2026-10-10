@@ -191,12 +191,17 @@ export function ShoppingPage() {
               value={quick}
               onChange={(e) => setQuick(e.target.value)}
               onKeyDown={(e) => {
+                // Still useful with a hardware keyboard, but the software
+                // keyboard on iOS has no Enter key, so the hint used to name a
+                // key the installed app cannot press. The button does the job.
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   quickAdd();
                 }
               }}
-              placeholder="Что купить? Нажмите Enter"
+              placeholder="Что купить?"
+              inputMode="text"
+              enterKeyHint="done"
               disabled={adding}
             />
             <Button onClick={quickAdd} disabled={adding || !quick.trim()}>
@@ -392,7 +397,7 @@ export function ShoppingPage() {
 
       {/* Edit dialog */}
       <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
-        <DialogContent className="w-[95vw] max-w-sm sm:w-full">
+        <DialogContent className="max-w-sm sm:w-full">
           <DialogHeader>
             <DialogTitle>Изменить товар</DialogTitle>
           </DialogHeader>
@@ -466,7 +471,7 @@ export function ShoppingPage() {
       </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить товар?</DialogTitle>
           </DialogHeader>
@@ -478,7 +483,7 @@ export function ShoppingPage() {
       </Dialog>
 
       <Dialog open={clearOpen} onOpenChange={setClearOpen}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Очистить купленное?</DialogTitle>
           </DialogHeader>

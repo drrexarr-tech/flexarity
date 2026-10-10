@@ -307,7 +307,7 @@ export function ChatsPage() {
   if (!encryptionReady || loading) return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] -mx-4 -mt-4 lg:-mx-6 lg:-mt-6 overflow-hidden bg-background">
+    <div className="flex h-[calc(100dvh-5rem)] -mx-4 -mt-4 lg:-mx-6 lg:-mt-6 overflow-hidden bg-background">
       {/* Chat list */}
       <div className={cn('w-full lg:w-72 shrink-0 flex-col border-r bg-card lg:flex', showMobileList ? 'flex' : 'hidden lg:flex')}>
         <div className="border-b px-3 py-2.5 space-y-2">
@@ -499,7 +499,7 @@ export function ChatsPage() {
       </div>
 
       <Dialog open={!!deleteChatTarget} onOpenChange={() => setDeleteChatTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удаление чата</DialogTitle>
             <DialogDescription>Выберите действие</DialogDescription>

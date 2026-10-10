@@ -291,7 +291,7 @@ export function WishlistDetailPage() {
       )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="w-[95vw] max-w-lg sm:w-full">
+        <DialogContent className="max-w-lg sm:w-full">
           <DialogHeader>
             <DialogTitle>Редактировать список</DialogTitle>
           </DialogHeader>
@@ -300,7 +300,7 @@ export function WishlistDetailPage() {
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить список?</DialogTitle>
             <DialogDescription>Вместе с ним удалятся все подарки. Это нельзя отменить.</DialogDescription>
@@ -313,7 +313,7 @@ export function WishlistDetailPage() {
       </Dialog>
 
       <Dialog open={!!deleteItemId} onOpenChange={() => setDeleteItemId(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить подарок?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>
@@ -328,7 +328,7 @@ export function WishlistDetailPage() {
       </Dialog>
 
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full">
+        <DialogContent className="max-w-lg sm:w-full">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Редактировать подарок' : 'Новый подарок'}</DialogTitle>
           </DialogHeader>

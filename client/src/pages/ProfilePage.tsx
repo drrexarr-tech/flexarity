@@ -394,7 +394,7 @@ export function ProfilePage() {
       </Card>
 
       <Dialog open={passwordDialog} onOpenChange={setPasswordDialog}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Смена пароля</DialogTitle>
             <DialogDescription>
@@ -442,7 +442,7 @@ export function ProfilePage() {
       </Dialog>
 
       <Dialog open={setupDialog} onOpenChange={setSetupDialog}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Подтвердите двухфакторную аутентификацию</DialogTitle>
             <DialogDescription>
@@ -482,7 +482,7 @@ export function ProfilePage() {
       </Dialog>
 
       <Dialog open={disableDialog} onOpenChange={setDisableDialog}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Отключить двухфакторную аутентификацию?</DialogTitle>
             <DialogDescription>
@@ -517,14 +517,14 @@ export function ProfilePage() {
       </Dialog>
 
       <Dialog open={cropDialog} onOpenChange={setCropDialog}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Обрезка аватарки</DialogTitle>
             <DialogDescription>Кликните на изображении, чтобы выбрать область</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
             <div className="relative cursor-crosshair w-fit" onMouseDown={handleMouseDown}>
-              <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35vh] rounded-md" onLoad={() => {
+              <img ref={cropImgRef} src={cropDataUrl} alt="" className="max-w-full max-h-[35dvh] rounded-md" onLoad={() => {
                 setPreviewKey(k => k + 1);
                 const img = cropImgRef.current;
                 if (img) {
@@ -609,7 +609,7 @@ export function ProfilePage() {
       </Card>
 
       <Dialog open={deleteAvatarDialog} onOpenChange={setDeleteAvatarDialog}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить аватарку?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>
@@ -622,7 +622,7 @@ export function ProfilePage() {
       </Dialog>
 
       <Dialog open={!!unlinkTarget} onOpenChange={() => setUnlinkTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Отвязать {unlinkTarget === 'telegram' ? 'Telegram' : 'VK'}?</DialogTitle>
             <DialogDescription>Вы сможете привязать его снова позже.</DialogDescription>

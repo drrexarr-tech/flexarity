@@ -379,7 +379,7 @@ export function CalendarPage() {
       </div>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full">
+        <DialogContent className="max-w-lg sm:w-full">
           <DialogHeader>
             <DialogTitle>{editing ? 'Редактировать событие' : 'Новое событие'}</DialogTitle>
           </DialogHeader>
@@ -392,7 +392,7 @@ export function CalendarPage() {
       </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить событие?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>

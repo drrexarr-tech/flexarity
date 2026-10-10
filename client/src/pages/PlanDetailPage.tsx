@@ -281,7 +281,7 @@ export function PlanDetailPage() {
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full">
+        <DialogContent className="max-w-lg sm:w-full">
           <DialogHeader>
             <DialogTitle>Редактировать план</DialogTitle>
           </DialogHeader>
@@ -290,7 +290,7 @@ export function PlanDetailPage() {
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить план?</DialogTitle>
             <DialogDescription>Вместе с ним удалятся все записи. Это нельзя отменить.</DialogDescription>
@@ -303,7 +303,7 @@ export function PlanDetailPage() {
       </Dialog>
 
       <Dialog open={!!deleteEntryId} onOpenChange={() => setDeleteEntryId(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить запись?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>
@@ -318,7 +318,7 @@ export function PlanDetailPage() {
       </Dialog>
 
       <Dialog open={entryOpen} onOpenChange={setEntryOpen}>
-        <DialogContent className="w-[95vw] max-w-sm sm:w-full">
+        <DialogContent className="max-w-sm sm:w-full">
           <form onSubmit={handleAddEntry}>
             <DialogHeader>
               <DialogTitle>{entryType === 'income' ? 'Отложить деньги' : 'Записать трату'}</DialogTitle>

@@ -84,7 +84,7 @@ export function RecipesPage() {
                 <Plus className="mr-1 h-3.5 w-3.5" /> Добавить рецепт
               </Button>
             </DialogTrigger>
-          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto sm:w-full">
+          <DialogContent className="max-w-2xl sm:w-full">
             <DialogHeader>
               <DialogTitle>{editing ? 'Редактировать рецепт' : 'Новый рецепт'}</DialogTitle>
             </DialogHeader>
@@ -199,7 +199,7 @@ export function RecipesPage() {
       )}
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить рецепт?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>

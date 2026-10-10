@@ -84,8 +84,8 @@ function NoteImages({ imagesJson }: { imagesJson: string | null }) {
         ))}
       </div>
       <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
-        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh]">
-          {lightbox && <img src={imgSrc(lightbox)} alt="" className="w-full h-auto max-h-[80vh] object-contain rounded-md" />}
+        <DialogContent className="max-w-3xl">
+          {lightbox && <img src={imgSrc(lightbox)} alt="" className="w-full h-auto max-h-[80dvh] object-contain rounded-md" />}
         </DialogContent>
       </Dialog>
     </>
@@ -203,7 +203,7 @@ export function NotesPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl">
           <DialogHeader><DialogTitle>{editing ? 'Редактировать' : 'Новая заметка'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Input placeholder="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -239,13 +239,13 @@ export function NotesPage() {
       </Dialog>
 
       <Dialog open={!!dialogLightbox} onOpenChange={() => setDialogLightbox(null)}>
-        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh]">
-          {dialogLightbox && <img src={dialogLightbox.startsWith('data:') ? dialogLightbox : dialogLightbox} alt="" className="w-full h-auto max-h-[80vh] object-contain rounded-md" />}
+        <DialogContent className="max-w-3xl">
+          {dialogLightbox && <img src={dialogLightbox.startsWith('data:') ? dialogLightbox : dialogLightbox} alt="" className="w-full h-auto max-h-[80dvh] object-contain rounded-md" />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить заметку?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>

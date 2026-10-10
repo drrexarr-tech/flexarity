@@ -92,7 +92,7 @@ export function RecipeImportDialog({ open, onOpenChange, onImported }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) reset(); onOpenChange(next); }}>
-      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full">
+      <DialogContent className="max-w-lg sm:w-full">
         <DialogHeader>
           <DialogTitle>Импорт рецепта</DialogTitle>
           <DialogDescription>

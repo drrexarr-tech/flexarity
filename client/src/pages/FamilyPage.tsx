@@ -235,7 +235,7 @@ export function FamilyPage() {
       )}
 
       <Dialog open={!!removeTarget} onOpenChange={() => setRemoveTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить участника?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>
@@ -248,7 +248,7 @@ export function FamilyPage() {
       </Dialog>
 
       <Dialog open={!!leaveTarget} onOpenChange={() => setLeaveTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Покинуть семью?</DialogTitle>
             <DialogDescription>Вы сможете вернуться только по новому приглашению.</DialogDescription>

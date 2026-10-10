@@ -54,7 +54,7 @@ export function WishesPage() {
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> Новый список</Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-lg sm:w-full">
+            <DialogContent className="max-w-lg sm:w-full">
               <DialogHeader>
                 <DialogTitle>{editing ? 'Редактировать список' : 'Новый список'}</DialogTitle>
               </DialogHeader>
@@ -160,7 +160,7 @@ export function WishesPage() {
       )}
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить список?</DialogTitle>
             <DialogDescription>Вместе с ним удалятся все подарки. Это нельзя отменить.</DialogDescription>

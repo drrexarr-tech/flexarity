@@ -60,7 +60,7 @@ export function PlansPage() {
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> Новый план</Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto sm:w-full">
+            <DialogContent className="max-w-lg sm:w-full">
               <DialogHeader>
                 <DialogTitle>{editing ? 'Редактировать план' : 'Новый план'}</DialogTitle>
               </DialogHeader>
@@ -210,7 +210,7 @@ export function PlansPage() {
       )}
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить план?</DialogTitle>
             <DialogDescription>Вместе с ним удалятся все записи. Это нельзя отменить.</DialogDescription>

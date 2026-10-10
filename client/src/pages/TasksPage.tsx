@@ -97,7 +97,7 @@ export function TasksPage() {
                 <Plus className="mr-1 h-3.5 w-3.5" /> Новая задача
               </Button>
             </DialogTrigger>
-          <DialogContent className="w-[95vw] max-w-md sm:w-full">
+          <DialogContent className="max-w-md sm:w-full">
             <DialogHeader>
               <DialogTitle>Создать задачу</DialogTitle>
             </DialogHeader>
@@ -151,7 +151,7 @@ export function TasksPage() {
       </Tabs>
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="w-[90vw] max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удалить задачу?</DialogTitle>
             <DialogDescription>Это действие нельзя отменить.</DialogDescription>
