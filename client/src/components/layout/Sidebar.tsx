@@ -107,6 +107,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </div>
           </NavLink>
           <div className="mt-2 flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Настроить нижнее меню"
+              title="Настроить нижнее меню"
+              onClick={() => {
+                setNavSettingsOpen(true);
+                onClose();
+              }}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggle}>
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
@@ -147,21 +160,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               </NavLink>
             );
           })}
-
-          <button
-            type="button"
-            onClick={() => setNavSettingsOpen(true)}
-            aria-label="Настроить меню"
-            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium text-muted-foreground transition-colors"
-          >
-            <span className="flex h-7 w-12 items-center justify-center rounded-lg">
-              <SlidersHorizontal className="h-5 w-5" />
-            </span>
-            <span className="max-w-full truncate leading-tight">Меню</span>
-          </button>
         </div>
       </nav>
 
+      {/* Reached from the drawer rather than from the bar itself: a settings
+          button that lives in the navigation it configures costs one of the
+          five slots and looks like a destination. */}
       <BottomNavSettings open={navSettingsOpen} onOpenChange={setNavSettingsOpen} />
     </>
   );

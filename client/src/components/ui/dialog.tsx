@@ -41,7 +41,13 @@ const DialogContent = React.forwardRef<
         //   visible and the button ends up underneath Safari's own toolbar.
         // - the sheet is anchored to the bottom of the visual viewport, so it
         //   needs the home-indicator inset as padding or the button sits on it.
-        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-h-[calc(100dvh-2rem)] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[calc(100dvh-env(safe-area-inset-top))] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-2xl max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]',
+        // - !max-w-none on small screens. Every caller sets a desktop max-w-*
+        //   (max-w-sm, max-w-lg) and those also applied on a phone, where 24rem
+        //   is narrower than the screen. The sheet is pinned left, so it ended up
+        //   hugging the left edge with a gap down the right side. Important is
+        //   what makes it stick: the base rule and the caller's rule have equal
+        //   specificity, so which one wins would depend on stylesheet order.
+        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-h-[calc(100dvh-2rem)] max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:max-h-[calc(100dvh-env(safe-area-inset-top))] max-sm:!max-w-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-2xl max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]',
         className
       )}
       {...props}
