@@ -34,6 +34,10 @@ jobs:
               fi
               {
                 echo "deploy failed with exit $status at $(date -u +%FT%TZ)"
+                echo "--- failing command ---"
+                echo "line ${BASH_LINENO[0]}: ${BASH_COMMAND}"
+                echo "--- phase trace ---"
+                cat /tmp/_phase.log 2>/dev/null || echo "(none)"
                 echo "--- health on localhost ---"
                 curl -sS -m 5 http://localhost:3001/api/health || echo "(no response)"
                 echo
@@ -54,6 +58,14 @@ jobs:
               exit "$status"
             }
             trap deploy_diagnostics EXIT
+
+            # Records the phase the script was in when it failed. Two deploys died
+            # with exit 255 while the API was healthy, and a healthy container
+            # that is 35 minutes old means the failure was before `docker compose
+            # up` - but nothing said which command.
+            phase() { echo "$1" >>/tmp/_phase.log; }
+            : >/tmp/_phase.log
+            phase "start"
 
             cd /opt/flex
 
@@ -90,6 +102,7 @@ jobs:
             git fetch origin && git reset --hard origin/main
 
             echo "=== Building client ==="
+            phase "build client"
             cd /opt/flex/client
             npm install --silent
             npm run build
@@ -130,6 +143,7 @@ jobs:
             }
 
             echo "=== Prisma client and schema ==="
+            phase "prisma generate and db push"
             npm install --silent
             npx prisma generate
             npx prisma db push --accept-data-loss
@@ -181,6 +195,7 @@ jobs:
             if docker compose version >/dev/null 2>&1; then
               echo "=== Compose available: deploying API as a container ==="
 
+              phase "compose build and restart"
               cd /opt/flex
               docker compose build server
               docker compose stop server 2>/dev/null || true
