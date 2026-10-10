@@ -270,29 +270,14 @@ jobs:
               echo "=== API is up (host) ==="
             fi
 
-            echo "=== Publishing the live nginx config (read only) ==="
-            # Adding the security headers to the real vhost coincided with TLS
-            # stopping, and rolling it back restored service. Nothing about the
-            # live config is in this repository, and the listening sockets say it
-            # does not look like the one here: xray holds :443 while nginx listens
-            # on :80 and 127.0.0.1:8080. Patching it a second time without
-            # reading it first is what caused the outage, so this run only looks.
-            {
-              echo "captured at $(date -u +%FT%TZ)"
-              echo "--- listeners ---"
-              sudo ss -tlnp 2>/dev/null | head -30 || true
-              echo "--- listing ---"
-              sudo ls -la /etc/nginx/sites-enabled /etc/nginx/conf.d 2>&1 || true
-              echo "--- nginx -T (the fully resolved configuration) ---"
-              # Definitive: nginx prints every file it actually loaded, after
-              # includes. Walking the include directories by hand found nothing,
-              # which cannot be right while nginx is listening on :80 and
-              # 127.0.0.1:8080 - so ask nginx itself where its server blocks are.
-              sudo nginx -T 2>&1 | head -400 || true
-              echo "----- /etc/nginx/nginx.conf (include lines) -----"
-              sudo grep -nE "include" /etc/nginx/nginx.conf 2>/dev/null || true
-            } > /tmp/_nginx_dump.txt 2>&1 || true
-            sudo cp /tmp/_nginx_dump.txt /var/www/html/_nginx.txt 2>/dev/null || true
+            echo "=== Applying security headers to the live vhost ==="
+            # The live config is now known: xray terminates TLS on :443 and
+            # forwards to nginx on 127.0.0.1:8080, so headers must be added to
+            # that plain-HTTP server block - that is what puts them on the wire
+            # for TLS clients. The script keeps a .flexbak beside the file and
+            # gates on nginx -t, so it can be undone.
+            bash scripts/nginx-security-headers.sh apply || \
+              echo "WARNING: nginx header step reported a problem, continuing"
 
             echo "=== Reloading nginx ==="
             sudo systemctl reload nginx || sudo systemctl start nginx

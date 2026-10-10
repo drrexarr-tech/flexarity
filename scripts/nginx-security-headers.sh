@@ -95,13 +95,19 @@ EOF
 
 echo "=== Locating the nginx vhost for ${DOMAIN} ==="
 
+# Discovery: any nginx file naming this domain. An earlier version additionally
+# required `listen 443` or `listen ... ssl`, on the assumption that TLS is
+# terminated here. It is not - xray holds :443 and forwards to nginx on
+# 127.0.0.1:8080, which is plain HTTP - so the filter matched nothing and the
+# headers were never applied at all. The outage that followed was a coincidence,
+# not a consequence of this script.
 mapfile -t CANDIDATES < <(
-  sudo grep -rl --include='*.conf' --include='*' "server_name[^;]*${DOMAIN}" /etc/nginx 2>/dev/null \
-    | while read -r f; do
-        # A file that both listens on 443 and names the domain is the vhost that
-        # serves the app, rather than a redirect block or a commented sample.
-        if sudo grep -qE "listen[^;]*(443|ssl)" "$f" 2>/dev/null; then echo "$f"; fi
-      done
+  sudo grep -rl "server_name[^;]*${DOMAIN}" /etc/nginx 2>/dev/null | sort -u | while read -r f; do
+    # sites-enabled holds symlinks into sites-available; patch the real file once.
+    real=$(sudo readlink -f "$f" 2>/dev/null || echo "$f")
+    case "$f" in *default*) : ;; esac
+    echo "$real"
+  done | sort -u
 )
 
 if [ "${#CANDIDATES[@]}" -eq 0 ]; then
@@ -199,7 +205,10 @@ for file in "${CANDIDATES[@]}"; do
     exit 1
   fi
   echo "  reloaded"
-  rm -f "$backup"
+  # Keep the backup beside the file rather than deleting it: the previous version
+  # removed it on success, which left nothing to roll back to when the very next
+  # run turned out to be the problem.
+  sudo mv "$backup" "${file}.flexbak" 2>/dev/null || rm -f "$backup"
 done
 
 echo "=== Verifying the published headers ==="
@@ -218,6 +227,9 @@ done
 if [ "$missing" -ne 0 ]; then
   echo "=== Some headers are not reaching the document ==="
   echo "=== curl -I https://${DOMAIN}/ ==="
+  curl -sSI -m 10 "https://${DOMAIN}/" 2>&1 | head -20 || true
+else
+  echo "=== All headers are being served ==="
   curl -sSI -m 10 "https://${DOMAIN}/" 2>&1 | head -20 || true
 fi
 
