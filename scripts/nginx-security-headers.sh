@@ -14,6 +14,71 @@ set -uo pipefail
 
 MARKER='# flex-security-headers'
 DOMAIN="${FLEX_DOMAIN:-veheys.online}"
+MODE="${1:-apply}"
+
+# Rollback mode.
+#
+# Adding these headers took the site down: TLS handshakes stopped completing, so
+# xray's forward to nginx was answering nothing. `nginx -t` had passed, which is
+# exactly why that check alone was not sufficient. The inserted block is
+# self-identifying, so it can be removed precisely without needing the backup,
+# which the apply path deleted on success.
+if [ "$MODE" = "remove" ]; then
+  echo "=== Removing previously added security headers ==="
+  removed_total=0
+  for file in $(sudo grep -rl "$MARKER" /etc/nginx 2>/dev/null); do
+    backup=$(sudo mktemp)
+    sudo cp "$file" "$backup"
+    count_before=$(sudo grep -c "$MARKER" "$file" || true)
+
+    # Delete the marker and the specific directives this script inserts, matched
+    # by header name. The first attempt skipped "the marker and any add_header
+    # that follows", which also ate the vhost's own
+    # `add_header Cache-Control` whenever it happened to sit next to ours.
+    sudo awk -v marker="$MARKER" '
+      BEGIN {
+        ours = "Strict-Transport-Security|X-Content-Type-Options|Referrer-Policy|X-Frame-Options|Permissions-Policy|Content-Security-Policy"
+      }
+      {
+        line = $0
+        stripped = line
+        sub(/^[ \t]+/, "", stripped)
+        sub(/[ \t\r]+$/, "", stripped)
+        if (stripped == marker) next
+        if (stripped ~ ("^add_header[ ]+(" ours ")")) next
+        print $0
+      }
+    ' "$file" > /tmp/_nginx_rm.$$ 2>/dev/null
+
+    sudo cp /tmp/_nginx_rm.$$ "$file"
+    rm -f /tmp/_nginx_rm.$$
+
+    if ! sudo nginx -t 2>/dev/null; then
+      echo "  ERROR: nginx rejected the cleaned config in $file, restoring"
+      sudo cp "$backup" "$file"
+      rm -f "$backup"
+      exit 1
+    fi
+    rm -f "$backup"
+    count_after=$(sudo grep -c "$MARKER" "$file" || true)
+    echo "  $file: $count_before -> $count_after"
+    removed_total=$((removed_total + count_before - count_after))
+  done
+
+  sudo systemctl reload nginx 2>/dev/null || sudo systemctl restart nginx 2>/dev/null || true
+  echo "removed ${removed_total} block(s)"
+
+  echo "=== Publishing the current config for inspection ==="
+  {
+    echo "captured at $(date -u +%FT%TZ) after header removal"
+    for f in $(sudo grep -rl --include='*.conf' --include='*' "server_name[^;]*${DOMAIN}" /etc/nginx 2>/dev/null); do
+      echo "----- $f -----"
+      sudo cat "$f"
+    done
+  } > /tmp/_nginx_dump.txt 2>&1 || true
+  sudo cp /tmp/_nginx_dump.txt /var/www/html/_nginx.txt 2>/dev/null || true
+  exit 0
+fi
 
 # Matches the nginx directives already in this repo's config. connect-src keeps
 # oauth.telegram.org for the login redirect, and data:/blob: are needed for

@@ -255,13 +255,14 @@ jobs:
               echo "=== API is up (host) ==="
             fi
 
-            echo "=== Publishing security headers on the live vhost ==="
-            # The production nginx config is not in this repository, so the
-            # headers added to nginx/default.conf never reached it - that file is
-            # only used by the unused client image. This patches the real vhost
-            # in place, with a backup, an nginx -t gate and a restore on failure.
-            bash scripts/nginx-security-headers.sh || \
-              echo "WARNING: nginx header step reported a problem, continuing"
+            echo "=== Reverting the nginx header patch ==="
+            # Adding the security headers took the site down: TLS stopped
+            # completing, so nothing answered on :443. `nginx -t` had passed,
+            # which is why that gate was not enough on its own. Removing the
+            # block restores service; the script also dumps the live config to
+            # /_nginx.txt so it can finally be read before any second attempt.
+            bash scripts/nginx-security-headers.sh remove || true
+            sudo rm -f /var/www/html/_deploy.txt || true
 
             echo "=== Reloading nginx ==="
             sudo systemctl reload nginx || sudo systemctl start nginx
