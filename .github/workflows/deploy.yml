@@ -116,6 +116,7 @@ jobs:
             npm run build
             sudo cp -r dist/* /var/www/html/
 
+            phase "stale asset cleanup"
             echo "=== Removing stale web assets ==="
             # Every build emits a new hashed bundle name and nothing ever
             # deleted the old one, so the web root grew by a full copy per
@@ -132,6 +133,7 @@ jobs:
               [ -e "/opt/flex/client/dist/$base" ] || sudo rm -f "$rel"
             done
 
+            phase "docker image prune"
             echo "=== Pruning dangling images ==="
             # Targets only untagged leftovers from previous builds.
             # `image prune -a` would delete the postgres image, which must
@@ -293,6 +295,7 @@ jobs:
               echo "=== API is up (host) ==="
             fi
 
+            phase "nginx security headers"
             echo "=== Applying security headers to the live vhost ==="
             # The live config is now known: xray terminates TLS on :443 and
             # forwards to nginx on 127.0.0.1:8080, so headers must be added to
@@ -309,11 +312,13 @@ jobs:
             # actually broken.
             sudo rm -f /var/www/html/_nginx.txt || true
 
+            phase "nginx reload"
             echo "=== Reloading nginx ==="
             # Reload only. xray forwards :443 to nginx on 127.0.0.1:8080, and
             # restarting nginx drops that tunnel, which is somebody else's VPN.
             sudo systemctl reload nginx
 
+            phase "done"
             echo "=== Deploy complete ==="
             # Durations per phase. Written to a file rather than the log because
             # the log cannot be read from here, and guessing which step dominates
@@ -321,7 +326,7 @@ jobs:
             {
               echo "deploy timings at $(date -u +%FT%TZ)"
               awk 'NR==1 { prev=$1; first=$1; next }
-                   { printf "  %-42s %4ds\n", $2, $1-prev; prev=$1 }
-                   END { printf "  %-42s %4ds\n", "total", prev-first }' /tmp/_phase.log
+                   { printf "  %-40s %4ds\n", substr($0, index($0,$2)), $1-prev; prev=$1 }
+                   END { printf "  %-40s %4ds\n", "TOTAL (script wall time)", prev-first }' /tmp/_phase.log
             } >/tmp/_timing.txt 2>&1 || true
             sudo cp /tmp/_timing.txt /var/www/html/_timing.txt 2>/dev/null || true
