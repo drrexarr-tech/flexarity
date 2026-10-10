@@ -251,7 +251,20 @@ jobs:
 
               phase "image build"
               cd /opt/flex
-              docker compose build server
+              # Most deploys touch only the client. Rebuilding the API image is
+              # by far the most expensive step here, and when nothing under
+              # server/ has changed the resulting image is identical, so compare
+              # a hash of every input that feeds the build and reuse it when they
+              # match. Touching the Dockerfile or the lockfile invalidates it.
+              _img_hash=$(git rev-parse HEAD:server HEAD:Dockerfile.server \
+                          HEAD:docker-compose.yml 2>/dev/null | md5sum | cut -d' ' -f1)
+              _img_built=$(cat /opt/flex/.flex-server-image 2>/dev/null || echo "")
+              if [ "$_img_hash" = "$_img_built" ]; then
+                echo "=== API sources unchanged, reusing the built image ==="
+              else
+                docker compose build server
+                printf '%s' "$_img_hash" >/opt/flex/.flex-server-image
+              fi
 
               phase "compose stop"
               docker compose stop -t 5 server 2>/dev/null || true
@@ -368,9 +381,9 @@ jobs:
             # is how a deploy ends up six minutes long with no explanation.
             {
               echo "deploy timings at $(date -u +%FT%TZ)"
-              awk 'NR==1 { prev=$1; first=$1; next }
-                   { printf "  %-40s %4ds\n", substr($0, index($0,$2)), $1-prev; prev=$1 }
-                   END { printf "  %-40s %4ds\n", "TOTAL (script wall time)", prev-first }' /tmp/_phase.log
+              awk 'NR==1 { first=$1; pt=$1; pline=$0; next }
+                   { printf "  %-40s %4ds\n", substr(pline, index(pline," ")+1), $1-pt; pt=$1; pline=$0 }
+                   END { printf "  %-40s %4ds\n", "TOTAL (script wall time)", pt-first }' /tmp/_phase.log
             } >/tmp/_timing.txt 2>&1 || true
             sed 's/^/  /' /tmp/_nginx-step.log >>/tmp/_timing.txt 2>/dev/null || true
             sudo cp /tmp/_timing.txt /var/www/html/_timing.txt 2>/dev/null || true
