@@ -357,6 +357,12 @@ jobs:
             # that plain-HTTP server block - that is what puts them on the wire
             # for TLS clients. The script keeps a .flexbak beside the file and
             # gates on nginx -t, so it can be undone.
+            # Truncated, not appended. The log used to accumulate, so the timing
+            # file showed several runs' worth of nginx output at once and the
+            # most recent discovery results were buried under stale ones. Reading
+            # a backup file from an older run as if it were the current state is
+            # exactly the mistake that makes this file worth publishing at all.
+            : >/tmp/_nginx-step.log
             bash scripts/nginx-security-headers.sh apply 2>&1 | tee -a /tmp/_nginx-step.log || \
               echo "WARNING: nginx header step reported a problem, continuing"
             echo "  nginx step total: $(($(date +%s) - _t0))s" >>/tmp/_nginx-step.log
