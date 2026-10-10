@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WishlistForm } from '@/components/wishes/WishlistForm';
 import type { Wishlist } from '@/types';
 import { formatMoney } from '@/lib/utils';
@@ -34,15 +35,10 @@ export function WishesPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleDelete(id: string) {
-    try {
-      await api.wishes.delete(id);
-      setLists((prev) => prev.filter((l) => l.id !== id));
-      toast.success('Список удалён');
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-    setDeleteTarget(null);
+async function handleDelete(id: string) {
+  await api.wishes.delete(id);
+  setLists((prev) => prev.filter((l) => l.id !== id));
+  toast.success('Список удалён');
   }
 
   return (
@@ -159,18 +155,13 @@ export function WishesPage() {
         </div>
       )}
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить список?</DialogTitle>
-            <DialogDescription>Вместе с ним удалятся все подарки. Это нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
+        title="Удалить список?"
+        description="Вместе с ним удалятся все подарки. Это нельзя отменить."
+        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
+      />
     </div>
   );
 }

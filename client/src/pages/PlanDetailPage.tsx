@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PlanForm } from '@/components/plans/PlanForm';
 import { useAuthStore } from '@/stores/authStore';
 import type { Plan } from '@/types';
@@ -289,33 +290,22 @@ export function PlanDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить план?</DialogTitle>
-            <DialogDescription>Вместе с ним удалятся все записи. Это нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Отмена</Button>
-            <Button variant="destructive" onClick={handleDelete}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Удалить план?"
+        description="Вместе с ним удалятся все записи. Это нельзя отменить."
+        onConfirm={async () => { await handleDelete(); }}
+      />
 
-      <Dialog open={!!deleteEntryId} onOpenChange={() => setDeleteEntryId(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить запись?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteEntryId(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={() => deleteEntryId && handleDeleteEntry(deleteEntryId)}>
-              Удалить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        className="max-w-sm"
+        open={!!deleteEntryId}
+        onOpenChange={(next) => { if (!next) setDeleteEntryId(null); }}
+        title="Удалить запись?"
+        description="Это действие нельзя отменить."
+        onConfirm={async () => { if (deleteEntryId) await handleDeleteEntry(deleteEntryId); }}
+      />
 
       <Dialog open={entryOpen} onOpenChange={setEntryOpen}>
         <DialogContent className="max-w-sm sm:w-full">

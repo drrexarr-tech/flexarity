@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Camera, CheckCheck, ShieldCheck, Unlink, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
@@ -608,31 +609,22 @@ export function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Dialog open={deleteAvatarDialog} onOpenChange={setDeleteAvatarDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить аватарку?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteAvatarDialog(false)}>Отмена</Button>
-            <Button variant="destructive" onClick={confirmDeleteAvatar}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteAvatarDialog}
+        onOpenChange={setDeleteAvatarDialog}
+        title="Удалить аватарку?"
+        description="Это действие нельзя отменить."
+        onConfirm={async () => { await confirmDeleteAvatar(); }}
+      />
 
-      <Dialog open={!!unlinkTarget} onOpenChange={() => setUnlinkTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Отвязать {unlinkTarget === 'telegram' ? 'Telegram' : 'VK'}?</DialogTitle>
-            <DialogDescription>Вы сможете привязать его снова позже.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setUnlinkTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={confirmUnlink}>Отвязать</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        className="max-w-sm"
+        open={!!unlinkTarget}
+        onOpenChange={(next) => { if (!next) setUnlinkTarget(null); }}
+        title={`Отвязать ${unlinkTarget === 'telegram' ? 'Telegram' : 'VK'}?`}
+        description="Вы сможете привязать его снова позже."
+        onConfirm={async () => { await confirmUnlink(); }}
+      />
     </div>
   );
 }

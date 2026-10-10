@@ -7,6 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TaskForm } from '@/components/tasks/TaskForm';
 import { KanbanBoard } from '@/components/tasks/KanbanBoard';
 import { TaskListView } from '@/components/tasks/TaskListView';
@@ -57,17 +58,12 @@ export function TasksPage() {
     setDeleteTarget(id);
   }
 
-  async function confirmDeleteTask() {
+async function confirmDeleteTask() {
     const id = deleteTarget;
-    setDeleteTarget(null);
     if (!id) return;
-    try {
-      await api.tasks.delete(id);
-      toast.success('Задача удалена');
-      load();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+    await api.tasks.delete(id);
+    toast.success('Задача удалена');
+    await load();
   }
 
   async function handleReorder(items: { id: string; order: number; columnId: string }[]) {
@@ -150,18 +146,13 @@ export function TasksPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить задачу?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={confirmDeleteTask}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
+        title="Удалить задачу?"
+        description="Это действие нельзя отменить."
+        onConfirm={confirmDeleteTask}
+      />
     </div>
   );
 }

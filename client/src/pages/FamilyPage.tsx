@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import toast from 'react-hot-toast';
 
 export function FamilyPage() {
@@ -234,31 +235,23 @@ export function FamilyPage() {
         })
       )}
 
-      <Dialog open={!!removeTarget} onOpenChange={() => setRemoveTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить участника?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setRemoveTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={confirmRemoveMember}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        className="max-w-sm"
+        open={!!removeTarget}
+        onOpenChange={(next) => { if (!next) setRemoveTarget(null); }}
+        title="Удалить участника?"
+        description="Это действие нельзя отменить."
+        onConfirm={async () => { await confirmRemoveMember(); }}
+      />
 
-      <Dialog open={!!leaveTarget} onOpenChange={() => setLeaveTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Покинуть семью?</DialogTitle>
-            <DialogDescription>Вы сможете вернуться только по новому приглашению.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setLeaveTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={confirmLeave}>Выйти</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        className="max-w-sm"
+        open={!!leaveTarget}
+        onOpenChange={(next) => { if (!next) setLeaveTarget(null); }}
+        title="Покинуть семью?"
+        description="Вы сможете вернуться только по новому приглашению."
+        onConfirm={async () => { await confirmLeave(); }}
+      />
     </div>
   );
 }

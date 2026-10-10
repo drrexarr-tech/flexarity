@@ -11,6 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CalendarEventForm } from '@/components/calendar/CalendarEventForm';
 import { useAuthStore } from '@/stores/authStore';
 import type { CalendarEvent, Birthday, UpcomingItem } from '@/types';
@@ -391,18 +392,14 @@ export function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить событие?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={handleDelete}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        className="max-w-sm"
+        open={!!deleteTarget}
+        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
+        title="Удалить событие?"
+        description="Это действие нельзя отменить."
+        onConfirm={async () => { await handleDelete(); }}
+      />
     </div>
   );
 }

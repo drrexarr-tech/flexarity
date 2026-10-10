@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/stores/authStore';
 import type { ShoppingItem } from '@/types';
@@ -91,23 +92,15 @@ export function ShoppingPage() {
     const id = deleteTarget;
     setDeleteTarget(null);
     if (!id) return;
-    try {
-      await api.shopping.delete(id);
-      load();
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+    await api.shopping.delete(id);
+    await load();
+    toast.success('Товар удалён');
   }
 
   async function handleClearDone() {
-    setClearOpen(false);
-    try {
-      const { removed } = await api.shopping.clearDone();
-      load();
-      toast.success(removed ? `Удалено позиций: ${removed}` : 'Купленного пока нет');
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+    const { removed } = await api.shopping.clearDone();
+    await load();
+    toast.success(removed ? `Удалено позиций: ${removed}` : 'Купленного пока нет');
   }
 
   function openEdit(item: ShoppingItem) {
@@ -396,7 +389,7 @@ export function ShoppingPage() {
       )}
 
       {/* Edit dialog */}
-      <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
+      <Dialog open={!!editing} onOpenChange={(next) => { if (!next) setEditing(null); }}>
         <DialogContent className="max-w-sm sm:w-full">
           <DialogHeader>
             <DialogTitle>Изменить товар</DialogTitle>
@@ -470,29 +463,23 @@ export function ShoppingPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить товар?</DialogTitle>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={handleDelete}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
+        title="Удалить товар?"
+        description="Товар будет удалён из списка без возможности восстановления."
+        onConfirm={handleDelete}
+      />
 
-      <Dialog open={clearOpen} onOpenChange={setClearOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Очистить купленное?</DialogTitle>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setClearOpen(false)}>Отмена</Button>
-            <Button variant="destructive" onClick={handleClearDone}>Очистить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={clearOpen}
+        onOpenChange={setClearOpen}
+        title="Очистить купленное?"
+        description="Все отмеченные позиции будут удалены. Неотмеченные останутся."
+        confirmLabel="Очистить"
+        pendingLabel="Очистка..."
+        onConfirm={handleClearDone}
+      />
     </div>
   );
 }

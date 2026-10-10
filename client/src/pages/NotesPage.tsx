@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import toast from 'react-hot-toast';
 
 function VoiceRecorder({ onSend }: { onSend: (url: string, duration: number) => void }) {
@@ -83,7 +84,7 @@ function NoteImages({ imagesJson }: { imagesJson: string | null }) {
           <img key={i} src={imgSrc(img)} alt="" className="h-12 w-12 rounded-md object-cover border cursor-pointer" loading="lazy" onClick={(e) => { e.stopPropagation(); setLightbox(img); }} />
         ))}
       </div>
-      <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
+      <Dialog open={!!lightbox} onOpenChange={(next) => { if (!next) setLightbox(null); }}>
         <DialogContent className="max-w-3xl">
           {lightbox && <img src={imgSrc(lightbox)} alt="" className="w-full h-auto max-h-[80dvh] object-contain rounded-md" />}
         </DialogContent>
@@ -189,8 +190,14 @@ export function NotesPage() {
     finally { setSaving(false); }
   }
 
-  async function handleDelete(id: string) {
-    try { await api.notes.delete(id); setDeleteTarget(null); load(); toast.success('Заметка удалена'); } catch (err: any) { toast.error(err.message); }
+async function handleDelete(id: string) {
+    // The old version cleared the confirmation only on success, so a failed
+    // request left the dialog sitting there with a toast behind it and a
+    // button that looked dead. ConfirmDialog owns that state now and reports
+    // the failure in place.
+    await api.notes.delete(id);
+    toast.success('Заметка удалена');
+    await load();
   }
 
   if (loading) return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
@@ -238,24 +245,19 @@ export function NotesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!dialogLightbox} onOpenChange={() => setDialogLightbox(null)}>
+      <Dialog open={!!dialogLightbox} onOpenChange={(next) => { if (!next) setDialogLightbox(null); }}>
         <DialogContent className="max-w-3xl">
           {dialogLightbox && <img src={dialogLightbox.startsWith('data:') ? dialogLightbox : dialogLightbox} alt="" className="w-full h-auto max-h-[80dvh] object-contain rounded-md" />}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить заметку?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+<ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
+        title="Удалить заметку?"
+        description="Заметка будет удалена без возможности восстановления."
+        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
+      />
 
       {notes.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-muted-foreground">

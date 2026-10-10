@@ -11,6 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WishlistForm } from '@/components/wishes/WishlistForm';
 import { WishItemForm } from '@/components/wishes/WishItemForm';
 import { useAuthStore } from '@/stores/authStore';
@@ -299,33 +300,22 @@ export function WishlistDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить список?</DialogTitle>
-            <DialogDescription>Вместе с ним удалятся все подарки. Это нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Отмена</Button>
-            <Button variant="destructive" onClick={handleDelete}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Удалить список?"
+        description="Вместе с ним удалятся все подарки. Это нельзя отменить."
+        onConfirm={async () => { await handleDelete(); }}
+      />
 
-      <Dialog open={!!deleteItemId} onOpenChange={() => setDeleteItemId(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить подарок?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteItemId(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={() => deleteItemId && handleDeleteItem(deleteItemId)}>
-              Удалить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        className="max-w-sm"
+        open={!!deleteItemId}
+        onOpenChange={(next) => { if (!next) setDeleteItemId(null); }}
+        title="Удалить подарок?"
+        description="Это действие нельзя отменить."
+        onConfirm={async () => { if (deleteItemId) await handleDeleteItem(deleteItemId); }}
+      />
 
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>
         <DialogContent className="max-w-lg sm:w-full">

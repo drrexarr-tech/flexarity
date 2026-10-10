@@ -118,6 +118,7 @@ export function ChatsPage() {
   const [showMobileList, setShowMobileList] = useState(true);
   const [encryptionReady, setEncryptionReady] = useState(false);
   const [deleteChatTarget, setDeleteChatTarget] = useState<string | null>(null);
+  const [chatActionPending, setChatActionPending] = useState(false);
   const aesKeyRef = useRef<CryptoKey | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -498,17 +499,48 @@ export function ChatsPage() {
         )}
       </div>
 
-      <Dialog open={!!deleteChatTarget} onOpenChange={() => setDeleteChatTarget(null)}>
+      <Dialog open={!!deleteChatTarget} onOpenChange={(next) => { if (!next) setDeleteChatTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Удаление чата</DialogTitle>
             <DialogDescription>Выберите действие</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Button variant="destructive" className="w-full justify-start" onClick={() => deleteChatTarget && handleDeleteChat(deleteChatTarget)}>
-              <Trash2 className="mr-2 h-4 w-4" /> Удалить для всех
+<div className="flex flex-col gap-2">
+            {/* Two destructive choices, so this stays a bespoke dialog rather
+                than ConfirmDialog. It still needs the pending guard: without
+                it a double tap fires the same DELETE twice and the second one
+                comes back 404, which surfaces as an error for an action that
+                actually worked. */}
+            <Button
+              variant="destructive"
+              className="w-full justify-start"
+              disabled={chatActionPending}
+              onClick={async () => {
+                if (!deleteChatTarget || chatActionPending) return;
+                setChatActionPending(true);
+                try {
+                  await handleDeleteChat(deleteChatTarget);
+                } finally {
+                  setChatActionPending(false);
+                }
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" /> Удалить чат у всех участников:
             </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => deleteChatTarget && handleLeaveChat(deleteChatTarget)}>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              disabled={chatActionPending}
+              onClick={async () => {
+                if (!deleteChatTarget || chatActionPending) return;
+                setChatActionPending(true);
+                try {
+                  await handleLeaveChat(deleteChatTarget);
+                } finally {
+                  setChatActionPending(false);
+                }
+              }}
+            >
               <LogOut className="mr-2 h-4 w-4" /> Удалить только у меня
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => setDeleteChatTarget(null)}>Отмена</Button>

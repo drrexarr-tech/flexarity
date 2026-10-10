@@ -11,6 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
 import type { Recipe } from '@/types';
 import toast from 'react-hot-toast';
@@ -38,15 +39,13 @@ export function RecipeDetailPage() {
 
   useEffect(() => { load(); }, [id]);
 
-  async function handleDelete() {
-    if (!recipe) return;
-    try {
-      await api.recipes.delete(recipe.id);
-      toast.success('Рецепт удалён');
-      navigate('/recipes');
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+async function handleDelete() {
+  if (!recipe) return;
+  // Errors propagate so the confirmation can show them in place instead of
+  // the dialog closing over a request that never landed.
+  await api.recipes.delete(recipe.id);
+  toast.success('Рецепт удалён');
+  navigate('/recipes');
   }
 
   if (loading) {
@@ -164,18 +163,13 @@ export function RecipeDetailPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить рецепт?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteDialog(false)}>Отмена</Button>
-            <Button variant="destructive" onClick={() => { setDeleteDialog(false); handleDelete(); }}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+<ConfirmDialog
+        open={deleteDialog}
+        onOpenChange={setDeleteDialog}
+        title="Удалить рецепт?"
+        description="Это действие нельзя отменить. Рецепт будет удалён навсегда."
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

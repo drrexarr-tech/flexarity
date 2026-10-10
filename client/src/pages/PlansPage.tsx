@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PlanForm } from '@/components/plans/PlanForm';
 import type { Plan } from '@/types';
 import { formatMoney, daysUntil } from '@/lib/utils';
@@ -35,14 +36,9 @@ export function PlansPage() {
   useEffect(() => { load(); }, []);
 
   async function handleDelete(id: string) {
-    try {
-      await api.plans.delete(id);
-      setPlans((prev) => prev.filter((p) => p.id !== id));
-      toast.success('План удалён');
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-    setDeleteTarget(null);
+  await api.plans.delete(id);
+  setPlans((prev) => prev.filter((p) => p.id !== id));
+  toast.success('План удалён');
   }
 
   const totalSaved = plans.reduce((sum, p) => sum + p.saved, 0);
@@ -209,18 +205,13 @@ export function PlansPage() {
         </div>
       )}
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить план?</DialogTitle>
-            <DialogDescription>Вместе с ним удалятся все записи. Это нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
+        title="Удалить план?"
+        description="Вместе с планом удалятся все записи. Его нельзя отменить."
+        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
+      />
     </div>
   );
 }

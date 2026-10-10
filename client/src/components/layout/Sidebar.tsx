@@ -1,22 +1,32 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, CalendarDays, ShoppingCart, LogOut, Moon, Sun, X, Menu } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckSquare, Users, MessageSquare, StickyNote, PiggyBank, Gift, CalendarDays, ShoppingCart, LogOut, Moon, Sun, X, Menu, SlidersHorizontal } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { ALL_SECTIONS, useNavStore, type SectionId } from '@/stores/navStore';
+import { BottomNavSettings } from '@/components/layout/BottomNavSettings';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-const links = [
-  { to: '/', icon: LayoutDashboard, label: 'Главная', bottom: true },
-  { to: '/tasks', icon: CheckSquare, label: 'Задачи', bottom: true },
-  { to: '/calendar', icon: CalendarDays, label: 'Календарь', bottom: true },
-  { to: '/notes', icon: StickyNote, label: 'Заметки', bottom: false },
-  { to: '/shopping', icon: ShoppingCart, label: 'Покупки', bottom: true },
-  { to: '/chats', icon: MessageSquare, label: 'Чаты', bottom: true },
-  { to: '/recipes', icon: BookOpen, label: 'Рецепты', bottom: false },
-  { to: '/plans', icon: PiggyBank, label: 'Планы', bottom: false },
-  { to: '/wishes', icon: Gift, label: 'Хотелки', bottom: false },
-  { to: '/family', icon: Users, label: 'Семья', bottom: false },
-];
+const icons: Record<SectionId, typeof LayoutDashboard> = {
+  home: LayoutDashboard,
+  tasks: CheckSquare,
+  calendar: CalendarDays,
+  shopping: ShoppingCart,
+  chats: MessageSquare,
+  notes: StickyNote,
+  recipes: BookOpen,
+  plans: PiggyBank,
+  wishes: Gift,
+  family: Users,
+};
+
+const links = ALL_SECTIONS.map((s) => ({
+  to: s.to,
+  icon: icons[s.id as SectionId],
+  label: s.label,
+  id: s.id as SectionId,
+}));
 
 interface SidebarProps {
   open: boolean;
@@ -27,6 +37,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const { isDark, toggle } = useThemeStore();
   const location = useLocation();
+  const order = useNavStore((s) => s.order);
+  const [navSettingsOpen, setNavSettingsOpen] = useState(false);
+
+  const bottomLinks = order
+    .map((id) => links.find((l) => l.id === id))
+    .filter((l): l is (typeof links)[number] => Boolean(l));
 
   return (
     <>
@@ -102,24 +118,51 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-20 flex border-t bg-card lg:hidden safe-area-bottom">
-        {links.filter((l) => l.bottom).map(({ to, icon: Icon, label }) => {
-          const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              className={cn(
-                'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
-                isActive ? 'text-primary' : 'text-muted-foreground'
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="max-w-full truncate">{label}</span>
-            </NavLink>
-          );
-        })}
+      <nav className="fixed bottom-0 left-0 right-0 z-20 border-t bg-card/95 backdrop-blur-md lg:hidden safe-area-bottom">
+        <div className="flex items-stretch">
+          {bottomLinks.map(({ to, icon: Icon, label }) => {
+            const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(
+                  'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium transition-colors',
+                  isActive ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                {/* The active tab used to be distinguished by text colour alone,
+                    which is the one cue that does not survive a dim screen or a
+                    colour-blind reader. A tinted plate makes it obvious. */}
+                <span
+                  className={cn(
+                    'flex h-7 w-12 items-center justify-center rounded-lg transition-colors',
+                    isActive ? 'bg-primary/12' : 'bg-transparent'
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="max-w-full truncate leading-tight">{label}</span>
+              </NavLink>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setNavSettingsOpen(true)}
+            aria-label="Настроить меню"
+            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium text-muted-foreground transition-colors"
+          >
+            <span className="flex h-7 w-12 items-center justify-center rounded-lg">
+              <SlidersHorizontal className="h-5 w-5" />
+            </span>
+            <span className="max-w-full truncate leading-tight">Меню</span>
+          </button>
+        </div>
       </nav>
+
+      <BottomNavSettings open={navSettingsOpen} onOpenChange={setNavSettingsOpen} />
     </>
   );
 }

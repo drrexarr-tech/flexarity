@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
 import type { RecipePrefill } from '@/components/recipes/RecipeForm';
 import { RecipeImportDialog } from '@/components/recipes/RecipeImportDialog';
@@ -46,14 +47,9 @@ export function RecipesPage() {
   useEffect(() => { load(); }, []);
 
   async function handleDelete(id: string) {
-    try {
-      await api.recipes.delete(id);
-      setRecipes((prev) => prev.filter((r) => r.id !== id));
-      toast.success('Рецепт удалён');
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-    setDeleteTarget(null);
+  await api.recipes.delete(id);
+  setRecipes((prev) => prev.filter((r) => r.id !== id));
+  toast.success('Рецепт удалён');
   }
 
   const filtered = recipes.filter(
@@ -198,18 +194,13 @@ export function RecipesPage() {
         </div>
       )}
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Удалить рецепт?</DialogTitle>
-            <DialogDescription>Это действие нельзя отменить.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Отмена</Button>
-            <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Удалить</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
+        title="Удалить рецепт?"
+        description="Все ингредиенты и шаги будут удалены."
+        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
+      />
     </div>
   );
 }

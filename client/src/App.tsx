@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useNavStore } from '@/stores/navStore';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -88,10 +89,14 @@ function AnimatedRoutes() {
 export default function App() {
   const initAuth = useAuthStore((s) => s.init);
   const initTheme = useThemeStore((s) => s.init);
+  const initNav = useNavStore((s) => s.init);
 
   useEffect(() => {
     initAuth();
     initTheme();
+    // Without this the bottom bar renders the defaults for one frame and then
+    // swaps to the user's own order, which reads as the menu jumping on load.
+    initNav();
     // Take over reload scrolling: 'auto' lets the browser restore a stale
     // offset, which fights the reset in AnimatedRoutes.
     if ('scrollRestoration' in window.history) {
