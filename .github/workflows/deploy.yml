@@ -118,20 +118,45 @@ jobs:
 
             phase "stale asset cleanup"
             echo "=== Removing stale web assets ==="
-            # Every build emits a new hashed bundle name and nothing ever
-            # deleted the old one, so the web root grew by a full copy per
-            # deploy. Remove only what the current build did not produce:
-            # files outside the app build (templates, images/,
-            # index.nginx-debian.html) must stay untouched.
+            # Every build emits a new hashed bundle name, and nothing ever
+            # deleted the old ones, so the web root grew by a full copy per
+            # deploy.
+            #
+            # The previous version listed the files in dist/assets and then
+            # checked each one for existence in dist/assets, which is true by
+            # construction: it never deleted anything, and it still spent 57
+            # seconds walking the tree. This lists what is actually deployed,
+            # subtracts what the build produced, and deletes the difference in a
+            # single sudo call.
+            #
+            # Only dist/assets and the workbox-* files are considered; anything
+            # else in the web root must survive.
             if [ -d /opt/flex/client/dist/assets ]; then
-              ( cd /opt/flex/client/dist/assets && find . -type f -printf '%P\n' ) | while read -r rel; do
-                [ -e "/opt/flex/client/dist/assets/$rel" ] || sudo rm -f "/var/www/html/assets/$rel"
-              done
+              sudo find /var/www/html/assets -type f -printf '%f\n' 2>/dev/null | sort >/tmp/_deployed.txt
+              ( cd /opt/flex/client/dist/assets && find . -type f -printf '%f\n' ) | sort >/tmp/_built.txt
+              comm -23 /tmp/_deployed.txt /tmp/_built.txt >/tmp/_stale.txt || true
+              # Only Vite's hashed outputs are candidates for deletion. Anything
+              # else that lives in the web root - a logo, a template, an
+              # index.nginx-debian.html - was never produced by this build and
+              # must survive. Without this filter the cleanup removed every file
+              # in assets that the build did not happen to emit.
+              grep -E -- '-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$' /tmp/_stale.txt >/tmp/_stale_hashed.txt || true
+              stale=$(wc -l </tmp/_stale_hashed.txt)
+              if [ "$stale" -gt 0 ]; then
+                while read -r name; do
+                  [ -n "$name" ] && printf '/var/www/html/assets/%s\0' "$name"
+                done </tmp/_stale_hashed.txt | sudo xargs -0 -r rm -f
+                echo "removed $stale stale hashed asset(s)"
+              else
+                echo "no stale assets"
+              fi
             fi
-            sudo find /var/www/html -maxdepth 1 -name 'workbox-*.js' -type f 2>/dev/null | while read -r rel; do
-              base=$(basename "$rel")
-              [ -e "/opt/flex/client/dist/$base" ] || sudo rm -f "$rel"
-            done
+            sudo find /var/www/html -maxdepth 1 -name 'workbox-*.js' -type f -printf '%f\n' 2>/dev/null | sort >/tmp/_deployed_wb.txt
+            ( cd /opt/flex/client/dist 2>/dev/null && find . -maxdepth 1 -name 'workbox-*.js' -printf '%f\n' ) | sort >/tmp/_built_wb.txt
+            comm -23 /tmp/_deployed_wb.txt /tmp/_built_wb.txt >/tmp/_stale_wb.txt || true
+            while read -r name; do
+              [ -n "$name" ] && sudo rm -f "/var/www/html/$name"
+            done </tmp/_stale_wb.txt
 
             phase "docker image prune"
             echo "=== Pruning dangling images ==="
