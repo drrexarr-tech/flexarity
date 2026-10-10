@@ -63,7 +63,7 @@ jobs:
             # with exit 255 while the API was healthy, and a healthy container
             # that is 35 minutes old means the failure was before `docker compose
             # up` - but nothing said which command.
-            phase() { echo "$1" >>/tmp/_phase.log; }
+            phase() { echo "$(date +%s) $1" >>/tmp/_phase.log; }
             : >/tmp/_phase.log
             phase "start"
 
@@ -104,7 +104,15 @@ jobs:
             echo "=== Building client ==="
             phase "build client"
             cd /opt/flex/client
-            npm install --silent
+            # Same idea as the server: npm install is the slowest step when the
+            # cache is cold, and most deploys do not change the dependency tree.
+            client_lock=$(sha256sum package-lock.json | cut -d' ' -f1)
+            if [ "$client_lock" != "$(cat /tmp/flex-client-lock 2>/dev/null)" ]; then
+              npm install --silent
+              echo "$client_lock" >/tmp/flex-client-lock
+            else
+              echo "client dependencies unchanged, skipping npm install"
+            fi
             npm run build
             sudo cp -r dist/* /var/www/html/
 
@@ -135,18 +143,27 @@ jobs:
 
             cd /opt/flex/server
 
-            echo "=== Server build ==="
-            # Kept so the diagnostics trap can show why a build failed.
-            npm run build > /tmp/flex-build.log 2>&1 || {
-              tail -40 /tmp/flex-build.log
-              exit 1
-            }
-
             echo "=== Prisma client and schema ==="
             phase "prisma generate and db push"
-            npm install --silent
-            npx prisma generate
-            npx prisma db push --accept-data-loss
+            # Installing and generating on the host is only needed to apply the
+            # schema, and both are skipped when nothing relevant changed. Most
+            # deploys touch neither.
+            server_lock=$(sha256sum package-lock.json | cut -d' ' -f1)
+            if [ "$server_lock" != "$(cat /tmp/flex-server-lock 2>/dev/null)" ]; then
+              npm install --silent
+              echo "$server_lock" >/tmp/flex-server-lock
+            else
+              echo "server dependencies unchanged, skipping npm install"
+            fi
+            npx prisma generate >/dev/null 2>&1
+
+            schema_hash=$(sha256sum prisma/schema.prisma | cut -d' ' -f1)
+            if [ "$schema_hash" != "$(cat /tmp/flex-schema-hash 2>/dev/null)" ]; then
+              npx prisma db push --accept-data-loss
+              echo "$schema_hash" >/tmp/flex-schema-hash
+            else
+              echo "schema unchanged, skipping db push"
+            fi
 
             port_3001_busy() {
               # Capture into a variable instead of piping into grep: with
@@ -177,17 +194,23 @@ jobs:
             }
 
             start_host() {
-              npm run build
+              # Only reached when the container path fails, so this is the one
+              # place a host build is actually needed. Its output is captured so
+              # a later failure has a trail.
+              npm run build >/tmp/flex-build.log 2>&1 || {
+                tail -40 /tmp/flex-build.log
+                return 1
+              }
               release_port || true
               screen -dmS flex-server bash -c 'cd /opt/flex/server && exec node dist/index.js'
             }
 
             wait_api() {
-              for _ in $(seq 1 40); do
+              for _ in $(seq 1 60); do
                 if curl -fsS http://localhost:3001/api/health >/dev/null 2>&1; then
                   return 0
                 fi
-                sleep 2
+                sleep 1
               done
               return 1
             }
@@ -287,6 +310,18 @@ jobs:
             sudo rm -f /var/www/html/_nginx.txt || true
 
             echo "=== Reloading nginx ==="
-            sudo systemctl reload nginx || sudo systemctl start nginx
+            # Reload only. xray forwards :443 to nginx on 127.0.0.1:8080, and
+            # restarting nginx drops that tunnel, which is somebody else's VPN.
+            sudo systemctl reload nginx
 
             echo "=== Deploy complete ==="
+            # Durations per phase. Written to a file rather than the log because
+            # the log cannot be read from here, and guessing which step dominates
+            # is how a deploy ends up six minutes long with no explanation.
+            {
+              echo "deploy timings at $(date -u +%FT%TZ)"
+              awk 'NR==1 { prev=$1; first=$1; next }
+                   { printf "  %-42s %4ds\n", $2, $1-prev; prev=$1 }
+                   END { printf "  %-42s %4ds\n", "total", prev-first }' /tmp/_phase.log
+            } >/tmp/_timing.txt 2>&1 || true
+            sudo cp /tmp/_timing.txt /var/www/html/_timing.txt 2>/dev/null || true

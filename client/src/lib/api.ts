@@ -10,26 +10,50 @@ const REFRESH_PATHS = ['/auth/refresh', '/auth/login', '/auth/register', '/auth/
  * six simultaneous requests a page load fires would each burn the same
  * single-use refresh token, and all but the first would be rejected.
  */
-let refreshInFlight: Promise<boolean> | null = null;
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
 
-async function refreshAccessToken(): Promise<boolean> {
+/**
+ * 'refreshed' - new credentials stored.
+ * 'rejected'  - the server said no; the session is genuinely gone.
+ * 'unavailable' - the server could not be asked. A deploy restarts the API
+ *   container, and a flaky connection looks the same from here. Both used to be
+ *   treated as a dead session, which signed people out on every reload that
+ *   happened to land during a deploy.
+ */
+type RefreshOutcome = 'refreshed' | 'rejected' | 'unavailable';
+
+async function refreshAccessToken(): Promise<RefreshOutcome> {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
+  if (!refreshToken) return 'rejected';
 
-  try {
-    const res = await fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-    if (!res.ok) return false;
+  // A deploy or a brief outage is common enough to be worth one short retry.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {
+      await new Promise((r) => setTimeout(r, 600));
+      continue;
+    }
+
+    // 5xx means the server is restarting or broken, not that the token is bad.
+    if (res.status >= 500) {
+      await new Promise((r) => setTimeout(r, 600));
+      continue;
+    }
+    if (!res.ok) return 'rejected';
+
     const data = await res.json();
     const remember = !!localStorage.getItem('token');
     setTokens(data.token, data.refreshToken, remember);
-    return true;
-  } catch {
-    return false;
+    return 'refreshed';
   }
+
+  return 'unavailable';
 }
 
 async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
@@ -65,8 +89,18 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
   if (res.status === 401 && !REFRESH_PATHS.some((p) => path.startsWith(p))) {
     if (retry) {
       refreshInFlight = refreshInFlight ?? refreshAccessToken();
-      const refreshed = await refreshInFlight.finally(() => { refreshInFlight = null; });
-      if (refreshed) return request<T>(path, options, false);
+      const outcome = await refreshInFlight.finally(() => { refreshInFlight = null; });
+      if (outcome === 'refreshed') return request<T>(path, options, false);
+      // The server could not answer. Keep the session: it is still valid, and
+      // signing the user out here is how a reload during a deploy turned into a
+      // login prompt.
+      if (outcome === 'unavailable') {
+        throw new Error(
+          typeof navigator !== 'undefined' && navigator.onLine === false
+            ? 'Нет подключения к интернету'
+            : 'Сервер недоступен, попробуйте позже'
+        );
+      }
     }
     notifySessionLost();
     throw new Error('Сессия истекла, войдите заново');

@@ -65,7 +65,8 @@ if [ "$MODE" = "remove" ]; then
     removed_total=$((removed_total + count_before - count_after))
   done
 
-  sudo systemctl reload nginx 2>/dev/null || sudo systemctl restart nginx 2>/dev/null || true
+  # Reload only. See the note in the apply path about xray and restarts.
+  sudo systemctl reload nginx 2>/dev/null || true
   echo "removed ${removed_total} block(s)"
 
   echo "=== Publishing the current config for inspection ==="
@@ -197,11 +198,16 @@ for file in "${CANDIDATES[@]}"; do
   rm -f /tmp/_nginx_test.$$
   echo "  config accepted"
 
-  if ! sudo systemctl reload nginx 2>/dev/null && ! sudo systemctl restart nginx 2>/dev/null; then
-    echo "  ERROR: nginx would not reload, restoring"
-    sudo cp "$backup" "$file"
+  # Reload only, never restart.
+  #
+  # xray terminates TLS on :443 and forwards to nginx on 127.0.0.1:8080. A
+  # restart of nginx drops that connection, and with it the VPN for everyone on
+  # the host. This line used to fall back to `systemctl restart nginx`, which is
+  # how a header change ended up costing somebody their connection.
+  if ! sudo systemctl reload nginx 2>/dev/null; then
+    echo "  ERROR: nginx would not reload, restoring the backup"
+    sudo cp "${file}.flexbak" "$file" 2>/dev/null || true
     sudo nginx -t >/dev/null 2>&1 && sudo systemctl reload nginx 2>/dev/null || true
-    rm -f "$backup"
     exit 1
   fi
   echo "  reloaded"

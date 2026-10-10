@@ -131,15 +131,31 @@ html {
   50% { transform: translate3d(4%, 7%, 0) scale(1.15); }
 }
 
+/* Ambient backdrop for the dashboard.
+   These elements are viewport sized, so how they are composited matters more
+   than how they look.
+   - No filter: blur(). Each blob already paints a radial gradient that is soft
+     at its own edge, so the CSS blur was pure cost, redrawing a full-screen
+     surface on every frame of the animation.
+   - No will-change: transform already promotes these to the compositor, and
+     asking for it explicitly keeps three extra full-screen layers alive.
+   - Blobs stay behind the content and never receive pointer events. */
 .backdrop-blob {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(80px);
-  will-change: transform;
+  contain: strict;
 }
 .backdrop-a { animation: flex-drift-a 22s ease-in-out infinite; }
 .backdrop-b { animation: flex-drift-b 28s ease-in-out infinite; }
 .backdrop-c { animation: flex-drift-c 34s ease-in-out infinite; }
+
+/* Below this width the blobs only tint a phone screen, and three animated
+   surfaces are the single largest cost on a small device. */
+@media (max-width: 640px) {
+  .backdrop-blob {
+    animation: none;
+  }
+}
 
 /* Motion is decoration here; drop it when the reader has asked for less. */
 @media (prefers-reduced-motion: reduce) {

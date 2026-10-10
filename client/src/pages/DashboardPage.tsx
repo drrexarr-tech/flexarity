@@ -382,7 +382,7 @@ export function DashboardPage() {
                   whileHover={{ y: -3 }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: 'spring', stiffness: 340, damping: 22 }}
-                  className="group flex flex-col items-center gap-1.5 rounded-xl border bg-card/60 p-2.5 backdrop-blur-sm transition-colors hover:border-primary/40"
+                  className="group flex flex-col items-center gap-1.5 rounded-xl border bg-card p-2.5 transition-colors hover:border-primary/40"
                 >
                   <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm ${app.color}`}>
                     <app.icon className="h-4 w-4 text-white" />

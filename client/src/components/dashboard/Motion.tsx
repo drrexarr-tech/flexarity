@@ -70,13 +70,14 @@ export function StatTile({ label, value, icon: Icon, accent, hint, onClick }: St
       whileTap={onClick ? { scale: 0.98 } : undefined}
       transition={{ type: 'spring', stiffness: 320, damping: 22 }}
       className={[
-        'group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border bg-card/70 p-3.5 text-left backdrop-blur-sm',
+        'group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border bg-card p-3.5 text-left',
         'transition-colors hover:border-primary/40',
         onClick ? 'cursor-pointer' : '',
       ].join(' ')}
     >
-      {/* Sheen that sweeps across on hover; purely decorative. */}
-      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary/[0.07] to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+      {/* Sheen that sweeps across on hover. A full-width gradient transition is
+          cheap here because it only runs while the pointer is over the tile. */}
+      <span className="pointer-events-none absolute inset-y-0 -left-full w-1/2 bg-gradient-to-r from-transparent via-primary/[0.07] to-transparent group-hover:left-full" />
 
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
