@@ -282,8 +282,12 @@ jobs:
               echo "--- listeners ---"
               sudo ss -tlnp 2>/dev/null | head -30 || true
               for d in /etc/nginx/sites-enabled /etc/nginx/conf.d; do
-                for f in "$d"/*.conf "$d"/*; do
-                  [ -f "$f" ] || continue
+                # Enumerate as root. A plain glob expands as the deploy user,
+                # which cannot read these directories, so the pattern stayed
+                # literal and every file was skipped - the first dump came back
+                # with no vhost at all, which reads as "no configuration" when it
+                # really meant "no permission".
+                sudo find "$d" -maxdepth 1 -type f 2>/dev/null | while read -r f; do
                   case "$f" in *default*) continue;; esac
                   echo "----- $f -----"
                   sudo cat "$f" 2>/dev/null || true
