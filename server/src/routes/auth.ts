@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
@@ -397,8 +398,6 @@ const oauthSchema = z.object({
   provider: z.enum(['telegram', 'vk']),
   data: z.record(z.any()),
 });
-
-import crypto from 'crypto';
 
 /**
  * Verify a Telegram Login Widget payload.

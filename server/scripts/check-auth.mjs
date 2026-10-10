@@ -272,5 +272,56 @@ check('clamps negative and absurd values', () => {
   return out;
 });
 
-console.log(failures === 0 ? '\nall auth cases behave as expected' : `\n${failures} case(s) wrong`);
+console.log('\n--- module load order ---');
+check('no import sits below the first statement that uses it', () => {
+  // TypeScript keeps statement order when emitting CommonJS, so an import
+  // placed after a top-level statement that uses it becomes `const x_1 = require(...)`
+  // *after* the use, and Node throws "Cannot access 'x_1' before initialization"
+  // on boot. A real crash: it passed type checking and every unit test, and only
+  // surfaced when the server actually started.
+  const out = [];
+  const root = path.resolve('src');
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!entry.name.endsWith('.ts')) continue;
+
+      const lines = fs.readFileSync(full, 'utf8').split(/\r?\n/);
+      let firstStatement = -1;
+      let latestImport = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^import\s/.test(line)) latestImport = i;
+        else if (firstStatement === -1 && /^(const|let|var|export|class|function|async)\s/.test(line)) {
+          firstStatement = i;
+        }
+      }
+      if (firstStatement !== -1 && latestImport > firstStatement) {
+        out.push(`${path.relative(root, full)}: import at line ${latestImport + 1} follows a statement at ${firstStatement + 1}`);
+      }
+    }
+  };
+  walk(root);
+  return out;
+});
+check('the compiled entry point actually boots its module graph', () => {
+  // Catches anything the static check above misses: load routes/auth.js, which
+  // pulls in every middleware and lib, and let any top-level throw surface.
+  const out = [];
+  for (const mod of ['routes/auth.js', 'index.js']) {
+    try {
+      require(path.resolve('dist', mod));
+    } catch (err) {
+      // index.js opens a database connection and listens, so only a module-level
+      // failure is meaningful here.
+      if (/Cannot access .* before initialization/.test(err.message)) out.push(`${mod}: ${err.message}`);
+      else if (/ECONNREFUSED|P1001|listen|EADDRINUSE/.test(String(err.code || err.message))) continue;
+      else if (/before initialization/.test(String(err.stack || ''))) out.push(`${mod}: ${err.message}`);
+    }
+  }
+  return out;
+});
+
+console.log(`\n${failures === 0 ? 'all auth cases behave as expected' : `${failures} case(s) wrong`}`);
 process.exit(failures === 0 ? 0 : 1);
