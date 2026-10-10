@@ -114,12 +114,14 @@ chatRouter.post('/', async (req: AuthRequest, res: Response) => {
           { userId: participantId },
         ],
       },
+      // z.record validates the values but accepts any key, so key rows were being
+      // written for users who are not in this conversation. Only the two
+      // participants of a brand new chat may receive one.
       ...(encryptedKeys ? {
         keys: {
-          create: Object.entries(encryptedKeys).map(([userId, key]) => ({
-            userId,
-            key,
-          })),
+          create: Object.entries(encryptedKeys)
+            .filter(([userId]) => userId === req.userId || userId === participantId)
+            .map(([userId, key]) => ({ userId, key })),
         },
       } : {}),
     },

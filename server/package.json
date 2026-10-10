@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js && node scripts/check-recipe-parser.js && node scripts/check-auth.js && node scripts/check-ssrf.js",
+    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js && node scripts/check-recipe-parser.js && node scripts/check-auth.mjs && node scripts/check-ssrf.js",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

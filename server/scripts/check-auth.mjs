@@ -5,6 +5,9 @@
  */
 process.env.JWT_SECRET ||= 'test-secret-for-check-auth-only-0123456789';
 
+const fs = await import('node:fs');
+const path = await import('node:path');
+
 const { checkPassword, delayForAttempt, lockoutDurationMs, MIN_PASSWORD_LENGTH } = await import(
   '../dist/lib/passwordPolicy.js'
 );
@@ -158,6 +161,107 @@ check('round-trips and rejects tampering', () => {
   const parts = sealed.split('.');
   if (decryptSecret(`${parts[0]}.${parts[1]}.${'A'.repeat(parts[2].length)}`) !== null) out.push('accepted tampered ciphertext');
   if (decryptSecret('garbage') !== null) out.push('accepted garbage');
+  return out;
+});
+
+console.log('\n--- url scheme allowlist ---');
+const { httpUrl } = await import('../dist/lib/validation.js');
+
+check('rejects script-bearing url schemes', () => {
+  const out = [];
+  for (const bad of [
+    'javascript:alert(1)',
+    'JaVaScRiPt:alert(1)',
+    ' javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd',
+    'ftp://example.com/x',
+    '//evil.tld/x',
+    'https://ok.tld/a b',
+  ]) {
+    const r = httpUrl().safeParse(bad);
+    if (r.success) out.push(`accepted ${JSON.stringify(bad)}`);
+  }
+  return out;
+});
+check('accepts ordinary links and blank values', () => {
+  const out = [];
+  for (const good of ['https://example.com/r', 'http://example.com/r', 'HTTPS://EXAMPLE.COM/r']) {
+    if (!httpUrl().safeParse(good).success) out.push(`rejected ${good}`);
+  }
+  if (!httpUrl().safeParse(null).success) out.push('rejected null');
+  if (!httpUrl().safeParse(undefined).success) out.push('rejected undefined');
+  if (!httpUrl().safeParse('').success) out.push('rejected empty string');
+  return out;
+});
+check('the client guard is actually applied at every href site', () => {
+  // The client cannot import from the server package, so it carries its own copy
+  // of the rule. Check the real source rather than a second implementation of the
+  // regex: a regression that dropped safeHttpUrl from a render site would
+  // otherwise be silent.
+  const out = [];
+  const clientSrc = path.resolve('..', 'client', 'src');
+
+  const urlsFile = path.join(clientSrc, 'lib', 'urls.ts');
+  if (!fs.existsSync(urlsFile)) return ['client/src/lib/urls.ts is missing'];
+  const helper = fs.readFileSync(urlsFile, 'utf8');
+  if (!/\^https\?:\\\/\\\/\[\^\\s\]\+\$\/i/.test(helper)) {
+    out.push('lib/urls.ts no longer restricts to http(s)');
+  }
+
+  // Every anchor whose href comes from stored data must go through the guard.
+  const targets = [
+    ['pages', 'RecipeDetailPage.tsx', 'recipe.url'],
+    ['pages', 'WishlistDetailPage.tsx', 'item.url'],
+  ];
+  for (const [dir, file, field] of targets) {
+    const full = path.join(clientSrc, dir, file);
+    if (!fs.existsSync(full)) { out.push(`${file} is missing`); continue; }
+    const src = fs.readFileSync(full, 'utf8');
+    const guarded = new RegExp(`safeHttpUrl\\(${field}\\)`).test(src);
+    const raw = new RegExp(`href=\\{${field}\\}`).test(src);
+    if (raw) out.push(`${file} renders href={${field}} without the guard`);
+    if (!guarded) out.push(`${file} does not call safeHttpUrl(${field})`);
+  }
+  return out;
+});
+
+console.log('\n--- html escaping in email bodies ---');
+const { esc } = await import('../dist/lib/email.js');
+check('escapes every character that can start markup', () => {
+  const out = [];
+  const cases =  [
+    ['<img src=x onerror=alert(1)>', '&lt;img src=x onerror=alert(1)&gt;'],
+    ['a & b', 'a &amp; b'],
+    ['"quoted"', '&quot;quoted&quot;'],
+    ["it's", 'it&#39;s'],
+  ];
+  for (const [input, expected] of cases) {
+    if (esc(input) !== expected) out.push(`${JSON.stringify(input)} -> ${JSON.stringify(esc(input))}`);
+  }
+  if (esc(null) !== '') out.push('null did not become empty string');
+  return out;
+});
+
+console.log('\n--- pagination bounds ---');
+const { pageBounds } = await import('../dist/lib/pagination.js');
+check('clamps negative and absurd values', () => {
+  const out = [];
+  const cases =  [
+    [undefined, undefined, 0, 20],
+    [-1, undefined, 0, 20],
+    [-9999, '-1', 0, 20],
+    ['0', '50', 0, 50],
+    ['abc', 'abc', 0, 20],
+    ['10', '999', 10, 50],
+  ];
+  for (const [skip, take, wantSkip, wantTake] of cases) {
+    const got = pageBounds(skip, take);
+    if (got.skip !== wantSkip || got.take !== wantTake) {
+      out.push(`pageBounds(${skip},${take}) -> ${JSON.stringify(got)}`);
+    }
+  }
   return out;
 });
 

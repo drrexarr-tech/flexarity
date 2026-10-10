@@ -115,6 +115,8 @@ export const api = {
       request<any>('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
     disableTwoFactor: (data: { password: string; code: string }) =>
       request<any>('/auth/2fa/disable', { method: 'POST', body: JSON.stringify(data) }),
+    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+      request<any>('/auth/password', { method: 'PUT', body: JSON.stringify(data) }),
     me: () => request<{ id: string; email: string; name: string; totpEnabled: boolean }>('/auth/me'),
     oauth: (provider: 'telegram' | 'vk', data: any) =>
       request<AuthResult>('/auth/oauth', {

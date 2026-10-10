@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import crypto from 'crypto';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -33,6 +34,12 @@ function transliterate(value: string): string {
  * name: trusting "payload.html" while the filter saw image/png would store a file
  * that res.sendFile then serves as text/html.
  */
+/**
+ * The unique part is random rather than a timestamp. The read route is
+ * intentionally public so a bare <img src> can load without an Authorization
+ * header, and a Date.now() prefix plus the original name let anyone who knew
+ * roughly when a file was uploaded enumerate the millisecond and read it.
+ */
 function safeFilename(original: string, mimetype?: string): string {
   const stem = transliterate(path.basename(original, path.extname(original)))
     .normalize('NFKD')
@@ -44,7 +51,7 @@ function safeFilename(original: string, mimetype?: string): string {
     .slice(0, 60);
 
   const ext = EXT_BY_TYPE[String(mimetype || '').split(';')[0].trim().toLowerCase()] ?? '.bin';
-  return `${Date.now()}-${stem || 'file'}${ext}`;
+  return `${crypto.randomBytes(16).toString('hex')}-${stem || 'file'}${ext}`;
 }
 
 const storage = multer.diskStorage({

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { pageBounds } from '../lib/pagination';
 import { optionalText } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
@@ -15,8 +16,7 @@ const noteSchema = z.object({
 });
 
 notesRouter.get('/', async (req: AuthRequest, res: Response) => {
-  const skip = parseInt(String(req.query.skip)) || 0;
-  const take = Math.min(parseInt(String(req.query.take)) || 20, 50);
+const { skip, take } = pageBounds(req.query.skip, req.query.take);
 
   const [notes, total] = await Promise.all([
     prisma.note.findMany({

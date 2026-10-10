@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { optionalText } from '../lib/validation';
+import { familyIdsOf, resolveFamilyId } from '../lib/access';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -25,6 +26,35 @@ const taskSchema = z.object({
   familyId: optionalText(),
   assigneeId: optionalText(),
 });
+
+/**
+ * A task may only land in a column the caller owns. columnId was a bare
+ * z.string(), so any authenticated user could create or move a task onto
+ * somebody else's board, where it then renders in their column list.
+ */
+async function assertOwnColumn(userId: string, columnId: string): Promise<void> {
+  const column = await prisma.taskColumn.findFirst({
+    where: { id: columnId, userId },
+    select: { id: true },
+  });
+  if (!column) throw new AppError(403, 'Колонка не принадлежит вам');
+}
+
+/** Assignees are limited to people the user shares a family with, or themselves. */
+async function assertShareable(userId: string, assigneeId: string | null | undefined): Promise<void> {
+  if (!assigneeId || assigneeId === userId) return;
+  const target = await prisma.user.findUnique({ where: { id: assigneeId }, select: { id: true } });
+  if (!target) throw new AppError(400, 'Исполнитель не найден');
+
+  const shared = await prisma.familyMember.findFirst({
+    where: {
+      familyId: { in: await familyIdsOf(userId) },
+      userId: assigneeId,
+    },
+    select: { id: true },
+  });
+  if (!shared) throw new AppError(403, 'Исполнитель должен быть членом семьи');
+}
 
 // Columns
 tasksRouter.get('/columns', async (req: AuthRequest, res: Response) => {
@@ -121,7 +151,17 @@ tasksRouter.put('/reorder/all', async (req: AuthRequest, res: Response) => {
   // one only validated shape, so any authenticated user could reorder or
   // relocate any task in the system by id. Skip what is not theirs rather than
   // failing the whole batch, so a stale drag does not break the board.
+  const myColumns = await prisma.taskColumn.findMany({
+    where: { userId: req.userId },
+    select: { id: true },
+  });
+  const myColumnIds = new Set(myColumns.map((c) => c.id));
+
   for (const item of items.slice(0, 200)) {
+    // Checking only the task still let a user move their own task onto someone
+    // else's board, which then rendered there.
+    if (!myColumnIds.has(item.columnId)) continue;
+
     const owned = await prisma.task.findFirst({
       where: {
         id: item.id,
@@ -152,8 +192,16 @@ tasksRouter.get('/', async (req: AuthRequest, res: Response) => {
 
 tasksRouter.post('/', async (req: AuthRequest, res: Response) => {
   const data = taskSchema.parse(req.body);
+  await assertOwnColumn(req.userId!, data.columnId);
+  await assertShareable(req.userId!, data.assigneeId);
+
   const task = await prisma.task.create({
-    data: { ...data, userId: req.userId!, dueDate: data.dueDate ? new Date(data.dueDate) : undefined },
+    data: {
+      ...data,
+      familyId: await resolveFamilyId(req.userId!, data.familyId),
+      userId: req.userId!,
+      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+    },
     include: { assignee: { select: { id: true, name: true, email: true } } },
   });
   res.status(201).json(task);
@@ -172,9 +220,28 @@ tasksRouter.put('/:id', async (req: AuthRequest, res: Response) => {
   if (!existing) throw new AppError(404, 'Задача не найдена');
 
   const data = taskSchema.partial().parse(req.body);
+  // An assignee is a recipient of the task, not its owner: letting them rewrite
+  // columnId/assigneeId/visibility/familyId meant an assignee could move the task
+  // onto another board, hand it to someone else, or publish it.
+  const isOwner = existing.userId === req.userId;
+  if (!isOwner) {
+    delete data.columnId;
+    delete data.assigneeId;
+    delete data.visibility;
+    delete data.familyId;
+  } else {
+    if (data.columnId) await assertOwnColumn(req.userId!, data.columnId);
+    if (data.assigneeId !== undefined) await assertShareable(req.userId!, data.assigneeId);
+  }
+
+  const patch: Record<string, unknown> = { ...data };
+  if (data.familyId !== undefined) {
+    patch.familyId = await resolveFamilyId(req.userId!, data.familyId);
+  }
+
   const task = await prisma.task.update({
     where: { id: String(req.params.id) },
-    data: { ...data, dueDate: data.dueDate ? new Date(data.dueDate) : undefined },
+    data: { ...patch, dueDate: data.dueDate ? new Date(data.dueDate) : undefined } as any,
     include: { assignee: { select: { id: true, name: true, email: true } } },
   });
   res.json(task);

@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { optionalText, optionalNumber } from '../lib/validation';
+import { optionalText, optionalNumber, httpUrl } from '../lib/validation';
+import { familyIdsOf, resolveFamilyId, visibleTo } from '../lib/access';
 import { parseRecipe } from '../lib/recipeParser';
 import { safeFetchHtml, BlockedUrlError } from '../lib/safeFetch';
 import { authenticate, AuthRequest } from '../middleware/auth';
@@ -12,12 +13,12 @@ recipesRouter.use(authenticate);
 
 const recipeSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
-  url: optionalText(),
+  url: httpUrl(),
   ingredients: z.string().default('[]'),
   instructions: z.string().default('[]'),
   cookingTime: optionalNumber(),
   category: optionalText(),
-  imageUrl: optionalText(),
+  imageUrl: httpUrl(),
   isPublic: z.boolean().default(false),
   visibility: z.enum(['private', 'family', 'public']).default('private'),
   familyId: optionalText(),
@@ -43,21 +44,23 @@ recipesRouter.get('/', async (req: AuthRequest, res: Response) => {
   res.json(recipes);
 });
 
+// Only 'private' was blocked here, so a 'family' recipe was readable by any
+// authenticated user regardless of membership. The list endpoint below already
+// applied the correct predicate; this now matches it.
 recipesRouter.get('/:id', async (req: AuthRequest, res: Response) => {
+  const familyIds = await familyIdsOf(req.userId!);
   const recipe = await prisma.recipe.findFirst({
-    where: { id: String(req.params.id) },
+    where: { id: String(req.params.id), ...visibleTo(req.userId!, familyIds) },
   });
   if (!recipe) throw new AppError(404, 'Рецепт не найден');
-  if (recipe.visibility === 'private' && recipe.userId !== req.userId) {
-    throw new AppError(403, 'Нет доступа');
-  }
   res.json(recipe);
 });
 
 recipesRouter.post('/', async (req: AuthRequest, res: Response) => {
   const data = recipeSchema.parse(req.body);
+  const familyId = await resolveFamilyId(req.userId!, data.familyId);
   const recipe = await prisma.recipe.create({
-    data: { ...data, userId: req.userId! },
+    data: { ...data, familyId, userId: req.userId! },
   });
   res.status(201).json(recipe);
 });
@@ -69,9 +72,15 @@ recipesRouter.put('/:id', async (req: AuthRequest, res: Response) => {
   if (!existing) throw new AppError(404, 'Рецепт не найден');
 
   const data = recipeSchema.partial().parse(req.body);
+  // familyId is re-resolved here too, otherwise an owner could move their recipe
+  // into a family they are not a member of.
+  const patch: Record<string, unknown> = { ...data };
+  if (data.familyId !== undefined) {
+    patch.familyId = await resolveFamilyId(req.userId!, data.familyId);
+  }
   const recipe = await prisma.recipe.update({
     where: { id: String(req.params.id) },
-    data,
+    data: patch,
   });
   res.json(recipe);
 });

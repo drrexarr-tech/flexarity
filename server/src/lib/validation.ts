@@ -30,3 +30,28 @@ export const optionalAmount = (
     (v) => (v === '' ? null : v),
     z.coerce.number().min(min, message).nullable().optional()
   );
+
+/**
+ * Optional link, restricted to http(s).
+ *
+ * A stored "javascript:" URL is stored XSS: the value lands in an href, and
+ * clicking it runs attacker script in the app's own origin, where the access and
+ * refresh tokens live in localStorage. `target="_blank" rel="noopener"` does not
+ * help, because a javascript: href executes in the current document before any
+ * navigation happens.
+ */
+export const httpUrl = () =>
+  z.preprocess(
+    // An empty input arrives as "" and means "clear this field", so it maps to
+    // null exactly like optionalText does. Without this the refine below would
+    // reject a cleared URL field as malformed.
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : typeof v === 'string' ? v.trim() : v),
+    z
+      .string()
+      .refine(
+        (v) => /^https?:\/\/[^\s]+$/i.test(v),
+        'Ссылка должна начинаться с http:// или https://'
+      )
+      .nullable()
+      .optional()
+  );

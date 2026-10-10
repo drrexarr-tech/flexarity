@@ -40,7 +40,10 @@ if (jwtSecret.length < 32) {
   console.warn('JWT_SECRET is shorter than 32 characters; consider rotating it');
 }
 
-app.set('trust proxy', 1);
+// Only nginx may reach the API, so only its address is trusted. `true` (or any
+// permissive value) would let a client forge X-Forwarded-For and pick its own
+// rate-limit bucket, since proxy-addr then trusts the attacker's own header.
+app.set('trust proxy', 'loopback');
 app.disable('x-powered-by');
 
 // The API returns JSON and serves user uploads; nothing here should be embeddable.

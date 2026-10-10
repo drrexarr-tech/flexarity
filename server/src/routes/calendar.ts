@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { resolveFamilyId } from '../lib/access';
 import { optionalText } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
@@ -197,7 +198,7 @@ calendarRouter.post('/', async (req: AuthRequest, res: Response) => {
       time: data.time || null,
       color: data.color || null,
       visibility: data.visibility,
-      familyId: data.visibility === 'family' ? data.familyId || null : null,
+      familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null),
       userId: req.userId!,
     },
     include: { user: userSelect },
@@ -222,7 +223,7 @@ calendarRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       ...(data.color !== undefined ? { color: data.color || null } : {}),
       ...(data.visibility !== undefined ? { visibility: data.visibility } : {}),
       ...(data.familyId !== undefined || data.visibility !== undefined
-        ? { familyId: data.visibility === 'family' ? data.familyId || null : null }
+        ? { familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null) }
         : {}),
     },
     include: { user: userSelect },

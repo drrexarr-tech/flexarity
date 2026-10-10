@@ -37,6 +37,31 @@ export function ProfilePage() {
   const [disableCode, setDisableCode] = useState('');
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
   const [logoutAllBusy, setLogoutAllBusy] = useState(false);
+  const [passwordDialog, setPasswordDialog] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [repeatPassword, setRepeatPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
+
+  async function handleChangePassword() {
+    if (newPassword !== repeatPassword) {
+      toast.error('Новые пароли не совпадают');
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      await api.auth.changePassword({ currentPassword, newPassword });
+      setPasswordDialog(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setRepeatPassword('');
+      toast.success('Пароль изменён. На других устройствах войдите заново.');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
 
   useEffect(() => { setTotpEnabled(!!user?.totpEnabled); }, [user?.totpEnabled]);
 
@@ -358,11 +383,63 @@ export function ProfilePage() {
             </Button>
           </div>
 
+          <Button variant="outline" className="w-full" onClick={() => setPasswordDialog(true)}>
+            Сменить пароль
+          </Button>
+
           <Button variant="outline" className="w-full" onClick={handleLogoutAll} disabled={logoutAllBusy}>
             {logoutAllBusy ? 'Выходим...' : 'Выйти со всех устройств'}
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={passwordDialog} onOpenChange={setPasswordDialog}>
+        <DialogContent className="w-[90vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Смена пароля</DialogTitle>
+            <DialogDescription>
+              После смены пароля все сессии на других устройствах завершатся
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Текущий пароль"
+            />
+            <Input
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Новый пароль, минимум 10 символов"
+            />
+            <Input
+              type="password"
+              autoComplete="new-password"
+              value={repeatPassword}
+              onChange={(e) => setRepeatPassword(e.target.value)}
+              placeholder="Повторите новый пароль"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialog(false)}>Отмена</Button>
+            <Button
+              onClick={handleChangePassword}
+              disabled={
+                passwordBusy ||
+                !currentPassword ||
+                newPassword.length < 10 ||
+                newPassword !== repeatPassword
+              }
+            >
+              {passwordBusy ? 'Смена...' : 'Сменить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={setupDialog} onOpenChange={setSetupDialog}>
         <DialogContent className="w-[90vw] max-w-sm">

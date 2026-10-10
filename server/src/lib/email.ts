@@ -4,6 +4,18 @@ const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || 'noreply@veheys.online';
 
+/**
+ * Escape a value for interpolation into the HTML body.
+ *
+ * Display names and family names are arbitrary user input and reach this file
+ * unescaped, so a name of '<img src=x onerror=...>' was injected straight into
+ * the mail body.
+ */
+export const esc = (value: unknown): string =>
+  String(value ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]
+  );
+
 export async function sendEmail(to: string, subject: string, html: string) {
   if (!SMTP_HOST) {
     console.log(`[EMAIL] To: ${to}, Subject: ${subject}`);

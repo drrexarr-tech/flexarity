@@ -26,6 +26,25 @@ jobs:
               exit 1
             fi
 
+            echo "=== Checking the signing key ==="
+            # The JWT secret in use was 20 characters and was committed to git
+            # history, so it cannot be trusted. Rotated once, in place: the file
+            # is gitignored and survives `git reset --hard`, so this runs on
+            # every deploy and only acts while the value is still weak.
+            current_secret=$(grep -E '^JWT_SECRET=' server/.env | head -1 | cut -d= -f2- || true)
+            if [ ${#current_secret} -lt 32 ] || [ "${current_secret:-}" = "secret" ]; then
+              fresh_secret=$(head -c 48 /dev/urandom | base64 | tr -d '\n=' | tr '/+' '_-')
+              if grep -q '^JWT_SECRET=' server/.env; then
+                sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${fresh_secret}|" server/.env
+              else
+                printf '\nJWT_SECRET=%s\n' "${fresh_secret}" >> server/.env
+              fi
+              chmod 600 server/.env
+              echo "JWT_SECRET rotated (was ${#current_secret} chars, now ${#fresh_secret}); everyone must sign in again"
+            else
+              echo "JWT_SECRET is ${#current_secret} chars, left as is"
+            fi
+
             echo "=== Loading secrets from server/.env ==="
             set -a
             . /opt/flex/server/.env

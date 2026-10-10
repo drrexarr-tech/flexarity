@@ -22,6 +22,10 @@ interface Props {
   columns: TaskColumn[];
   onUpdate: (id: string, data: any) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  /** Column to restore to when the task is unchecked, if the board knows it. */
+  restoreColumnId?: string;
+  /** Report the column a task is leaving, so it can be restored later. */
+  onRememberColumn?: (taskId: string, columnId: string) => void;
 }
 
 const priorityColors = {
@@ -32,7 +36,9 @@ const priorityColors = {
 
 const priorityLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
 
-export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
+export function TaskCard({
+  task, columns, onUpdate, onDelete, restoreColumnId, onRememberColumn,
+}: Props) {
   const currentUser = useAuthStore((s) => s.user);
   const isObserver = task.assignee && task.assignee.id !== currentUser?.id && task.userId === currentUser?.id;
   const [editing, setEditing] = useState(false);
@@ -47,6 +53,7 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
   };
 
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+  const sorted = [...columns].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 
   return (
     <Card
@@ -67,10 +74,13 @@ export function TaskCard({ task, columns, onUpdate, onDelete }: Props) {
               const doneCol = columns.find((c) => c.title === 'Готово');
               if (!doneCol || !task.columnId) return;
               if (task.columnId === doneCol.id) {
-                const sorted = [...columns].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-                const fallback = sorted.find((c) => c.id !== doneCol.id);
-                if (fallback) onUpdate(task.id, { columnId: fallback.id });
+                // Where it came from is passed in by the board, because this card
+                // unmounts the moment it lands in "Готово" and a ref held here
+                // would be gone by the time it is unchecked again.
+                const target = restoreColumnId ?? sorted[0]?.id;
+                if (target) onUpdate(task.id, { columnId: target });
               } else {
+                onRememberColumn?.(task.id, task.columnId);
                 onUpdate(task.id, { columnId: doneCol.id });
               }
             }}

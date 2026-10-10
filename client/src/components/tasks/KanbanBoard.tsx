@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -77,6 +77,31 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [createDialog, setCreateDialog] = useState<string | null>(null);
 
+  /**
+   * Where each task sat before it was checked off.
+   *
+   * A task moved to "Готово" disappears from the column it left, so its card
+   * unmounts and any state kept on the card is gone. Unchecking it later used
+   * to fall back to the first non-done column, which is wrong whenever the task
+   * started further along. The board outlives the card, so it keeps the map.
+   */
+  const [restoreColumns, setRestoreColumns] = useState<Record<string, string>>({});
+
+  const rememberColumn = useCallback((taskId: string, columnId: string) => {
+    setRestoreColumns((prev) => (prev[taskId] === columnId ? prev : { ...prev, [taskId]: columnId }));
+  }, []);
+
+  // A dragged task also changes column; record it so an uncheck still restores
+  // somewhere sensible.
+  const rememberColumnFor = useCallback(
+    (taskId: string, fromColumnId: string | undefined, toColumnId: string) => {
+      if (!fromColumnId || fromColumnId === toColumnId) return;
+      const done = localColumns.find((c) => c.id === toColumnId && c.title === 'Готово');
+      if (done) rememberColumn(taskId, fromColumnId);
+    },
+    [localColumns, rememberColumn]
+  );
+
   const assignedTaskIds = useMemo(() => (assignedTasks || []).map((t: any) => t.id), [assignedTasks]);
 
   useEffect(() => {
@@ -153,6 +178,7 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
       const taskIndex = srcCol.tasks.findIndex((t) => t.id === activeId);
       if (taskIndex < 0) return;
       const [moved] = srcCol.tasks.splice(taskIndex, 1);
+      rememberColumnFor(activeId, moved.columnId, overColId);
       moved.columnId = overColId;
 
       const dstCol = updatedColumns.find((c) => c.id === overColId);
@@ -177,6 +203,7 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
     } else {
       const task = assignedTasks?.find((t: any) => t.id === activeId);
       if (!task) return;
+      rememberColumnFor(activeId, task.columnId, overColId);
       await onUpdateTask(activeId, { columnId: overColId });
     }
     onRefresh();
@@ -207,6 +234,8 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
                       columns={columns}
                       onUpdate={onUpdateTask}
                       onDelete={onDeleteTask}
+                      restoreColumnId={restoreColumns[task.id]}
+                      onRememberColumn={rememberColumn}
                     />
                   ))}
                 </div>
@@ -264,6 +293,8 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
                       columns={columns}
                       onUpdate={onUpdateTask}
                       onDelete={onDeleteTask}
+                      restoreColumnId={restoreColumns[task.id]}
+                      onRememberColumn={rememberColumn}
                     />
                   ))}
                 </div>

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { sendEmail } from '../lib/email';
+import { sendEmail, esc } from '../lib/email';
 
 export const familyRouter = Router();
 familyRouter.use(authenticate);
@@ -17,7 +17,11 @@ familyRouter.get('/', async (req: AuthRequest, res: Response) => {
           members: {
             include: { user: { select: { id: true, name: true, email: true } } },
           },
-          invites: true,
+          // Pending invite tokens were returned to every member. A token is the
+          // only credential for joining, so list the invites without it.
+          invites: {
+            select: { id: true, email: true, status: true, createdAt: true },
+          },
         },
       },
     },
@@ -46,6 +50,12 @@ familyRouter.post('/:id/invite', async (req: AuthRequest, res: Response) => {
     where: { familyId, userId: req.userId },
   });
   if (!membership) return res.status(403).json({ error: 'Вы не участник семьи' });
+  // Membership alone was enough, so any ordinary member could invite arbitrary
+  // addresses and turn the SMTP credentials into a spam relay. Member removal
+  // below already requires an admin.
+  if (membership.role !== 'admin') {
+    return res.status(403).json({ error: 'Приглашать может только администратор семьи' });
+  }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
@@ -81,19 +91,21 @@ familyRouter.post('/:id/invite', async (req: AuthRequest, res: Response) => {
   }
 
   const inviter = await prisma.user.findUnique({ where: { id: req.userId } });
-  console.log(`[INVITE] ${inviter?.name} пригласил ${email} в семью "${family?.name}" (токен: ${token})`);
+  // The token is a credential, not a diagnostic: it was logged verbatim and
+  // returned in the response body on top of being emailed.
+  console.log(`[INVITE] ${inviter?.name} пригласил ${email} в семью "${family?.name}"`);
 
   const inviteLink = `https://veheys.online/family/invite?token=${token}`;
   await sendEmail(
     email,
     `Приглашение в семью "${family?.name}"`,
     `<h2>Приглашение в семью</h2>
-     <p>${inviter?.name} приглашает вас присоединиться к семье "${family?.name}" в Flex.</p>
-     <p><a href="${inviteLink}">Принять приглашение</a></p>
-     <p>Или используйте токен: <b>${token}</b></p>`
+     <p>${esc(inviter?.name)} приглашает вас присоединиться к семье "${esc(family?.name)}" в Flex.</p>
+     <p><a href="${esc(inviteLink)}">Принять приглашение</a></p>
+     <p>Или используйте токен: <b>${esc(token)}</b></p>`
   );
 
-  res.json({ message: 'Приглашение отправлено', token });
+  res.json({ message: 'Приглашение отправлено' });
 });
 
 familyRouter.post('/invite/accept', async (req: AuthRequest, res: Response) => {

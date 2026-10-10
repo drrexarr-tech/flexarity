@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { resolveFamilyId } from '../lib/access';
 import { optionalText, optionalAmount } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
@@ -111,7 +112,7 @@ plansRouter.post('/', async (req: AuthRequest, res: Response) => {
       deadline: data.deadline ? new Date(data.deadline) : null,
       color: data.color || null,
       visibility: data.visibility,
-      familyId: data.visibility === 'family' ? data.familyId || null : null,
+      familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null),
       userId: req.userId!,
     },
     include: { user: userSelect, entries: { select: { amount: true, type: true } } },
@@ -138,7 +139,7 @@ plansRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       ...(data.color !== undefined ? { color: data.color || null } : {}),
       ...(data.visibility !== undefined ? { visibility: data.visibility } : {}),
       ...(data.familyId !== undefined || data.visibility !== undefined
-        ? { familyId: data.visibility === 'family' ? data.familyId || null : null }
+        ? { familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null) }
         : {}),
     },
     include: { user: userSelect, entries: { select: { amount: true, type: true } } },

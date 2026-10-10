@@ -32,6 +32,17 @@ const USER_SELECT = {
   avatarUrl: true, dateOfBirth: true, publicKey: true, totpEnabled: true,
 } as const;
 
+/**
+ * A real bcrypt hash to compare against when the address is unknown.
+ *
+ * The previous version passed a 64 character literal, and bcryptjs short
+ * circuits on any hash whose length is not exactly 60, returning false with no
+ * key derivation at all. An unregistered email therefore answered in ~1 ms while
+ * a registered one with a wrong password took the full cost-12 time, which made
+ * the enumeration protection it claimed to provide useless.
+ */
+const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
+
 function formatLockout(ms: number): string {
   const minutes = Math.ceil(ms / 60000);
   if (minutes >= 60) return `${Math.round(minutes / 60)} ч`;
@@ -99,7 +110,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   // Spend the same work whether or not the address exists, so response time
   // does not reveal which emails are registered.
   if (!user) {
-    await bcrypt.compare(password, '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidi');
+    await bcrypt.compare(password, DUMMY_HASH);
     throw new AppError(400, 'Неверный email или пароль');
   }
 
@@ -194,10 +205,18 @@ authRouter.post('/refresh', async (req: Request, res: Response) => {
 
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashRefreshToken(refreshToken) },
-    include: { user: { select: { id: true, tokenVersion: true, lockedUntil: true } } },
+    include: { user: { select: { id: true, tokenVersion: true } } },
   });
 
-  if (!session || session.revokedAt || session.expiresAt < new Date()) {
+  if (!session) throw new AppError(401, 'Сессия истекла, войдите заново');
+
+  if (session.revokedAt || session.expiresAt < new Date()) {
+    // A revoked token being presented again means it leaked. Drop every session
+    // for that account rather than just refusing this one.
+    await prisma.session.updateMany({
+      where: { userId: session.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
     throw new AppError(401, 'Сессия истекла, войдите заново');
   }
 
@@ -213,7 +232,15 @@ authRouter.post('/refresh', async (req: Request, res: Response) => {
     throw new AppError(401, 'Сессия истекла, войдите заново');
   }
 
-  await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+  // Claim the token with a conditional update rather than read-then-write.
+  // Two concurrent refreshes with the same token would both see revokedAt=null
+  // and both receive a live pair, defeating the single-use property. Only one
+  // update can match a row that is still unrevoked, so `count` decides the race.
+  const { count } = await prisma.session.updateMany({
+    where: { id: session.id, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  if (count !== 1) throw new AppError(401, 'Сессия истекла, войдите заново');
   const issued = await issueSession(user, req);
   res.json({ token: issued.accessToken, refreshToken: issued.refreshToken });
 });
@@ -286,6 +313,51 @@ authRouter.post('/2fa/disable', authenticate, async (req: AuthRequest, res: Resp
   });
 
   res.json({ message: 'Двухфакторная аутентификация отключена' });
+});
+
+/**
+ * Changing the password. Without this, a password that leaked through
+ * credential stuffing or phishing could never be rotated by its owner, and
+ * tokenVersion - the field built for exactly this - was only ever bumped by
+ * 'logout everywhere'.
+ */
+authRouter.put('/password', authenticate, async (req: AuthRequest, res: Response) => {
+  const { currentPassword, newPassword } = z.object({
+    currentPassword: z.string().min(1, 'Введите текущий пароль'),
+    newPassword: z.string().min(1, 'Введите новый пароль'),
+  }).parse(req.body);
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user) throw new AppError(404, 'Пользователь не найден');
+
+  if (!(await bcrypt.compare(currentPassword, user.password))) {
+    throw new AppError(400, 'Текущий пароль указан неверно');
+  }
+
+  const problems = checkPassword(newPassword, user.email, user.name);
+  if (problems.length) {
+    throw new AppError(400, problems.map((p) => p.message).join('; '));
+  }
+
+  // Bumping tokenVersion drops every outstanding access token, and revoking the
+  // sessions drops every refresh token, so a stolen copy is useless from here on.
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: await bcrypt.hash(newPassword, 12),
+        tokenVersion: { increment: 1 },
+        failedLogins: 0,
+        lockedUntil: null,
+      },
+    }),
+    prisma.session.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+
+  res.json({ message: 'Пароль изменён, войдите заново на других устройствах' });
 });
 
 authRouter.post('/logout', authenticate, async (req: AuthRequest, res: Response) => {

@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { optionalText, optionalAmount } from '../lib/validation';
+import { resolveFamilyId } from '../lib/access';
+import { optionalText, optionalAmount, httpUrl } from '../lib/validation';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -18,7 +19,7 @@ const wishlistSchema = z.object({
 const itemSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   price: optionalAmount(0, 'Цена не может быть отрицательной'),
-  url: optionalText(),
+  url: httpUrl(),
   note: optionalText(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
   recipientId: optionalText(),
@@ -45,6 +46,22 @@ async function findVisible(id: string, userId: string) {
     if (familyIds.includes(list.familyId)) return list;
   }
   throw new AppError(403, 'Нет доступа');
+}
+
+/**
+ * A gift recipient must be the caller or a family member, matching what
+ * /recipients offers. recipientId was taken verbatim from the body, so a wish
+ * could be addressed at any user id and spoil a surprise.
+ */
+async function resolveRecipientId(userId: string, recipientId?: string | null): Promise<string | null> {
+  if (!recipientId) return null;
+  if (recipientId === userId) return recipientId;
+
+  const shared = await prisma.familyMember.findFirst({
+    where: { familyId: { in: await familyIdsOf(userId) }, userId: recipientId },
+    select: { id: true },
+  });
+  return shared ? recipientId : null;
 }
 
 /** Users the current user can pick as a gift recipient: themselves + family members. */
@@ -138,7 +155,7 @@ wishesRouter.post('/', async (req: AuthRequest, res: Response) => {
       title: data.title,
       description: data.description || null,
       visibility: data.visibility,
-      familyId: data.visibility === 'family' ? data.familyId || null : null,
+      familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null),
       userId: req.userId!,
     },
     include: { user: userSelect, items: { select: { price: true, bought: true } } },
@@ -162,7 +179,7 @@ wishesRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       ...(data.description !== undefined ? { description: data.description || null } : {}),
       ...(data.visibility !== undefined ? { visibility: data.visibility } : {}),
       ...(data.familyId !== undefined || data.visibility !== undefined
-        ? { familyId: data.visibility === 'family' ? data.familyId || null : null }
+        ? { familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null) }
         : {}),
     },
     include: { user: userSelect, items: { select: { price: true, bought: true } } },
@@ -200,7 +217,7 @@ wishesRouter.post('/:id/items', async (req: AuthRequest, res: Response) => {
       url: data.url || null,
       note: data.note || null,
       priority: data.priority ?? null,
-      recipientId: data.recipientId || null,
+      recipientId: await resolveRecipientId(req.userId!, data.recipientId),
       wishlistId: list.id,
       ownerId: req.userId!,
     },
@@ -239,7 +256,7 @@ wishesRouter.put('/:id/items/:itemId', async (req: AuthRequest, res: Response) =
       ...(data.url !== undefined ? { url: data.url || null } : {}),
       ...(data.note !== undefined ? { note: data.note || null } : {}),
       ...(data.priority !== undefined ? { priority: data.priority ?? null } : {}),
-      ...(data.recipientId !== undefined ? { recipientId: data.recipientId || null } : {}),
+      ...(data.recipientId !== undefined ? { recipientId: await resolveRecipientId(req.userId!, data.recipientId) } : {}),
     },
     include: { owner: userSelect, recipient: userSelect },
   });

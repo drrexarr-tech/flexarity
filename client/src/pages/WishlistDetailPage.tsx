@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Edit3, Plus, Gift, Users, ExternalLink, X, Check } from 'lucide-react';
 import { api } from '@/lib/api';
+import { safeHttpUrl } from '@/lib/urls';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -223,9 +224,9 @@ export function WishlistDetailPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <p className={cn('text-sm', item.bought && 'text-muted-foreground line-through')}>
-                            {item.url ? (
+                            {safeHttpUrl(item.url) ? (
                               <a
-                                href={item.url}
+                                href={safeHttpUrl(item.url)!}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 hover:underline"
