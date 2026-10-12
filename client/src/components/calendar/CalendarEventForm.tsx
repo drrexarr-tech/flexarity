@@ -21,7 +21,7 @@ const schema = z.object({
   description: z.string().optional(),
   date: z.string().min(1, 'Дата обязательна'),
   time: z.string().optional(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.enum(['private', 'family']).default('private'),
   familyId: z.string().optional(),
 });
 
@@ -59,7 +59,7 @@ export function CalendarEventForm({ event, defaultDate, onSuccess }: Props) {
           description: event.description || '',
           date: toDateInput(event.date),
           time: event.time || '',
-          visibility: event.visibility || 'private',
+          visibility: event.visibility === ('public' as string) ? 'private' : event.visibility || 'private',
           familyId: event.familyId || undefined,
         }
       : {
@@ -191,7 +191,6 @@ export function CalendarEventForm({ event, defaultDate, onSuccess }: Props) {
           <SelectContent>
             <SelectItem value="private">Только я</SelectItem>
             <SelectItem value="family">Семья</SelectItem>
-            <SelectItem value="public">Публичный</SelectItem>
           </SelectContent>
         </Select>
       </div>

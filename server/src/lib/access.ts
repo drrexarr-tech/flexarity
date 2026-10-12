@@ -36,7 +36,6 @@ export function visibleTo(userId: string, familyIds: string[]) {
     OR: [
       { userId },
       { visibility: 'family' as const, familyId: { in: familyIds } },
-      { visibility: 'public' as const },
     ],
   };
 }

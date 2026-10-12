@@ -57,8 +57,11 @@ export function ShoppingPage() {
   const [showDone, setShowDone] = useState(true);
 
   const [editing, setEditing] = useState<ShoppingItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [clearOpen, setClearOpen] = useState(false);
+// No confirmation step any more, so the guard is all that stands between a
+// double tap and two DELETEs. Per id, so removing one row does not block
+// removing the next while the first is in flight.
+const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+const [clearing, setClearing] = useState(false);
 
   const [formTitle, setFormTitle] = useState('');
   const [formQty, setFormQty] = useState('');
@@ -115,19 +118,36 @@ export function ShoppingPage() {
     }
   }
 
-  async function handleDelete() {
-    const id = deleteTarget;
-    setDeleteTarget(null);
-    if (!id) return;
-    await api.shopping.delete(id);
-    await load();
-    toast.success('Товар удалён');
+  async function handleDelete(id: string) {
+    if (deletingIds.has(id)) return;
+    setDeletingIds((prev) => new Set(prev).add(id));
+    try {
+      await api.shopping.delete(id);
+      await load();
+      toast.success('Товар удалён');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   }
 
   async function handleClearDone() {
-    const { removed } = await api.shopping.clearDone();
-    await load();
-    toast.success(removed ? `Удалено позиций: ${removed}` : 'Купленного пока нет');
+    if (clearing) return;
+    setClearing(true);
+    try {
+      const { removed } = await api.shopping.clearDone();
+      await load();
+      toast.success(removed ? `Удалено позиций: ${removed}` : 'Купленного пока нет');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setClearing(false);
+    }
   }
 
   function openEdit(item: ShoppingItem) {
@@ -196,7 +216,7 @@ export function ShoppingPage() {
         </div>
         <div className="flex gap-2">
           {bought.length > 0 && (
-            <Button variant="outline" size="sm" onClick={() => setClearOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => { void handleClearDone(); }}>
               <Eraser className="mr-1 h-3.5 w-3.5" /> Очистить купленное
             </Button>
           )}
@@ -347,7 +367,7 @@ export function ShoppingPage() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-destructive"
-                            onClick={() => setDeleteTarget(item.id)}
+                            onClick={() => handleDelete(item.id)}
                           >
                             <X className="h-3.5 w-3.5" />
                           </Button>
@@ -403,7 +423,7 @@ export function ShoppingPage() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 shrink-0 text-destructive opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                        onClick={() => setDeleteTarget(item.id)}
+                        onClick={() => handleDelete(item.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -491,23 +511,6 @@ export function ShoppingPage() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
-        title="Удалить товар?"
-        description="Товар будет удалён из списка без возможности восстановления."
-        onConfirm={handleDelete}
-      />
-
-      <ConfirmDialog
-        open={clearOpen}
-        onOpenChange={setClearOpen}
-        title="Очистить купленное?"
-        description="Все отмеченные позиции будут удалены. Неотмеченные останутся."
-        confirmLabel="Очистить"
-        pendingLabel="Очистка..."
-        onConfirm={handleClearDone}
-      />
     </div>
   );
 }

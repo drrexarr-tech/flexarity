@@ -27,7 +27,8 @@ const priorityColors = {
 const priorityLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий' };
 
 export function WishlistDetailPage() {
-  const { id } = useParams<{ id: string }>();
+    const [deleting, setDeleting] = useState(false);
+    const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
   const [list, setList] = useState<Wishlist | null>(null);
@@ -56,14 +57,19 @@ export function WishlistDetailPage() {
 
   async function handleDelete() {
     if (!list) return;
+    if (deleting) return;
+    setDeleting(true);
     try {
       await api.wishes.delete(list.id);
       toast.success('Список удалён');
       navigate('/wishes');
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setDeleting(false);
     }
   }
+  
 
   function openAdd(recipientId: string | null = null) {
     setEditingItem(null);
@@ -84,7 +90,6 @@ export function WishlistDetailPage() {
   async function handleDeleteItem(itemId: string) {
     if (!list) return;
     const item = itemId;
-    setDeleteItemId(null);
     try {
       await api.wishes.deleteItem(list.id, item);
       load();
@@ -130,7 +135,7 @@ export function WishlistDetailPage() {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Edit3 className="mr-2 h-4 w-4" /> Изменить
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Button variant="destructive" size="sm" disabled={deleting} onClick={() => { void handleDelete(); }}>
               <Trash2 className="mr-2 h-4 w-4" /> Удалить
             </Button>
           </div>
@@ -277,7 +282,7 @@ export function WishlistDetailPage() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-destructive"
-                            onClick={() => setDeleteItemId(item.id)}
+                            onClick={() => { void handleDeleteItem(item.id); }}
                           >
                             <X className="h-3.5 w-3.5" />
                           </Button>
@@ -300,23 +305,6 @@ export function WishlistDetailPage() {
           <WishlistForm wishlist={list} onSuccess={() => { setEditOpen(false); load(); }} />
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Удалить список?"
-        description="Вместе с ним удалятся все подарки. Это нельзя отменить."
-        onConfirm={async () => { await handleDelete(); }}
-      />
-
-      <ConfirmDialog
-        className="max-w-sm"
-        open={!!deleteItemId}
-        onOpenChange={(next) => { if (!next) setDeleteItemId(null); }}
-        title="Удалить подарок?"
-        description="Это действие нельзя отменить."
-        onConfirm={async () => { if (deleteItemId) await handleDeleteItem(deleteItemId); }}
-      />
 
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>
         <DialogContent className="max-w-lg sm:w-full">

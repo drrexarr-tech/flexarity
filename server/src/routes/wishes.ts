@@ -12,7 +12,7 @@ wishesRouter.use(authenticate);
 const wishlistSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   description: optionalText(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),
   familyId: optionalText(),
 });
 
@@ -42,7 +42,6 @@ async function findVisible(id: string, userId: string) {
   if (!list) throw new AppError(404, 'Список не найден');
 
   if (list.userId === userId) return list;
-  if (list.visibility === 'public') return list;
   if (list.visibility === 'family' && list.familyId) {
     const familyIds = await familyIdsOf(userId);
     if (familyIds.includes(list.familyId)) return list;
@@ -95,7 +94,6 @@ wishesRouter.get('/', async (req: AuthRequest, res: Response) => {
       OR: [
         { userId: req.userId! },
         { visibility: 'family', familyId: { in: familyIds } },
-        { visibility: 'public' },
       ],
     },
     include: {

@@ -36,7 +36,7 @@ const taskSchema = z.object({
   dueDate: optionalText(),
   order: z.number().optional(),
   columnId: z.string(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),
   familyId: optionalText(),
   assigneeId: optionalText(),
 });
@@ -87,7 +87,6 @@ tasksRouter.get('/columns', async (req: AuthRequest, res: Response) => {
             { userId: req.userId },
             { assigneeId: req.userId },
             { visibility: 'family', familyId: { in: familyIds } },
-            { visibility: 'public' },
           ],
         },
         orderBy: { order: 'asc' },

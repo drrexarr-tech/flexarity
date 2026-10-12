@@ -251,14 +251,6 @@ async function handleDelete(id: string) {
         </DialogContent>
       </Dialog>
 
-<ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
-        title="Удалить заметку?"
-        description="Заметка будет удалена без возможности восстановления."
-        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
-      />
-
       {notes.length === 0 ? (
         <div className="flex flex-col items-center py-16 text-muted-foreground">
           <StickyNote className="mb-3 h-10 w-10" />

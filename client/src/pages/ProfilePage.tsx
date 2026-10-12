@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useSingleFlight } from '@/lib/useSingleFlight';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import toast from 'react-hot-toast';
 
 export function ProfilePage() {
   const user = useAuthStore((s) => s.user);
+  const run = useSingleFlight();
   const setUser = useAuthStore((s) => s.setUser);
   const fileRef = useRef<HTMLInputElement>(null);
   const cropImgRef = useRef<HTMLImageElement>(null);
@@ -270,7 +272,10 @@ export function ProfilePage() {
   }
 
   async function handleDeleteAvatar() {
-    setDeleteAvatarDialog(true);
+    await run('avatar', async () => {
+      const updated = await api.auth.updateProfile({ avatarUrl: null });
+      setUser(updated);
+    });
   }
 
   async function confirmDeleteAvatar() {
@@ -609,22 +614,6 @@ export function ProfilePage() {
         </CardContent>
       </Card>
 
-      <ConfirmDialog
-        open={deleteAvatarDialog}
-        onOpenChange={setDeleteAvatarDialog}
-        title="Удалить аватарку?"
-        description="Это действие нельзя отменить."
-        onConfirm={async () => { await confirmDeleteAvatar(); }}
-      />
-
-      <ConfirmDialog
-        className="max-w-sm"
-        open={!!unlinkTarget}
-        onOpenChange={(next) => { if (!next) setUnlinkTarget(null); }}
-        title={`Отвязать ${unlinkTarget === 'telegram' ? 'Telegram' : 'VK'}?`}
-        description="Вы сможете привязать его снова позже."
-        onConfirm={async () => { await confirmUnlink(); }}
-      />
     </div>
   );
 }

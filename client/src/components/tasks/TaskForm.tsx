@@ -19,7 +19,7 @@ const schema = z.object({
   priority: z.enum(['low', 'medium', 'high']).optional(),
   dueDate: z.string().optional(),
   columnId: z.string().min(1, 'Колонка обязательна'),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.enum(['private', 'family']).default('private'),
   familyId: z.string().optional(),
   assigneeId: z.string().optional(),
 });
@@ -57,7 +57,7 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
           priority: task.priority || undefined,
           dueDate: task.dueDate ? task.dueDate.slice(0, 16) : '',
           columnId: task.columnId,
-          visibility: task.visibility || 'private',
+          visibility: task.visibility === ('public' as string) ? 'private' : task.visibility || 'private',
           familyId: task.familyId || undefined,
           assigneeId: task.assigneeId || (task.assignee?.id) || undefined,
         }
@@ -220,7 +220,6 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
           <SelectContent>
             <SelectItem value="private">Только я</SelectItem>
             <SelectItem value="family">Семья</SelectItem>
-            <SelectItem value="public">Публичный</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -20,7 +20,7 @@ const recipeSchema = z.object({
   category: optionalText(),
   imageUrl: httpUrl(),
   isPublic: z.boolean().default(false),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),
   familyId: optionalText(),
 });
 
@@ -36,7 +36,6 @@ recipesRouter.get('/', async (req: AuthRequest, res: Response) => {
       OR: [
         { userId: req.userId },
         { visibility: 'family', familyId: { in: familyIds } },
-        { visibility: 'public' },
       ],
     },
     orderBy: { createdAt: 'desc' },

@@ -22,7 +22,7 @@ const schema = z.object({
   imageUrl: z.string().optional(),
   ingredients: z.string().optional(),
   instructions: z.string().optional(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.enum(['private', 'family']).default('private'),
   familyId: z.string().optional(),
 });
 
@@ -66,7 +66,7 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
           imageUrl: recipe.imageUrl || '',
           ingredients: recipe.ingredients ? JSON.parse(recipe.ingredients).join('\n') : '',
           instructions: recipe.instructions ? JSON.parse(recipe.instructions).join('\n') : '',
-          visibility: recipe.visibility || 'private',
+          visibility: recipe.visibility === ('public' as string) ? 'private' : recipe.visibility || 'private',
           familyId: recipe.familyId || undefined,
         }
       : {
@@ -197,7 +197,6 @@ export function RecipeForm({ recipe, prefill, onSuccess }: Props) {
           <SelectContent>
             <SelectItem value="private">Только я</SelectItem>
             <SelectItem value="family">Семья</SelectItem>
-            <SelectItem value="public">Публичный</SelectItem>
           </SelectContent>
         </Select>
       </div>

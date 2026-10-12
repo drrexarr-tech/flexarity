@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSingleFlight } from '@/lib/useSingleFlight';
 import {
   ChevronLeft, ChevronRight, Plus, Cake, CalendarDays, Trash2, Edit3, Clock,
 } from 'lucide-react';
@@ -54,6 +55,7 @@ interface Cell {
 }
 
 export function CalendarPage() {
+  const run = useSingleFlight();
   const currentUser = useAuthStore((s) => s.user);
   const today = useMemo(() => new Date(), []);
   const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -129,10 +131,8 @@ export function CalendarPage() {
     setSelected(now);
   }
 
-  async function handleDelete() {
-    const id = deleteTarget;
-    setDeleteTarget(null);
-    if (!id) return;
+  async function handleDelete(id: string) {
+    await run(id, async () => {
     try {
       await api.calendar.delete(id);
       toast.success('Событие удалено');
@@ -140,6 +140,7 @@ export function CalendarPage() {
     } catch (err: any) {
       toast.error(err.message);
     }
+    });
   }
 
   function openAdd(date?: Date) {
@@ -310,7 +311,7 @@ export function CalendarPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive"
-                          onClick={() => setDeleteTarget(e.id)}
+                          onClick={() => handleDelete(e.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -392,15 +393,6 @@ export function CalendarPage() {
           />
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        className="max-w-sm"
-        open={!!deleteTarget}
-        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
-        title="Удалить событие?"
-        description="Это действие нельзя отменить."
-        onConfirm={async () => { await handleDelete(); }}
-      />
 
       {/* Appears once a day is picked, because that is the only moment it has
           something useful to add to. Tapping a cell used to just move the

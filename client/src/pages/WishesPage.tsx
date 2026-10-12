@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WishlistForm } from '@/components/wishes/WishlistForm';
+import { NewWishForm } from '@/components/wishes/NewWishForm';
 import type { Wishlist } from '@/types';
 import { formatMoney } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -19,6 +20,9 @@ export function WishesPage() {
   const [lists, setLists] = useState<Wishlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Wishlist | null>(null);
+  // Separate from the create dialog: that one now also collects the first
+  // gift, which an edit has no business showing.
+  const [editOpen, setEditOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -52,16 +56,41 @@ async function handleDelete(id: string) {
             </DialogTrigger>
             <DialogContent className="max-w-lg sm:w-full">
               <DialogHeader>
-                <DialogTitle>{editing ? 'Редактировать список' : 'Новый список'}</DialogTitle>
+                <DialogTitle>Новый список</DialogTitle>
+                {/* One form for the list and its first gift: creating a wish
+                    meant making the list, going into it, then adding the thing
+                    you were actually thinking about. */}
+                <NewWishForm
+                  onSuccess={() => {
+                    setDialogOpen(false);
+                    load();
+                  }}
+                />
               </DialogHeader>
-              <WishlistForm
-                wishlist={editing}
-                onSuccess={() => {
-                  setEditing(null);
-                  setDialogOpen(false);
-                  load();
-                }}
-              />
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={editOpen}
+            onOpenChange={(next) => {
+              setEditOpen(next);
+              if (!next) setEditing(null);
+            }}
+          >
+            <DialogContent className="max-w-lg sm:w-full">
+              <DialogHeader>
+                <DialogTitle>Редактировать список</DialogTitle>
+              </DialogHeader>
+              {editing && (
+                <WishlistForm
+                  wishlist={editing}
+                  onSuccess={() => {
+                    setEditing(null);
+                    setEditOpen(false);
+                    load();
+                  }}
+                />
+              )}
             </DialogContent>
           </Dialog>
         </div>
@@ -101,7 +130,7 @@ async function handleDelete(id: string) {
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditing(list);
-                          setDialogOpen(true);
+                          setEditOpen(true);
                         }}
                       >
                         <Edit3 className="h-3.5 w-3.5" />
@@ -155,13 +184,6 @@ async function handleDelete(id: string) {
         </div>
       )}
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
-        title="Удалить список?"
-        description="Вместе с ним удалятся все подарки. Это нельзя отменить."
-        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
-      />
     </div>
   );
 }

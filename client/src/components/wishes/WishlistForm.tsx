@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 const schema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   description: z.string().optional(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.enum(['private', 'family']).default('private'),
   familyId: z.string().optional(),
 });
 
@@ -40,7 +40,7 @@ export function WishlistForm({ wishlist, onSuccess }: Props) {
       ? {
           title: wishlist.title,
           description: wishlist.description || '',
-          visibility: wishlist.visibility || 'private',
+          visibility: wishlist.visibility === ('public' as string) ? 'private' : wishlist.visibility || 'private',
           familyId: wishlist.familyId || undefined,
         }
       : {
@@ -101,7 +101,6 @@ export function WishlistForm({ wishlist, onSuccess }: Props) {
           <SelectContent>
             <SelectItem value="private">Только я</SelectItem>
             <SelectItem value="family">Семья</SelectItem>
-            <SelectItem value="public">Публичный</SelectItem>
           </SelectContent>
         </Select>
       </div>

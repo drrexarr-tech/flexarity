@@ -26,7 +26,8 @@ import { formatMoney, formatDate, daysUntil, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 export function PlanDetailPage() {
-  const { id } = useParams<{ id: string }>();
+    const [deleting, setDeleting] = useState(false);
+    const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -58,14 +59,21 @@ export function PlanDetailPage() {
 
   async function handleDelete() {
     if (!plan) return;
+    // No confirmation any more, so this is the only thing stopping a double
+    // tap from sending two DELETEs and showing a 404 for the second.
+    if (deleting) return;
+    setDeleting(true);
     try {
       await api.plans.delete(plan.id);
       toast.success('План удалён');
       navigate('/plans');
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setDeleting(false);
     }
   }
+  
 
   function openEntry(type: 'income' | 'expense') {
     setEntryType(type);
@@ -104,7 +112,6 @@ export function PlanDetailPage() {
   async function handleDeleteEntry(entryId: string) {
     if (!plan) return;
     const id = entryId;
-    setDeleteEntryId(null);
     try {
       await api.plans.deleteEntry(plan.id, id);
       load();
@@ -139,7 +146,7 @@ export function PlanDetailPage() {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Edit3 className="mr-2 h-4 w-4" /> Изменить
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Button variant="destructive" size="sm" disabled={deleting} onClick={() => { void handleDelete(); }}>
               <Trash2 className="mr-2 h-4 w-4" /> Удалить
             </Button>
           </div>
@@ -269,7 +276,7 @@ export function PlanDetailPage() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0 text-destructive opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                      onClick={() => setDeleteEntryId(entry.id)}
+                      onClick={() => { void handleDeleteEntry(entry.id); }}
                     >
                       <X className="h-3.5 w-3.5" />
                     </Button>
@@ -289,23 +296,6 @@ export function PlanDetailPage() {
           <PlanForm plan={plan} onSuccess={() => { setEditOpen(false); load(); }} />
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Удалить план?"
-        description="Вместе с ним удалятся все записи. Это нельзя отменить."
-        onConfirm={async () => { await handleDelete(); }}
-      />
-
-      <ConfirmDialog
-        className="max-w-sm"
-        open={!!deleteEntryId}
-        onOpenChange={(next) => { if (!next) setDeleteEntryId(null); }}
-        title="Удалить запись?"
-        description="Это действие нельзя отменить."
-        onConfirm={async () => { if (deleteEntryId) await handleDeleteEntry(deleteEntryId); }}
-      />
 
       <Dialog open={entryOpen} onOpenChange={setEntryOpen}>
         <DialogContent className="max-w-sm sm:w-full">

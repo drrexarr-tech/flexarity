@@ -19,7 +19,7 @@ export interface Recipe {
   category: string | null;
   imageUrl: string | null;
   isPublic: boolean;
-  visibility: 'private' | 'family' | 'public';
+  visibility: 'private' | 'family';
   familyId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -34,7 +34,7 @@ export interface Task {
   order: number;
   columnId: string;
   column?: TaskColumn;
-  visibility: 'private' | 'family' | 'public';
+  visibility: 'private' | 'family';
   familyId: string | null;
   userId: string;
   user?: { id: string; name: string };
@@ -68,7 +68,7 @@ export interface Plan {
   targetAmount: number;
   deadline: string | null;
   color: string | null;
-  visibility: 'private' | 'family' | 'public';
+  visibility: 'private' | 'family';
   familyId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -106,7 +106,7 @@ export interface Wishlist {
   id: string;
   title: string;
   description: string | null;
-  visibility: 'private' | 'family' | 'public';
+  visibility: 'private' | 'family';
   familyId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -127,7 +127,7 @@ export interface CalendarEvent {
   date: string;
   time: string | null;
   color: string | null;
-  visibility: 'private' | 'family' | 'public';
+  visibility: 'private' | 'family';
   familyId: string | null;
   createdAt: string;
   updatedAt: string;

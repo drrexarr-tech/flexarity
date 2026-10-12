@@ -194,13 +194,6 @@ export function RecipesPage() {
         </div>
       )}
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
-        title="Удалить рецепт?"
-        description="Все ингредиенты и шаги будут удалены."
-        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
-      />
     </div>
   );
 }

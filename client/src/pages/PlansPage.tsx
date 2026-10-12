@@ -205,13 +205,6 @@ export function PlansPage() {
         </div>
       )}
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
-        title="Удалить план?"
-        description="Вместе с планом удалятся все записи. Его нельзя отменить."
-        onConfirm={async () => { if (deleteTarget) await handleDelete(deleteTarget); }}
-      />
     </div>
   );
 }

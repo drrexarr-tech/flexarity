@@ -15,7 +15,7 @@ const planSchema = z.object({
   targetAmount: optionalAmount(0, 'Сумма не может быть отрицательной'),
   deadline: optionalText(),
   color: optionalText(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),
   familyId: optionalText(),
 });
 
@@ -58,7 +58,6 @@ async function findVisible(id: string, userId: string) {
   if (!plan) throw new AppError(404, 'План не найден');
 
   if (plan.userId === userId) return plan;
-  if (plan.visibility === 'public') return plan;
   if (plan.visibility === 'family' && plan.familyId) {
     const familyIds = await familyIdsOf(userId);
     if (familyIds.includes(plan.familyId)) return plan;
@@ -74,7 +73,6 @@ plansRouter.get('/', async (req: AuthRequest, res: Response) => {
       OR: [
         { userId: req.userId },
         { visibility: 'family', familyId: { in: familyIds } },
-        { visibility: 'public' },
       ],
     },
     include: { user: userSelect, entries: { select: { amount: true, type: true } } },

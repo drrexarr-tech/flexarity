@@ -17,6 +17,7 @@ import type { Recipe } from '@/types';
 import toast from 'react-hot-toast';
 
 export function RecipeDetailPage() {
+  const [deleting, setDeleting] = useState(false);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
@@ -41,12 +42,21 @@ export function RecipeDetailPage() {
 
 async function handleDelete() {
   if (!recipe) return;
-  // Errors propagate so the confirmation can show them in place instead of
-  // the dialog closing over a request that never landed.
-  await api.recipes.delete(recipe.id);
-  toast.success('Рецепт удалён');
-  navigate('/recipes');
+  // No confirmation any more, so this is the only thing stopping a double tap
+  // from sending two DELETEs and showing a 404 for the second.
+  if (deleting) return;
+  setDeleting(true);
+  try {
+    await api.recipes.delete(recipe.id);
+    toast.success('Рецепт удалён');
+    navigate('/recipes');
+  } catch (err: any) {
+    toast.error(err.message);
+  } finally {
+    setDeleting(false);
   }
+}
+  
 
   if (loading) {
     return (
@@ -81,7 +91,7 @@ async function handleDelete() {
               <RecipeForm recipe={recipe} onSuccess={() => { setEditDialogOpen(false); load(); }} />
             </DialogContent>
           </Dialog>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteDialog(true)}>
+          <Button variant="destructive" size="sm" disabled={deleting} onClick={() => { void handleDelete(); }}>
             <Trash2 className="mr-2 h-4 w-4" /> Удалить
           </Button>
         </div>
@@ -163,13 +173,6 @@ async function handleDelete() {
         </CardContent>
       </Card>
 
-<ConfirmDialog
-        open={deleteDialog}
-        onOpenChange={setDeleteDialog}
-        title="Удалить рецепт?"
-        description="Это действие нельзя отменить. Рецепт будет удалён навсегда."
-        onConfirm={handleDelete}
-      />
     </div>
   );
 }

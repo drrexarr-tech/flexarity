@@ -18,7 +18,7 @@ const schema = z.object({
   description: z.string().optional(),
   targetAmount: z.coerce.number().min(0, 'Сумма не может быть отрицательной'),
   deadline: z.string().optional(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.enum(['private', 'family']).default('private'),
   familyId: z.string().optional(),
 });
 
@@ -50,7 +50,7 @@ export function PlanForm({ plan, onSuccess }: Props) {
           description: plan.description || '',
           targetAmount: plan.targetAmount || 0,
           deadline: plan.deadline ? plan.deadline.slice(0, 10) : '',
-          visibility: plan.visibility || 'private',
+          visibility: plan.visibility === ('public' as string) ? 'private' : plan.visibility || 'private',
           familyId: plan.familyId || undefined,
         }
       : {
@@ -148,7 +148,6 @@ export function PlanForm({ plan, onSuccess }: Props) {
           <SelectContent>
             <SelectItem value="private">Только я</SelectItem>
             <SelectItem value="family">Семья</SelectItem>
-            <SelectItem value="public">Публичный</SelectItem>
           </SelectContent>
         </Select>
       </div>

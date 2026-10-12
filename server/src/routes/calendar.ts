@@ -15,7 +15,7 @@ const eventSchema = z.object({
   date: z.string().min(1, 'Дата обязательна'),
   time: optionalText(),
   color: optionalText(),
-  visibility: z.enum(['private', 'family', 'public']).default('private'),
+  visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),
   familyId: optionalText(),
 });
 
@@ -98,7 +98,6 @@ function visibilityFilter(userId: string, familyIds: string[]) {
     OR: [
       { userId },
       { visibility: 'family', familyId: { in: familyIds } },
-      { visibility: 'public' },
     ],
   };
 }

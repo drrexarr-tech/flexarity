@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSingleFlight } from '@/lib/useSingleFlight';
 import { Plus, List, Columns } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import type { TaskColumn } from '@/types';
 import toast from 'react-hot-toast';
 
 export function TasksPage() {
+  const run = useSingleFlight();
   const [columns, setColumns] = useState<TaskColumn[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,16 +58,14 @@ export function TasksPage() {
   }
 
   async function handleDeleteTask(id: string) {
-    setDeleteTarget(id);
+    // No confirmation step: the tap deletes. run() is the double-tap guard.
+    await run(id, async () => {
+      await api.tasks.delete(id);
+      toast.success('Задача удалена');
+      await load();
+    });
   }
 
-async function confirmDeleteTask() {
-    const id = deleteTarget;
-    if (!id) return;
-    await api.tasks.delete(id);
-    toast.success('Задача удалена');
-    await load();
-  }
 
   async function handleReorder(items: { id: string; order: number; columnId: string }[]) {
     try {
@@ -152,13 +152,6 @@ async function confirmDeleteTask() {
 
       <Fab onClick={() => setCreateDialogOpen(true)} label="Новая задача" />
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(next) => { if (!next) setDeleteTarget(null); }}
-        title="Удалить задачу?"
-        description="Это действие нельзя отменить."
-        onConfirm={confirmDeleteTask}
-      />
     </div>
   );
 }
