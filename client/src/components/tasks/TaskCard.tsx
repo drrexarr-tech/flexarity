@@ -151,7 +151,11 @@ export function TaskCard({
               )}
               {task.visibility && task.visibility !== 'private' && (
                 <Badge variant="outline" className="text-[10px]">
-                  {task.visibility === 'family' ? 'Семья' : 'Публичный'}
+                  {/* Only two values are left: a task is yours or the family's.
+                      The old third case read "Публичный" for anything that
+                      was neither, which is a label that no longer means
+                      anything. */}
+                  Семья
                 </Badge>
               )}
               {task.priority && (

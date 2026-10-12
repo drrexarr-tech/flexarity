@@ -114,7 +114,9 @@ async function handleDelete() {
               {recipe.category && <Badge>{recipe.category}</Badge>}
               {recipe.visibility && (
                 <Badge variant="outline">
-                  {recipe.visibility === 'private' ? 'Только я' : recipe.visibility === 'family' ? 'Семья' : 'Публичный'}
+                  {/* Two values left; the old third case named an option that
+                      no longer exists. */}
+                  {recipe.visibility === 'private' ? 'Только я' : 'Семья'}
                 </Badge>
               )}
               {safeHttpUrl(recipe.url) && (
