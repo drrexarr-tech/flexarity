@@ -59,11 +59,28 @@ export function TasksPage() {
 
   async function handleDeleteTask(id: string) {
     // No confirmation step: the tap deletes. run() is the double-tap guard.
-    await run(id, async () => {
-      await api.tasks.delete(id);
-      toast.success('Задача удалена');
+    // This had no catch, so a rejected request became an unhandled promise and
+    // the tap looked like it did nothing at all - no error, no change.
+    try {
+      await run(id, async () => {
+        // Drop it from the list first so the tap is visibly answered even if
+        // the refetch is slow, then let load() settle the truth.
+        setColumns((prev) =>
+          prev.map((col) => ({
+            ...col,
+            tasks: (col.tasks || []).filter((t: any) => t.id !== id),
+          }))
+        );
+        setAssignedTasks((prev) => prev.filter((t: any) => t.id !== id));
+
+        await api.tasks.delete(id);
+        toast.success('Задача удалена');
+        await load();
+      });
+    } catch (err: any) {
+      toast.error(err?.message || 'Не удалось удалить задачу');
       await load();
-    });
+    }
   }
 
 

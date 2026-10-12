@@ -112,12 +112,19 @@ export function NewWishForm({ onSuccess }: { onSuccess: () => void }) {
 
       <Separator />
 
-      {/* The gift is what people actually came to write down. */}
+      {/* The gift is what people actually came here to write down, so it leads:
+          "Первый подарок" read as a second, optional thing bolted onto a form
+          that was really about the list, and people did not know which half was
+          the real one. Name it for what it is and keep it obviously optional. */}
+      <p className="text-sm text-muted-foreground">
+        Подарок можно добавить сейчас или позже — список создастся в любом случае.
+      </p>
+
       <div className="space-y-2">
-        <Label htmlFor="wish-gift">Первый подарок</Label>
+        <Label htmlFor="wish-gift">Что подарить</Label>
         <Input
           id="wish-gift"
-          placeholder="Можно добавить позже"
+          placeholder="Например: наушники"
           {...form.register('giftTitle')}
         />
       </div>

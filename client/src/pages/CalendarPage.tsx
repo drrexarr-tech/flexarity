@@ -200,9 +200,14 @@ export function CalendarPage() {
                 const isCellToday = sameDay(cell.date, today);
 
                 return (
+                  /* Double tap opens the create dialog for that day. One tap
+                     already selects it, so the second is unambiguous - and a
+                     target that only selects leaves the add button as the next
+                     step, which is the one thing a thumb cannot reach. */
                   <button
                     key={key}
                     onClick={() => setSelected(cell.date)}
+                    onDoubleClick={() => openAdd(cell.date)}
                     className={cn(
                       'flex min-h-[54px] flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-colors lg:min-h-[68px]',
                       isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/60',

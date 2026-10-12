@@ -160,15 +160,22 @@ export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTas
                           )}
                         </div>
                         <div className="flex gap-1">
-                            {/* Controlled, and the task is actually handed to
-                                the form. As an uncontrolled dialog with no
-                                task prop it rendered a blank create form under
-                                the heading "Редактировать задачу": saving it
-                                PUT an empty payload over the task, wiping its
-                                description, priority, visibility and assignee,
-                                and the dialog never closed. TaskCard's version
-                                of this worked and is the pattern used here. */}
-                            <Dialog open={editingId === task.id} onOpenChange={(next) => { if (!next) setEditingId(null); }}>
+                            {/* Controlled, and the task is actually handed to the form. As an
+                                uncontrolled dialog with no task prop it rendered a blank
+                                create form under the heading "Редактировать задачу":
+                                saving it PUT an empty payload over the task, wiping its
+                                description, priority, visibility and assignee, and the
+                                dialog never closed.
+
+                                onOpenChange has to handle true as well as false. The trigger
+                                below lives inside the dialog, so opening is requested by
+                                Radix and there is no external button setting the state - an
+                                "if (!next) reset" handler silently drops the open and the
+                                pencil does nothing at all. */}
+                            <Dialog
+                              open={editingId === task.id}
+                              onOpenChange={(next) => setEditingId(next ? task.id : null)}
+                            >
                               <DialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Редактировать задачу">
                                   <Edit3 className="h-3.5 w-3.5" />

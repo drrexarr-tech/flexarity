@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
+import { useVisualViewportInsets } from '@/lib/useVisualViewport';
 import { useThemeStore } from '@/stores/themeStore';
 import { useNavStore } from '@/stores/navStore';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -90,6 +91,10 @@ export default function App() {
   const initAuth = useAuthStore((s) => s.init);
   const initTheme = useThemeStore((s) => s.init);
   const initNav = useNavStore((s) => s.init);
+
+  // Publishes the keyboard inset once, so every sheet in the app can sit above
+  // it rather than underneath.
+  useVisualViewportInsets();
 
   useEffect(() => {
     initAuth();

@@ -243,9 +243,11 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
         </div>
       )}
 
-      // Sticky: the form is seven blocks tall on a phone, and the button used to be
-        // the one thing off-screen - the sheet scrolls, but with the submit out
-        // of sight it reads as "stuck, will not scroll".
+      {/* Sticky: the form is seven blocks tall on a phone, and the button used to
+            be the one thing off-screen - the sheet scrolls, but with the submit out
+            of sight it reads as "stuck, will not scroll".
+            Note the braces: a // comment inside JSX is a text node, not a comment,
+            and it was being rendered into the form as visible prose. */}
         <Button type="submit" className="sticky bottom-0 z-10 w-full bg-background" disabled={loading}>
         {loading ? 'Сохранение...' : task ? 'Сохранить' : 'Создать задачу'}
       </Button>
