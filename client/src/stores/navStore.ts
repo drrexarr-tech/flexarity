@@ -20,7 +20,7 @@ export const ALL_SECTIONS = [
   { id: 'chats', to: '/chats', label: 'Чаты' },
   { id: 'notes', to: '/notes', label: 'Заметки' },
   { id: 'recipes', to: '/recipes', label: 'Рецепты' },
-  { id: 'plans', to: '/plans', label: 'Планы' },
+  { id: 'plans', to: '/plans', label: 'Накопления' },
   { id: 'wishes', to: '/wishes', label: 'Хотелки' },
   { id: 'family', to: '/family', label: 'Семья' },
 ] as const;

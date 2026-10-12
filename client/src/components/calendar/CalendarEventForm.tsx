@@ -12,6 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import type { CalendarEvent } from '@/types';
+import { parseWhenFromTitle } from '@/lib/dateParse';
+import { formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 const schema = z.object({
@@ -71,6 +73,34 @@ export function CalendarEventForm({ event, defaultDate, onSuccess }: Props) {
   });
 
   const visibility = form.watch('visibility');
+  const [parsedHint, setParsedHint] = useState<string | null>(null);
+
+  /**
+   * A title that names a day wins over whichever cell was tapped.
+   *
+   * Runs on blur rather than on every keystroke: while someone is still typing
+   * "15.10" a half-written fragment would keep flipping the date under them.
+   * A time on its own deliberately leaves the date alone, because the tapped
+   * cell is the choice being made there.
+   */
+  function applyParsedWhen(title: string) {
+    const parsed = parseWhenFromTitle(title);
+    if (!parsed.date && !parsed.time) {
+      setParsedHint(null);
+      return;
+    }
+
+    if (parsed.date) form.setValue('date', parsed.date);
+    if (parsed.time) form.setValue('time', parsed.time);
+    if (parsed.title && parsed.title !== title.trim()) {
+      form.setValue('title', parsed.title);
+    }
+
+    const bits: string[] = [];
+    if (parsed.date) bits.push(formatDate(parsed.date));
+    if (parsed.time) bits.push(parsed.time);
+    setParsedHint(`Распознано из названия: ${bits.join(', ')}`);
+  }
 
   async function onSubmit(data: z.infer<typeof schema>) {
     setLoading(true);
@@ -102,10 +132,15 @@ export function CalendarEventForm({ event, defaultDate, onSuccess }: Props) {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="event-title">Название</Label>
-        <Input id="event-title" {...form.register('title')} />
+        <Input
+          id="event-title"
+          {...form.register('title')}
+          onBlur={(e) => applyParsedWhen(e.target.value)}
+        />
         {form.formState.errors.title && (
           <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
         )}
+        {parsedHint && <p className="text-xs text-muted-foreground">{parsedHint}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

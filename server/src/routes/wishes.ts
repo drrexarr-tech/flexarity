@@ -23,6 +23,8 @@ const itemSchema = z.object({
   note: optionalText(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
   recipientId: optionalText(),
+  // Free text, for anyone who is not a family member with an account here.
+  recipientName: z.string().max(80).trim().optional().nullable(),
 });
 
 const userSelect = { select: { id: true, name: true } } as const;
@@ -218,6 +220,7 @@ wishesRouter.post('/:id/items', async (req: AuthRequest, res: Response) => {
       note: data.note || null,
       priority: data.priority ?? null,
       recipientId: await resolveRecipientId(req.userId!, data.recipientId),
+      recipientName: data.recipientName || null,
       wishlistId: list.id,
       ownerId: req.userId!,
     },
@@ -257,6 +260,7 @@ wishesRouter.put('/:id/items/:itemId', async (req: AuthRequest, res: Response) =
       ...(data.note !== undefined ? { note: data.note || null } : {}),
       ...(data.priority !== undefined ? { priority: data.priority ?? null } : {}),
       ...(data.recipientId !== undefined ? { recipientId: await resolveRecipientId(req.userId!, data.recipientId) } : {}),
+      ...(data.recipientName !== undefined ? { recipientName: data.recipientName || null } : {}),
     },
     include: { owner: userSelect, recipient: userSelect },
   });

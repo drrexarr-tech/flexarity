@@ -95,12 +95,25 @@
 }
 
 /* iOS Safari zooms the viewport when a focused field is under 16px, which on a
-   form means a zoom on every tap. */
+   form means a zoom on every tap.
+   !important is the point: a bare element selector loses to Tailwind's own
+   text-sm utility, and plenty of fields carry it. Anything under 16px zooms the
+   page and leaves the user squinting at a half-screen form. */
 @media (max-width: 640px) {
   input,
   textarea,
   select {
-    font-size: 16px;
+    font-size: 16px !important;
+  }
+
+  /* Stops the double-tap zoom on the same elements. Pinch zoom is left alone:
+     blocking it outright is an accessibility problem, and this only removes
+     the accidental case. */
+  input,
+  textarea,
+  select,
+  button {
+    touch-action: manipulation;
   }
 }
 

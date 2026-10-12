@@ -95,6 +95,8 @@ export interface WishItem {
   createdAt: string;
   wishlistId: string;
   ownerId: string;
+  /** Free text for anyone without an account here. */
+  recipientName?: string | null;
   owner?: { id: string; name: string };
   recipientId: string | null;
   recipient?: { id: string; name: string } | null;

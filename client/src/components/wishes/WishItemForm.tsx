@@ -21,6 +21,7 @@ const schema = z.object({
   note: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
   recipientId: z.string().optional(),
+  recipientName: z.string().optional(),
 });
 
 const priorityLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий' } as const;
@@ -28,18 +29,14 @@ const priorityLabels = { low: 'Низкий', medium: 'Средний', high: '�
 interface Props {
   wishlistId: string;
   item?: WishItem | null;
-  defaultRecipientId?: string | null;
+  /** Name to prefill for someone who already has a list of their own. */
+  defaultRecipientName?: string | null;
   onSuccess: () => void;
 }
 
-export function WishItemForm({ wishlistId, item, defaultRecipientId, onSuccess }: Props) {
+export function WishItemForm({ wishlistId, item, defaultRecipientName, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
-  const [recipients, setRecipients] = useState<{ id: string; name: string }[]>([]);
   const isEdit = !!item;
-
-  useEffect(() => {
-    api.wishes.recipients().then(setRecipients).catch(() => {});
-  }, []);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -50,6 +47,9 @@ export function WishItemForm({ wishlistId, item, defaultRecipientId, onSuccess }
           url: item.url || '',
           note: item.note || '',
           priority: item.priority ?? undefined,
+          // Show whoever this was for, whether that is a linked account or a
+          // name typed in by hand.
+          recipientName: item.recipientName || item.recipient?.name || '',
           recipientId: item.recipientId || undefined,
         }
       : {
@@ -58,7 +58,8 @@ export function WishItemForm({ wishlistId, item, defaultRecipientId, onSuccess }
           url: '',
           note: '',
           priority: undefined,
-          recipientId: defaultRecipientId || undefined,
+          recipientName: defaultRecipientName || '',
+          recipientId: undefined,
         },
   });
 
@@ -124,21 +125,16 @@ export function WishItemForm({ wishlistId, item, defaultRecipientId, onSuccess }
       </div>
 
       <div className="space-y-2">
-        <Label>Для кого</Label>
-        <Select
-          value={form.watch('recipientId') || 'none'}
-          onValueChange={(v) => form.setValue('recipientId', v === 'none' ? undefined : v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Не указан" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Не указан</SelectItem>
-            {recipients.map((r) => (
-              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label htmlFor="item-for">Для кого</Label>
+        {/* Free text rather than a picker. The recipient relation only covers
+            people with an account here, so a wish for a colleague, a cousin or
+            a child had nowhere to go - and picking from a list meant the name
+            could never be the one you actually use for that person. */}
+        <Input
+          id="item-for"
+          placeholder="Например: мама"
+          {...form.register('recipientName')}
+        />
       </div>
 
       <div className="space-y-2">

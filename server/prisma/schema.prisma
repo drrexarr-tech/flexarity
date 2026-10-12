@@ -292,6 +292,10 @@ model WishItem {
   owner       User      @relation("WishItemOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   recipientId String?
   recipient   User?     @relation("WishItemRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  // Free text, for a wish that is for someone who is not in the family: a
+  // colleague, a cousin, a child. The recipient relation only covers people
+  // who have an account here, and picking one from a list was the only option.
+  recipientName String?
 }
 
 model CalendarEvent {

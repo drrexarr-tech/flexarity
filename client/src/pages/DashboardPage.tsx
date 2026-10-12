@@ -18,7 +18,7 @@ const apps = [
   { title: 'Рецепты', icon: BookOpen, path: '/recipes', color: 'from-orange-500 to-red-500' },
   { title: 'Задачи', icon: CheckSquare, path: '/tasks', color: 'from-blue-500 to-indigo-500' },
   { title: 'Заметки', icon: StickyNote, path: '/notes', color: 'from-yellow-500 to-amber-500' },
-  { title: 'Планы', icon: PiggyBank, path: '/plans', color: 'from-emerald-500 to-teal-500' },
+  { title: 'Накопления', icon: PiggyBank, path: '/plans', color: 'from-emerald-500 to-teal-500' },
   { title: 'Хотелки', icon: Gift, path: '/wishes', color: 'from-rose-500 to-pink-500' },
   { title: 'Календарь', icon: CalendarDays, path: '/calendar', color: 'from-cyan-500 to-blue-500' },
   { title: 'Покупки', icon: ShoppingCart, path: '/shopping', color: 'from-lime-500 to-green-500' },
@@ -187,7 +187,7 @@ export function DashboardPage() {
               onClick={() => navigate('/shopping')}
             />
             <StatTile
-              label="Планы"
+              label="Накопления"
               value={activePlans.length}
               icon={TrendingUp}
               accent="linear-gradient(135deg,#8B5CF6,#6366F1)"
@@ -202,7 +202,7 @@ export function DashboardPage() {
         {/* Tasks due */}
         <Card>
           <SectionHead
-            title="Сроки"
+            title="Дела"
             count={dueTasks.length}
             onMore={() => navigate('/tasks')}
             icon={<ListTodo className="h-4 w-4 text-muted-foreground" />}
@@ -285,7 +285,7 @@ export function DashboardPage() {
         {/* Plans progress */}
         <Card>
           <SectionHead
-            title="Планы"
+            title="Накопления"
             count={activePlans.length}
             onMore={() => navigate('/plans')}
             icon={<PiggyBank className="h-4 w-4 text-muted-foreground" />}

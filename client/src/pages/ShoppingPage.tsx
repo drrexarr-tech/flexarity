@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ShoppingCart, Plus, Trash2, Check, X, Pencil, Eraser, ChevronDown,
 } from 'lucide-react';
@@ -19,8 +19,29 @@ import type { ShoppingItem } from '@/types';
 import { formatMoney, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = ['Продукты', 'Напитки', 'Хозтовары', 'Гигиена', 'Лекарства', 'Для дома', 'Другое'];
+// "Хозтовары" and "Для дома" were the same shelf split across two labels, and
+// splitting "Лекарства" away from the pharmacy it is bought at only made the
+// list longer. Categories are free-form on the server, so existing rows keep
+// whatever they were tagged with and still render under their own group.
+const CATEGORIES = ['Продукты', 'Аптека', 'Хозтовары', 'Гигиена', 'Другое'];
 const UNITS = ['шт', 'кг', 'г', 'л', 'мл', 'уп'];
+
+/**
+ * Items already in the database carry the old labels. Merging the categories
+ * without this would leave the list showing "Для дома" and "Хозтовары" as two
+ * separate groups, which is the thing being removed. Read-side only: the stored
+ * value is left alone, so nothing is rewritten under the user.
+ */
+const LEGACY_CATEGORIES: Record<string, string> = {
+  'Напитки': 'Продукты',
+  'Лекарства': 'Аптека',
+  'Для дома': 'Хозтовары',
+};
+
+function normaliseCategory(value: string | null | undefined): string {
+  if (!value) return 'Другое';
+  return LEGACY_CATEGORIES[value] ?? value;
+}
 
 export function ShoppingPage() {
   const currentUser = useAuthStore((s) => s.user);
@@ -28,6 +49,7 @@ export function ShoppingPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [quick, setQuick] = useState('');
+  const quickInputRef = useRef<HTMLInputElement>(null);
   const [quickCategory, setQuickCategory] = useState<string>('Продукты');
   const [familyId, setFamilyId] = useState<string>('');
   const [families, setFamilies] = useState<any[]>([]);
@@ -71,6 +93,11 @@ export function ShoppingPage() {
     try {
       await api.shopping.create({ title, category: quickCategory, familyId: familyId || undefined });
       setQuick('');
+      // Put the keyboard away once the item is in. Leaving it up covers the
+      // list the item was just added to, and the field empties anyway - so the
+      // next item is added by tapping the field again, not by a keyboard that
+      // is blocking the result.
+      quickInputRef.current?.blur();
       load();
     } catch (err: any) {
       toast.error(err.message);
@@ -139,13 +166,13 @@ export function ShoppingPage() {
   const visiblePending = useMemo(() => {
     if (filter === 'all') return pending;
     if (filter === 'mine') return pending.filter((i) => i.userId === currentUser?.id);
-    return pending.filter((i) => i.category === filter);
+    return pending.filter((i) => normaliseCategory(i.category) === filter);
   }, [pending, filter, currentUser]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, ShoppingItem[]>();
     for (const item of visiblePending) {
-      const key = item.category || 'Другое';
+      const key = normaliseCategory(item.category);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(item);
     }
@@ -156,7 +183,7 @@ export function ShoppingPage() {
   const boughtTotal = bought.reduce((s, i) => s + (i.price ?? 0), 0);
 
   const tabs = useMemo(() => {
-    const used = new Set(items.map((i) => i.category || 'Другое'));
+    const used = new Set(items.map((i) => normaliseCategory(i.category)));
     return ['all', 'mine', ...CATEGORIES.filter((c) => used.has(c))];
   }, [items]);
 
@@ -181,6 +208,7 @@ export function ShoppingPage() {
         <CardContent className="p-3">
           <div className="flex gap-2">
             <Input
+              ref={quickInputRef}
               value={quick}
               onChange={(e) => setQuick(e.target.value)}
               onKeyDown={(e) => {

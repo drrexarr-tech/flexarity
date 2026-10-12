@@ -30,6 +30,7 @@ const priorityLabels = { low: 'Низкий', medium: 'Средний', high: '�
 
 export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTask }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const toggleCollapse = (id: string) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -159,25 +160,35 @@ export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTas
                           )}
                         </div>
                         <div className="flex gap-1">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <Edit3 className="h-3.5 w-3.5" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Редактировать задачу</DialogTitle>
-                              </DialogHeader>
-                              <TaskForm
-                                columns={columns}
-                                defaultColumnId={task.columnId}
-                                onSubmit={async (data) => {
-                                  await onUpdateTask(task.id, data);
-                                }}
-                              />
-                            </DialogContent>
-                          </Dialog>
+                            {/* Controlled, and the task is actually handed to
+                                the form. As an uncontrolled dialog with no
+                                task prop it rendered a blank create form under
+                                the heading "Редактировать задачу": saving it
+                                PUT an empty payload over the task, wiping its
+                                description, priority, visibility and assignee,
+                                and the dialog never closed. TaskCard's version
+                                of this worked and is the pattern used here. */}
+                            <Dialog open={editingId === task.id} onOpenChange={(next) => { if (!next) setEditingId(null); }}>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Редактировать задачу">
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-md sm:w-full">
+                                <DialogHeader>
+                                  <DialogTitle>Редактировать задачу</DialogTitle>
+                                </DialogHeader>
+                                <TaskForm
+                                  columns={columns}
+                                  defaultColumnId={task.columnId}
+                                  task={task}
+                                  onSubmit={async (data) => {
+                                    await onUpdateTask(task.id, data);
+                                    setEditingId(null);
+                                  }}
+                                />
+                              </DialogContent>
+                            </Dialog>
                           <Button
                             variant="ghost"
                             size="icon"

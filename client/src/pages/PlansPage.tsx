@@ -51,7 +51,7 @@ export function PlansPage() {
     <div className="space-y-4 lg:space-y-6">
       <div>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Планы</h1>
+          <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Накопления</h1>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> Новый план</Button>

@@ -75,11 +75,30 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
 
   const visibility = form.watch('visibility');
 
+  /**
+   * The due date used to derive the checkbox from the field: checked={!dueDate},
+   * with onChange writing '' or undefined. Both are falsy, so !dueDate was true
+   * either way - the box could not be unticked, and because the date input was
+   * disabled whenever the field was empty, a due date could not be entered on a
+   * new task at all. The checkbox now owns its own state and writes the field.
+   */
+  const [noDueDate, setNoDueDate] = useState(!task?.dueDate);
+
+  function defaultDueDateValue(): string {
+    const d = new Date();
+    d.setHours(18, 0, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   async function handleSubmit(data: z.infer<typeof schema>) {
     setLoading(true);
     try {
       const payload: any = { ...data };
-      if (!payload.dueDate) delete payload.dueDate;
+      // Send null rather than dropping the key. Omitting it means "leave
+      // unchanged" to the server, so clearing a due date used to save and then
+      // reappear on the next load.
+      if (!payload.dueDate) payload.dueDate = null;
       if (data.visibility !== 'family') delete payload.familyId;
       await onSubmit(payload);
       form.reset();
@@ -166,12 +185,27 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Label htmlFor="task-due">Срок выполнения</Label>
-          <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
-            <input type="checkbox" checked={!form.watch('dueDate')} onChange={(e) => form.setValue('dueDate', e.target.checked ? '' : undefined)} />
+          <label className="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={noDueDate}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setNoDueDate(checked);
+                // Turning the box on clears the date; turning it off has to put
+                // one in, or the field below stays disabled and empty.
+                form.setValue('dueDate', checked ? '' : defaultDueDateValue());
+              }}
+            />
             Без срока
           </label>
         </div>
-        <Input id="task-due" type="datetime-local" {...form.register('dueDate')} disabled={!form.watch('dueDate')} />
+        <Input
+          id="task-due"
+          type="datetime-local"
+          {...form.register('dueDate')}
+          disabled={noDueDate}
+        />
       </div>
 
       <div className="space-y-2">
@@ -210,7 +244,10 @@ export function TaskForm({ columns, onSubmit, defaultColumnId, task }: Props) {
         </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={loading}>
+      // Sticky: the form is seven blocks tall on a phone, and the button used to be
+        // the one thing off-screen - the sheet scrolls, but with the submit out
+        // of sight it reads as "stuck, will not scroll".
+        <Button type="submit" className="sticky bottom-0 z-10 w-full bg-background" disabled={loading}>
         {loading ? 'Сохранение...' : task ? 'Сохранить' : 'Создать задачу'}
       </Button>
     </form>

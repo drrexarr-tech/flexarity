@@ -9,6 +9,20 @@ import { AppError } from '../middleware/errorHandler';
 export const tasksRouter = Router();
 tasksRouter.use(authenticate);
 
+/**
+ * A due date has three states and they must not collapse into two.
+ * optionalText() already distinguishes them: absent means "leave unchanged",
+ * null or "" means "clear it". Writing `data.dueDate ? new Date(...) : undefined`
+ * threw the null away and turned every clear into a no-op, so unchecking the
+ * due date appeared to work and then reappeared on reload - Prisma reads
+ * undefined as "do not touch this field".
+ */
+function parseDueDate(value: string | null | undefined): Date | null | undefined {
+  if (value === null) return null;
+  if (value === undefined) return undefined;
+  return value ? new Date(value) : null;
+}
+
 const columnSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
   color: optionalText(),
@@ -200,7 +214,7 @@ tasksRouter.post('/', async (req: AuthRequest, res: Response) => {
       ...data,
       familyId: await resolveFamilyId(req.userId!, data.familyId),
       userId: req.userId!,
-      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+      dueDate: parseDueDate(data.dueDate),
     },
     include: { assignee: { select: { id: true, name: true, email: true } } },
   });
@@ -241,7 +255,7 @@ tasksRouter.put('/:id', async (req: AuthRequest, res: Response) => {
 
   const task = await prisma.task.update({
     where: { id: String(req.params.id) },
-    data: { ...patch, dueDate: data.dueDate ? new Date(data.dueDate) : undefined } as any,
+    data: { ...patch, dueDate: parseDueDate(data.dueDate) } as any,
     include: { assignee: { select: { id: true, name: true, email: true } } },
   });
   res.json(task);

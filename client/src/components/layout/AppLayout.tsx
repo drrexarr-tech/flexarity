@@ -12,7 +12,13 @@ export function AppLayout() {
     <div className="flex min-h-dvh bg-background">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex min-h-dvh w-full flex-col lg:ml-64 pb-16 lg:pb-0">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b bg-card/80 backdrop-blur-sm px-4 lg:px-6">
+        {/* safe-area-top, and min-h rather than h: in a standalone PWA there is
+            no browser bar to cover the status bar, so with viewport-fit=cover
+            the header drew underneath it - the clock and the battery sat on top
+            of the title. In Safari the address bar occupies that space, which is
+            why this only ever broke once the app was installed. min-h lets the
+            bar grow by the inset instead of clipping its contents. */}
+        <header className="safe-area-top sticky top-0 z-20 flex min-h-14 items-center gap-4 border-b bg-card/80 px-4 backdrop-blur-sm lg:px-6">
           <SidebarToggle onClick={() => setSidebarOpen(true)} />
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary lg:hidden">

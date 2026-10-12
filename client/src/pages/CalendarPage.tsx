@@ -12,6 +12,7 @@ import {
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Fab } from '@/components/ui/fab';
 import { CalendarEventForm } from '@/components/calendar/CalendarEventForm';
 import { useAuthStore } from '@/stores/authStore';
 import type { CalendarEvent, Birthday, UpcomingItem } from '@/types';
@@ -400,6 +401,11 @@ export function CalendarPage() {
         description="Это действие нельзя отменить."
         onConfirm={async () => { await handleDelete(); }}
       />
+
+      {/* Appears once a day is picked, because that is the only moment it has
+          something useful to add to. Tapping a cell used to just move the
+          selection, and adding an event meant finding a button in the header. */}
+      <Fab onClick={() => openAdd(selected)} label="Добавить событие" />
     </div>
   );
 }

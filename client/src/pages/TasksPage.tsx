@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TaskForm } from '@/components/tasks/TaskForm';
 import { KanbanBoard } from '@/components/tasks/KanbanBoard';
 import { TaskListView } from '@/components/tasks/TaskListView';
+import { Fab } from '@/components/ui/fab';
 import type { TaskColumn } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -110,17 +111,29 @@ async function confirmDeleteTask() {
       </div>
       <p className="text-sm text-muted-foreground">Управляйте своими задачами</p>
 
-      <Tabs defaultValue="kanban">
+      {/* List first and default. The board is a horizontally scrolling strip that
+          was the landing tab, so the phone opened on something you have to
+          swipe sideways to read. Kanban now sits below it. */}
+      <Tabs defaultValue="list">
         <div className="overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0">
           <TabsList>
-            <TabsTrigger value="kanban">
-              <Columns className="mr-2 h-4 w-4" /> Канбан
-            </TabsTrigger>
             <TabsTrigger value="list">
               <List className="mr-2 h-4 w-4" /> Список
             </TabsTrigger>
+            <TabsTrigger value="kanban">
+              <Columns className="mr-2 h-4 w-4" /> Канбан
+            </TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="list" className="mt-4">
+          <TaskListView
+            columns={columns}
+            assignedTasks={assignedTasks}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
+          />
+        </TabsContent>
 
         <TabsContent value="kanban" className="mt-4">
           <div className="-mx-4 px-4 lg:mx-0 lg:px-0">
@@ -135,16 +148,9 @@ async function confirmDeleteTask() {
             />
           </div>
         </TabsContent>
-
-        <TabsContent value="list" className="mt-4">
-          <TaskListView
-            columns={columns}
-            assignedTasks={assignedTasks}
-            onUpdateTask={handleUpdateTask}
-            onDeleteTask={handleDeleteTask}
-          />
-        </TabsContent>
       </Tabs>
+
+      <Fab onClick={() => setCreateDialogOpen(true)} label="Новая задача" />
 
       <ConfirmDialog
         open={!!deleteTarget}

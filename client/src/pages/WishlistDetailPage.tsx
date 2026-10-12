@@ -97,11 +97,12 @@ export function WishlistDetailPage() {
   const grouped = useMemo(() => {
     const map = new Map<string, { label: string; items: NonNullable<Wishlist['items']> }>();
     for (const item of list?.items ?? []) {
-      const key = item.recipientId || 'none';
-      if (!map.has(key)) {
-        map.set(key, { label: item.recipient?.name || 'Без получателя', items: [] });
-      }
-      map.get(key)!.items.push(item);
+      // Group by whoever it is for, whether that is a linked account or a name
+      // typed in by hand. The key is the label so two items typed as "мама"
+      // land together instead of in two buckets.
+      const label = item.recipientName || item.recipient?.name || 'Без получателя';
+      if (!map.has(label)) map.set(label, { label, items: [] });
+      map.get(label)!.items.push(item);
     }
     return [...map.entries()];
   }, [list]);
@@ -198,7 +199,7 @@ export function WishlistDetailPage() {
                   <span className="text-xs text-muted-foreground">
                     {group.items.filter((i) => i.bought).length} из {group.items.length}
                   </span>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openAdd(key === 'none' ? null : key)}>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openAdd(group.label === 'Без получателя' ? null : group.label)}>
                     <Plus className="mr-1 h-3 w-3" /> Подарок
                   </Button>
                 </div>
@@ -325,7 +326,7 @@ export function WishlistDetailPage() {
           <WishItemForm
             wishlistId={list.id}
             item={editingItem}
-            defaultRecipientId={defaultRecipient}
+            defaultRecipientName={defaultRecipient}
             onSuccess={() => { setItemOpen(false); setEditingItem(null); load(); }}
           />
         </DialogContent>
