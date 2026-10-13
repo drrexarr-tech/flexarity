@@ -12,7 +12,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Fab } from '@/components/ui/fab';
 import { CalendarEventForm } from '@/components/calendar/CalendarEventForm';
 import { useAuthStore } from '@/stores/authStore';
@@ -67,7 +66,6 @@ export function CalendarPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const cells = useMemo<Cell[]>(() => {
     const year = cursor.getFullYear();

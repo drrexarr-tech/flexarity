@@ -15,7 +15,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
 import type { RecipePrefill } from '@/components/recipes/RecipeForm';
 import { RecipeImportDialog } from '@/components/recipes/RecipeImportDialog';
@@ -28,7 +27,6 @@ export function RecipesPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [prefill, setPrefill] = useState<RecipePrefill | null>(null);
   const navigate = useNavigate();
@@ -171,7 +169,7 @@ export function RecipesPage() {
                       className="h-7 w-7 text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDeleteTarget(recipe.id);
+                        void handleDelete(recipe.id);
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

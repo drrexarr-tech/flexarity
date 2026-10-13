@@ -11,7 +11,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WishlistForm } from '@/components/wishes/WishlistForm';
 import { WishItemForm } from '@/components/wishes/WishItemForm';
 import { useAuthStore } from '@/stores/authStore';

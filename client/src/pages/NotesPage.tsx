@@ -8,7 +8,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import toast from 'react-hot-toast';
 
 function VoiceRecorder({ onSend }: { onSend: (url: string, duration: number) => void }) {
@@ -100,7 +99,6 @@ export function NotesPage() {
   const [total, setTotal] = useState(0);
   const [editing, setEditing] = useState<any | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [audios, setAudios] = useState<{ url: string; duration: number }[]>([]);
@@ -264,7 +262,7 @@ async function handleDelete(id: string) {
                 <CardContent className="p-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-medium truncate text-sm">{note.title}</h3>
-                    <Button variant="ghost" size="icon" className="invisible group-hover:visible h-6 w-6 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(note.id); }}>
+                    <Button variant="ghost" size="icon" className="invisible group-hover:visible h-6 w-6 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); void handleDelete(note.id); }}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

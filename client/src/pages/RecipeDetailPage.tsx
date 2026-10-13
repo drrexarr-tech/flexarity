@@ -11,7 +11,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { RecipeForm } from '@/components/recipes/RecipeForm';
 import type { Recipe } from '@/types';
 import toast from 'react-hot-toast';

@@ -11,7 +11,7 @@ export function AppLayout() {
     // min-height always leaves a few pixels of scroll even on an empty page.
     <div className="flex min-h-dvh bg-background">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex min-h-dvh w-full flex-col lg:ml-64 pb-16 lg:pb-0">
+      <div className="flex min-h-dvh w-full flex-col lg:ml-64 lg:pb-0 pb-[calc(4rem+env(safe-area-inset-bottom))]">
         {/* safe-area-top, and min-h rather than h: in a standalone PWA there is
             no browser bar to cover the status bar, so with viewport-fit=cover
             the header drew underneath it - the clock and the battery sat on top

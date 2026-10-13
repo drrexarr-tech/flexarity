@@ -175,11 +175,12 @@ tasksRouter.put('/reorder/all', async (req: AuthRequest, res: Response) => {
     // else's board, which then rendered there.
     if (!myColumnIds.has(item.columnId)) continue;
 
+    // Ownership, not assignment. An assignee is shown someone else's task in
+    // "Назначено мне" and could use this to relocate it out of the owner's
+    // board, where it then stopped rendering for them at all. DELETE is
+    // owner-only too, so this matches it.
     const owned = await prisma.task.findFirst({
-      where: {
-        id: item.id,
-        OR: [{ userId: req.userId }, { assigneeId: req.userId }],
-      },
+      where: { id: item.id, userId: req.userId },
       select: { id: true },
     });
     if (!owned) continue;

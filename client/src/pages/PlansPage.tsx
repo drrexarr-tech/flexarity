@@ -9,7 +9,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PlanForm } from '@/components/plans/PlanForm';
 import type { Plan } from '@/types';
 import { formatMoney, daysUntil } from '@/lib/utils';
@@ -20,7 +19,6 @@ export function PlansPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Plan | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const navigate = useNavigate();
 
   async function load() {
@@ -146,7 +144,7 @@ export function PlansPage() {
                         className="h-7 w-7 text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteTarget(plan.id);
+                          void handleDelete(plan.id);
                         }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -194,7 +192,7 @@ export function PlansPage() {
                     {plan.visibility !== 'private' && (
                       <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <Users className="h-3 w-3" />
-                        {plan.visibility === 'family' ? 'Семья' : 'Общий'}
+                        {plan.visibility === 'family' ? 'Семья' : 'Семья'}
                       </span>
                     )}
                   </div>

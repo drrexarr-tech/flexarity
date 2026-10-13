@@ -9,7 +9,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WishlistForm } from '@/components/wishes/WishlistForm';
 import { NewWishForm } from '@/components/wishes/NewWishForm';
 import type { Wishlist } from '@/types';
@@ -24,7 +23,6 @@ export function WishesPage() {
   // gift, which an edit has no business showing.
   const [editOpen, setEditOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const navigate = useNavigate();
 
   async function load() {
@@ -141,7 +139,7 @@ async function handleDelete(id: string) {
                         className="h-7 w-7 text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteTarget(list.id);
+                          void handleDelete(list.id);
                         }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -174,7 +172,7 @@ async function handleDelete(id: string) {
                   {list.visibility !== 'private' && (
                     <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Users className="h-3 w-3" />
-                      {list.visibility === 'family' ? 'Семья' : 'Общий'}
+                      {list.visibility === 'family' ? 'Семья' : 'Семья'}
                     </span>
                   )}
                 </div>

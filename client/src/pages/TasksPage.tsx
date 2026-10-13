@@ -8,7 +8,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
   DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TaskForm } from '@/components/tasks/TaskForm';
 import { KanbanBoard } from '@/components/tasks/KanbanBoard';
 import { TaskListView } from '@/components/tasks/TaskListView';
@@ -22,7 +21,6 @@ export function TasksPage() {
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {

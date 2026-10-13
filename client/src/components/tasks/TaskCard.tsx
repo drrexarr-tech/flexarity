@@ -40,6 +40,10 @@ export function TaskCard({
   task, columns, onUpdate, onDelete, restoreColumnId, onRememberColumn,
 }: Props) {
   const currentUser = useAuthStore((s) => s.user);
+  // Someone else's task. The server refuses to let a non-owner delete it (403),
+  // so offering the bin button here can only ever raise an error - and with the
+  // confirmation gone there is nothing between the tap and the red toast.
+  const isOwnTask = !task.userId || task.userId === currentUser?.id;
   const isObserver = task.assignee && task.assignee.id !== currentUser?.id && task.userId === currentUser?.id;
   const [editing, setEditing] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -59,7 +63,12 @@ export function TaskCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className={cn('relative', isDragging && 'opacity-50')}
+      /* touch-none is required, not decoration. The browser claims a vertical
+         finger-drag for scrolling inside the board's scroll area, cancels the
+         pointer, and dnd-kit aborts - the card never moves. dnd-kit's
+         attributes carry no touch-action of their own; it was on the old grip
+         button and was lost when the listeners moved up here. */
+      className={cn('relative touch-none', isDragging && 'opacity-50')}
       // The whole card is the drag surface. It was only the little grip, which
       // is a 20px target you have to find deliberately before you can move a
       // card - and on a phone the rest of the card is the natural place to
@@ -75,7 +84,13 @@ export function TaskCard({
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
           <button
-            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-primary/60 transition-colors hover:border-primary"
+            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-primary/60 transition-colors hover:border-primary"
+            /* Without this the checkbox turns into a card mover. The 8px
+               activation threshold means a stationary tap is fine, but a thumb
+               drifting a few pixels starts a drag, and dnd-kit stops the click
+               at document capture - so the tick silently does nothing and the
+               card travels instead. */
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               const doneCol = columns.find((c) => c.title === 'Готово');
@@ -94,9 +109,8 @@ export function TaskCard({
           >
             {task.columnId === columns.find((c) => c.title === 'Готово')?.id && (<Check className="h-3 w-3 text-primary" />)}
           </button>
-          {/* Now decorative: the card itself drags. Kept as a hint of where a
-              card is grabbable, and still a drag handle for anyone who looks
-              for one. */}
+          {/* Decorative only: the card itself is the drag surface. Kept so a
+              card still looks grabbable. */}
           <span className="mt-0.5 shrink-0 cursor-grab text-muted-foreground" aria-hidden>
             <GripVertical className="h-4 w-4" />
           </span>
@@ -104,37 +118,45 @@ export function TaskCard({
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-medium">{task.title}</p>
               <div className="flex gap-1 shrink-0">
-                <Dialog open={editing} onOpenChange={setEditing}>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Редактировать задачу" data-task-id={task.id} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Редактировать задачу</DialogTitle>
-                    </DialogHeader>
-                    <TaskForm
-                      columns={columns}
-                      defaultColumnId={task.columnId}
-                      task={task}
-                      onSubmit={async (data) => {
-                        await onUpdate(task.id, data);
-                        setEditing(false);
-                      }}
-                    />
-                  </DialogContent>
-                </Dialog>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-11 w-11 text-destructive"
-                  aria-label="Удалить задачу"
-                  onPointerDown={(e) => e.stopPropagation()}
+                {/* Both actions are owner-only. Deleting someone else's task
+                    is refused by the server, and editing one silently drops
+                    half the fields, so offering the buttons invites a red toast
+                    for a delete and a silent no-op for an edit. */}
+                {isOwnTask && (
+                  <>
+                    <Dialog open={editing} onOpenChange={setEditing}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Редактировать задачу" data-task-id={task.id} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Редактировать задачу</DialogTitle>
+                        </DialogHeader>
+                        <TaskForm
+                          columns={columns}
+                          defaultColumnId={task.columnId}
+                          task={task}
+                          onSubmit={async (data) => {
+                            await onUpdate(task.id, data);
+                            setEditing(false);
+                          }}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11 text-destructive"
+                      aria-label="Удалить задачу"
+                      onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 

@@ -30,11 +30,20 @@ const DialogContent = React.forwardRef<
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
-      ref={ref}
+ref={ref}
+      // Focusable so the dialog can take focus on open. Without tabIndex the
+      // .focus() below does nothing and the panel is skipped by assistive tech.
+      tabIndex={-1}
       /* No autofocus on open: Radix focuses the first field, which raises the
-         keyboard the moment the sheet appears. Closing is left alone so focus
+         keyboard the moment the sheet appears. Preventing the default leaves
+         focus outside the dialog entirely, though, so screen readers never
+         announce it and Tab walks the page behind the overlay - hence the
+         focus moved onto the panel itself. Closing is left alone so focus
          still returns to whatever opened it. */
-      onOpenAutoFocus={(event) => event.preventDefault()}
+      onOpenAutoFocus={(event) => {
+        event.preventDefault();
+        (event.currentTarget as HTMLElement | null)?.focus();
+      }}
       className={cn(
         // Sizing notes, all of them learned on an iPhone:
         // - overflow-y-auto belongs here, not on individual callers. Without it
