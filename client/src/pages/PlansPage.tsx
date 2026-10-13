@@ -138,7 +138,7 @@ export function PlansPage() {
                           setDialogOpen(true);
                         }}
                       >
-                        <Edit3 className="h-3.5 w-3.5" />
+                        <Edit3 className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"

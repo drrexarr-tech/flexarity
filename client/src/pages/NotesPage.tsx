@@ -265,7 +265,7 @@ async function handleDelete(id: string) {
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-medium truncate text-sm">{note.title}</h3>
                     <Button variant="ghost" size="icon" className="invisible group-hover:visible h-6 w-6 shrink-0 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteTarget(note.id); }}>
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                   {note.content && <p className="mt-1 text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap">{note.content}</p>}

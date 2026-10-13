@@ -337,7 +337,7 @@ export function ProfilePage() {
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
             {avatarUrl && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={handleDeleteAvatar} title="Удалить аватарку">
+              <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 text-destructive" onClick={handleDeleteAvatar} title="Удалить аватарку">
                 <X className="h-4 w-4" />
               </Button>
             )}

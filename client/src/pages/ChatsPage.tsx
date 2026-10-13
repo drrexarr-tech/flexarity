@@ -319,7 +319,7 @@ export function ChatsPage() {
             </div>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7"><Plus className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-11 w-11"><Plus className="h-3.5 w-3.5" /></Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Новый чат</DialogTitle></DialogHeader>
@@ -396,7 +396,7 @@ export function ChatsPage() {
         {selectedChat ? (
           <>
             <div className="flex items-center gap-2 border-b px-3 py-2">
-              <Button variant="ghost" size="icon" className="h-7 w-7 lg:hidden" onClick={() => setShowMobileList(true)}>
+              <Button variant="ghost" size="icon" className="h-11 w-11 lg:hidden" onClick={() => setShowMobileList(true)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary overflow-hidden">
@@ -410,14 +410,14 @@ export function ChatsPage() {
                 <p className="text-[11px] text-muted-foreground truncate">{getOtherUser(selectedChat)?.email || ''}</p>
               </div>
               {!aesKeyRef.current && selectedChat.keys?.length === 0 && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-green-600" onClick={handleEnableEncryption} title="Включить шифрование">
+                <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 text-green-600" onClick={handleEnableEncryption} title="Включить шифрование">
                   <Shield className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => setDeleteChatTarget(selectedChat.id)} title="Удалить чат">
+              <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 text-destructive" onClick={() => setDeleteChatTarget(selectedChat.id)} title="Удалить чат">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => setDeleteChatTarget(selectedChat.id)} title="Выйти из чата">
+              <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 text-muted-foreground" onClick={() => setDeleteChatTarget(selectedChat.id)} title="Выйти из чата">
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
             </div>

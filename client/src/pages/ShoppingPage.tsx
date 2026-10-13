@@ -477,14 +477,22 @@ const [clearing, setClearing] = useState(false);
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sh-price">Цена (₽)</Label>
+              <Label htmlFor="sh-price">
+                Цена, ₽
+                <span className="ml-1 font-normal text-muted-foreground">— необязательно</span>
+              </Label>
               <Input
                 id="sh-price"
                 type="number"
                 min={0}
+                inputMode="numeric"
+                placeholder="Можно пропустить"
                 value={formPrice}
                 onChange={(e) => setFormPrice(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                Нужна, только если хотите видеть итоговую сумму. Список работает и без неё.
+              </p>
             </div>
 
             <div className="space-y-2">

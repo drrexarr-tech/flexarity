@@ -66,7 +66,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </div>
             <span className="text-lg font-bold">Flex</span>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 lg:hidden" onClick={onClose}>
+          <Button variant="ghost" size="icon" className="h-11 w-11 lg:hidden" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -110,7 +110,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-11 w-11"
               aria-label="Настроить нижнее меню"
               title="Настроить нижнее меню"
               onClick={() => {
@@ -120,10 +120,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             >
               <SlidersHorizontal className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggle}>
+            <Button variant="ghost" size="icon" className="h-11 w-11" onClick={toggle}>
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={logout}>
+            <Button variant="ghost" size="icon" className="h-11 w-11" onClick={logout}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

@@ -177,8 +177,8 @@ export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTas
                               onOpenChange={(next) => setEditingId(next ? task.id : null)}
                             >
                               <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Редактировать задачу">
-                                  <Edit3 className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Редактировать задачу">
+                                  <Edit3 className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="max-w-md sm:w-full">
@@ -199,10 +199,11 @@ export function TaskListView({ columns, assignedTasks, onUpdateTask, onDeleteTas
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-destructive"
+                            className="h-11 w-11 text-destructive"
+                            aria-label="Удалить задачу"
                             onClick={() => onDeleteTask(task.id)}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>

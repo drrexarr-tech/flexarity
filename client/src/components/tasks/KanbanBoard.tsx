@@ -38,7 +38,7 @@ function ColumnDropArea({ column, children }: { column: TaskColumn; children: Re
     <div
       ref={setNodeRef}
       className={cn(
-        'flex w-[85vw] sm:w-80 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors',
+        'flex w-full lg:w-80 lg:shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors',
         isOver && 'bg-primary/5 border-primary/50'
       )}
     >
@@ -53,7 +53,7 @@ function AssignedDropArea({ children }: { children: React.ReactNode }) {
     <div
       ref={setNodeRef}
       className={cn(
-        'w-[85vw] sm:w-80 shrink-0 flex-col rounded-xl border bg-amber-50 dark:bg-amber-950/20',
+        'w-full lg:w-80 lg:shrink-0 flex-col rounded-xl border bg-amber-50 dark:bg-amber-950/20',
         isOver && 'bg-primary/5 border-primary/50'
       )}
     >
@@ -216,7 +216,7 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex flex-col gap-4 pb-4 lg:flex-row lg:overflow-x-auto">
         {assignedTasks && assignedTasks.length > 0 && (
           <AssignedDropArea>
             <div className="flex items-center gap-2 border-b px-4 py-3">

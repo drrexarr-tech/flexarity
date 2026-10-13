@@ -31,6 +31,10 @@ const DialogContent = React.forwardRef<
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      /* No autofocus on open: Radix focuses the first field, which raises the
+         keyboard the moment the sheet appears. Closing is left alone so focus
+         still returns to whatever opened it. */
+      onOpenAutoFocus={(event) => event.preventDefault()}
       className={cn(
         // Sizing notes, all of them learned on an iPhone:
         // - overflow-y-auto belongs here, not on individual callers. Without it
@@ -45,13 +49,22 @@ const DialogContent = React.forwardRef<
         //   position:fixed is laid out against the layout viewport and is not
         //   moved when the keyboard opens, so a sheet pinned to bottom:0 ends up
         //   underneath it with no way to scroll the rest of the form into view.
+        // - overflow-x-hidden, not just overflow-y-auto. A sheet is a vertical
+        //   form; letting it pan sideways means a thumb swipe meant to scroll
+        //   the form drags the sheet sideways instead, which on a phone reads
+        //   as the page being broken.
         // - !max-w-none on small screens. Every caller sets a desktop max-w-*
         //   (max-w-sm, max-w-lg) and those also applied on a phone, where 24rem
         //   is narrower than the screen. The sheet is pinned left, so it ended up
         //   hugging the left edge with a gap down the right side. Important is
         //   what makes it stick: the base rule and the caller's rule have equal
         //   specificity, so which one wins would depend on stylesheet order.
-        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto overscroll-contain border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-h-[calc(var(--vvh,100dvh)-2rem)] max-sm:inset-x-0 max-sm:bottom-[var(--kb,0px)] max-sm:top-auto max-sm:max-h-[calc(var(--vvh,100dvh)-env(safe-area-inset-top))] max-sm:!max-w-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-2xl max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]',
+        // - The dialog does not take focus on open. Radix focuses the first
+        //   focusable child, which is the first input, which raises the
+        //   keyboard the instant the sheet appears and puts a cursor in a field
+        //   the user has not decided to fill in yet. Closing the dialog should
+        //   also return focus to whatever opened it.
+        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] touch-pan-y gap-4 overflow-x-hidden overflow-y-auto overscroll-contain border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-h-[calc(var(--vvh,100dvh)-2rem)] max-sm:inset-x-0 max-sm:bottom-[var(--kb,0px)] max-sm:top-auto max-sm:max-h-[calc(var(--vvh,100dvh)-env(safe-area-inset-top))] max-sm:!max-w-none max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-2xl max-sm:p-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]',
         className
       )}
       {...props}

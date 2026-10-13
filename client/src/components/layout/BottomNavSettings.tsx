@@ -81,7 +81,7 @@ export function BottomNavSettings({ open, onOpenChange }: BottomNavSettingsProps
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-11 w-11"
                       aria-label={`Переместить «${section.label}» выше`}
                       disabled={at === 0}
                       onClick={() => move(id, -1)}
@@ -91,7 +91,7 @@ export function BottomNavSettings({ open, onOpenChange }: BottomNavSettingsProps
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-11 w-11"
                       aria-label={`Переместить «${section.label}» ниже`}
                       disabled={at === order.length - 1}
                       onClick={() => move(id, 1)}
