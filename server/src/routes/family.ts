@@ -169,8 +169,15 @@ familyRouter.delete('/:familyId/invite/:inviteId', async (req: AuthRequest, res:
 
 familyRouter.delete('/:id/leave', async (req: AuthRequest, res: Response) => {
   const familyId = String(req.params.id);
-  await prisma.familyMember.deleteMany({
+  // deleteMany matched nothing for anybody who was not a member and still
+  // answered "you left the family", so a client cleared its cached family on a
+  // call that never meant anything.
+  const membership = await prisma.familyMember.findFirst({
     where: { familyId, userId: req.userId },
+    select: { id: true },
   });
-  res.json({ message: 'Вы покинули семью' });
+  if (!membership) return res.status(404).json({ error: 'Вы не состоите в этой семье' });
+
+  await prisma.familyMember.delete({ where: { id: membership.id } });
+  res.json({ message: 'Вы вышли из семьи' });
 });

@@ -78,44 +78,63 @@ tasksRouter.get('/columns', async (req: AuthRequest, res: Response) => {
   });
   const familyIds = families.map((f) => f.familyId);
 
-  const columns = await prisma.taskColumn.findMany({
-    where: { userId: req.userId },
-    include: {
-      tasks: {
-        where: {
-          OR: [
-            { userId: req.userId },
-            { assigneeId: req.userId },
-            { visibility: 'family', familyId: { in: familyIds } },
-          ],
-        },
-        orderBy: { order: 'asc' },
-        include: {
-          assignee: { select: { id: true, name: true, email: true } },
-          user: { select: { id: true, name: true } },
+const columns = await prisma.taskColumn.findMany({
+      where: { userId: req.userId },
+      include: {
+        tasks: {
+          where: {
+            OR: [
+              { userId: req.userId },
+              { assigneeId: req.userId },
+            ],
+          },
+          orderBy: { order: 'asc' },
+          include: {
+            assignee: { select: { id: true, name: true, email: true } },
+            user: { select: { id: true, name: true } },
+          },
         },
       },
-    },
-    orderBy: { order: 'asc' },
-  });
+      orderBy: { order: 'asc' },
+    });
 
-  const myColumnIds = columns.map((c) => c.id);
+    const myColumnIds = columns.map((c) => c.id);
 
-  const assignedTasks = await prisma.task.findMany({
-    where: {
-      assigneeId: req.userId,
-      userId: { not: req.userId },
-      columnId: { notIn: myColumnIds },
-    },
-    orderBy: { order: 'asc' },
-    include: {
-      column: true,
-      assignee: { select: { id: true, name: true, email: true } },
-      user: { select: { id: true, name: true } },
-    },
-  });
+    const assignedTasks = await prisma.task.findMany({
+      where: {
+        assigneeId: req.userId,
+        userId: { not: req.userId },
+        columnId: { notIn: myColumnIds },
+      },
+      orderBy: { order: 'asc' },
+      include: {
+        column: true,
+        assignee: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true } },
+      },
+    });
 
-  res.json({ columns, assignedTasks });
+    // A task published to a family sits in the owner's column, and the query
+    // above only reads the caller's own columns, so the visibility filter that
+    // used to sit inside include.tasks could never match anything: the form
+    // offered "Семья" and the family was never shown the task. Fetched the same
+    // way as assignedTasks, as a read-only group beside the board.
+    const familyTasks = await prisma.task.findMany({
+      where: {
+        visibility: 'family',
+        familyId: { in: familyIds },
+        userId: { not: req.userId },
+        columnId: { notIn: myColumnIds },
+      },
+      orderBy: { order: 'asc' },
+      include: {
+        column: true,
+        assignee: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true } },
+      },
+    });
+
+    res.json({ columns, assignedTasks, familyTasks });
 });
 
 tasksRouter.post('/columns', async (req: AuthRequest, res: Response) => {

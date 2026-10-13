@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
-import { Plus, UserCheck } from 'lucide-react';
+import { Plus, UserCheck, Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -65,6 +65,7 @@ function AssignedDropArea({ children }: { children: React.ReactNode }) {
 interface Props {
   columns: TaskColumn[];
   assignedTasks?: any[];
+  familyTasks?: any[];
   onCreateTask: (data: any) => Promise<void>;
   onUpdateTask: (id: string, data: any) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
@@ -72,7 +73,7 @@ interface Props {
   onRefresh: () => Promise<void>;
 }
 
-export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask, onDeleteTask, onReorder, onRefresh }: Props) {
+export function KanbanBoard({ columns, assignedTasks, familyTasks, onCreateTask, onUpdateTask, onDeleteTask, onReorder, onRefresh }: Props) {
   const [localColumns, setLocalColumns] = useState<TaskColumn[]>(Array.isArray(columns) ? columns : []);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [createDialog, setCreateDialog] = useState<string | null>(null);
@@ -103,6 +104,7 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
   );
 
   const assignedTaskIds = useMemo(() => (assignedTasks || []).map((t: any) => t.id), [assignedTasks]);
+  const familyTaskIds = useMemo(() => (familyTasks || []).map((t: any) => t.id), [familyTasks]);
 
   useEffect(() => {
     setLocalColumns(columns);
@@ -127,6 +129,10 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
+    // Published to the family, not owned: there is no column to move it to, so
+    // a drag has to end nowhere. Returning before the drag is recorded leaves
+    // activeTask null and the drop handlers do nothing.
+    if (familyTaskIds.includes(active.id as string)) return;
     if (isAssignedTask(active.id as string)) {
       const task = assignedTasks?.find((t: any) => t.id === active.id);
       if (task) setActiveTask(task);
@@ -242,6 +248,30 @@ export function KanbanBoard({ columns, assignedTasks, onCreateTask, onUpdateTask
               </SortableContext>
             </ScrollArea>
           </AssignedDropArea>
+        )}
+        {familyTasks && familyTasks.length > 0 && (
+          <div className="flex w-full flex-col rounded-lg border lg:w-80">
+            <div className="flex items-center gap-2 border-b px-4 py-3">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm">От семьи</h3>
+              <span className="text-xs text-muted-foreground">{familyTasks.length}</span>
+            </div>
+            <div className="p-3">
+              <SortableContext items={familyTaskIds} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {familyTasks.map((task: any) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      columns={[]}
+                      onUpdate={onUpdateTask}
+                      onDelete={onDeleteTask}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </div>
+          </div>
         )}
         {localColumns.map((column) => (
           <ColumnDropArea key={column.id} column={column}>

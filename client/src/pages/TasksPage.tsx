@@ -19,6 +19,7 @@ export function TasksPage() {
   const run = useSingleFlight();
   const [columns, setColumns] = useState<TaskColumn[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
+  const [familyTasks, setFamilyTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -27,6 +28,7 @@ export function TasksPage() {
       const data = await api.tasks.getColumns();
       setColumns(Array.isArray(data.columns) ? data.columns : Array.isArray(data) ? data : []);
       setAssignedTasks(Array.isArray(data.assignedTasks) ? data.assignedTasks : []);
+      setFamilyTasks(Array.isArray(data.familyTasks) ? data.familyTasks : []);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -143,6 +145,7 @@ export function TasksPage() {
           <TaskListView
             columns={columns}
             assignedTasks={assignedTasks}
+            familyTasks={familyTasks}
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
           />
@@ -153,6 +156,7 @@ export function TasksPage() {
             <KanbanBoard
               columns={columns}
               assignedTasks={assignedTasks}
+            familyTasks={familyTasks}
               onCreateTask={handleCreateTask}
               onUpdateTask={handleUpdateTask}
               onDeleteTask={handleDeleteTask}
