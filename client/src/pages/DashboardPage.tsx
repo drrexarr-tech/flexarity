@@ -74,9 +74,13 @@ export function DashboardPage() {
   const [unread, setUnread] = useState(0);
   const [busyItem, setBusyItem] = useState<string | null>(null);
 
-  // One pending flag per card, plus whether this is the very first load.
+  // One pending flag and one error flag per card, plus whether this is the very
+  // first load.
   const [pending, setPending] = useState({ tasks: true, dates: true, plans: true, shopping: true });
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
   const loadedOnce = useRef(false);
+
+  type Card = 'tasks' | 'dates' | 'plans' | 'shopping';
 
   const load = useCallback(async () => {
     // Each card loads on its own. Promise.allSettled waited for the slowest of
@@ -87,43 +91,39 @@ export function DashboardPage() {
     const first = !loadedOnce.current;
     if (first) setPending({ tasks: true, dates: true, plans: true, shopping: true });
 
-    const guard =
-      (key: 'tasks' | 'dates' | 'plans' | 'shopping') =>
-      () => {
+    // A failed card used to be indistinguishable from an empty one: the error
+    // was swallowed, the state stayed [], and the card said "ничего не
+    // запланировано". That is a confident wrong answer, and after the per-card
+    // split it is harder still to spot, because the neighbouring card is still
+    // spinning. Each one now says it failed and offers a retry.
+    const settle =
+      (key: Card) =>
+      (ok: boolean) => {
+        setFailed((f) => (ok || !f[key] ? f : { ...f, [key]: false }));
         if (first) setPending((p) => ({ ...p, [key]: false }));
       };
 
-    void api.tasks
-      .getAll()
-      .then((v) => {
-        if (Array.isArray(v)) setTasks(v);
-      })
-      .catch(() => {})
-      .finally(guard('tasks'));
+    const fetchCard = <T,>(key: Card, run: () => Promise<T>, apply: (v: T) => void) => {
+      run()
+        .then((v) => {
+          apply(v);
+          settle(key)(true);
+        })
+        .catch(() => settle(key)(false));
+    };
 
-    void api.calendar
-      .getUpcoming(60)
-      .then((v) => {
-        if (Array.isArray(v)) setUpcoming(v);
-      })
-      .catch(() => {})
-      .finally(guard('dates'));
-
-    void api.plans
-      .getAll()
-      .then((v) => {
-        if (Array.isArray(v)) setPlans(v);
-      })
-      .catch(() => {})
-      .finally(guard('plans'));
-
-    void api.shopping
-      .getAll()
-      .then((v) => {
-        if (Array.isArray(v)) setShopping(v);
-      })
-      .catch(() => {})
-      .finally(guard('shopping'));
+    fetchCard<Task[]>('tasks', () => api.tasks.getAll(), (v) => {
+      if (Array.isArray(v)) setTasks(v);
+    });
+    fetchCard<UpcomingItem[]>('dates', () => api.calendar.getUpcoming(60), (v) => {
+      if (Array.isArray(v)) setUpcoming(v);
+    });
+    fetchCard<Plan[]>('plans', () => api.plans.getAll(), (v) => {
+      if (Array.isArray(v)) setPlans(v);
+    });
+    fetchCard<ShoppingItem[]>('shopping', () => api.shopping.getAll(), (v) => {
+      if (Array.isArray(v)) setShopping(v);
+    });
 
     // The badge is not worth blocking on and has no card of its own.
     void api.notifications
@@ -251,7 +251,15 @@ export function DashboardPage() {
           <CardContent className="px-4 pb-4">
             {pending.tasks ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
-            ) : !dueTasks.length ? (
+            ) : failed.tasks ? (
+            <button
+              type="button"
+              onClick={() => load()}
+              className="w-full rounded-md border border-dashed py-3 text-left text-xs text-muted-foreground hover:text-foreground"
+            >
+              Не удалось загрузить. Нажмите, чтобы повторить.
+            </button>
+          ) : !dueTasks.length ? (
               <Empty>Ничего не запланировано на сегодня.</Empty>
             ) : (
               <div className="space-y-1">
@@ -296,7 +304,15 @@ export function DashboardPage() {
           <CardContent className="px-4 pb-4">
             {pending.dates ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
-            ) : !upcoming.length ? (
+            ) : failed.dates ? (
+            <button
+              type="button"
+              onClick={() => load()}
+              className="w-full rounded-md border border-dashed py-3 text-left text-xs text-muted-foreground hover:text-foreground"
+            >
+              Не удалось загрузить. Нажмите, чтобы повторить.
+            </button>
+          ) : !upcoming.length ? (
               <Empty>В ближайшие два месяца пусто.</Empty>
             ) : (
               <div className="space-y-1">
@@ -334,7 +350,15 @@ export function DashboardPage() {
           <CardContent className="space-y-3 px-4 pb-4">
             {pending.plans ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
-            ) : !activePlans.length ? (
+            ) : failed.plans ? (
+            <button
+              type="button"
+              onClick={() => load()}
+              className="w-full rounded-md border border-dashed py-3 text-left text-xs text-muted-foreground hover:text-foreground"
+            >
+              Не удалось загрузить. Нажмите, чтобы повторить.
+            </button>
+          ) : !activePlans.length ? (
               <Empty>Все цели достигнуты или планов нет.</Empty>
             ) : (
               activePlans.map((plan) => (
@@ -373,7 +397,15 @@ export function DashboardPage() {
           <CardContent className="px-4 pb-4">
             {pending.shopping ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
-            ) : !pendingShopping.length ? (
+            ) : failed.shopping ? (
+            <button
+              type="button"
+              onClick={() => load()}
+              className="w-full rounded-md border border-dashed py-3 text-left text-xs text-muted-foreground hover:text-foreground"
+            >
+              Не удалось загрузить. Нажмите, чтобы повторить.
+            </button>
+          ) : !pendingShopping.length ? (
               <Empty>Список покупок пуст.</Empty>
             ) : (
               <div className="space-y-0.5">

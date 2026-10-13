@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -43,6 +43,9 @@ const schema = z.object({
 export function NewWishForm({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set the moment the list request succeeds, so a retry adds the gift to the
+  // list that already exists instead of creating a second one.
+  const createdListId = useRef<string | null>(null);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -60,13 +63,22 @@ export function NewWishForm({ onSuccess }: { onSuccess: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const list = await api.wishes.create({
-        title: data.title,
-        description: data.description || null,
-      });
+      // The two calls cannot be one request, so a failure between them leaves
+      // the list already created. Pressing the button again used to create a
+      // second list with the same title, one of them empty. Remember the one
+      // that exists and retry only the gift.
+      let listId = createdListId.current;
+      if (!listId) {
+        const list = await api.wishes.create({
+          title: data.title,
+          description: data.description || null,
+        });
+        listId = list.id;
+        createdListId.current = listId;
+      }
 
       if (data.giftTitle?.trim()) {
-        await api.wishes.addItem(list.id, {
+        await api.wishes.addItem(listId, {
           title: data.giftTitle.trim(),
           recipientName: data.recipientName || null,
           price: data.price ?? null,
@@ -78,8 +90,8 @@ export function NewWishForm({ onSuccess }: { onSuccess: () => void }) {
       toast.success('Список создан');
       onSuccess();
     } catch (err: any) {
-      // Stay open with the reason in place: the list may already exist, and
-      // closing would lose what was typed.
+      // Stay open with the reason in place. Closing would lose what was typed,
+      // and the list may already exist.
       setError(err?.message || 'Не удалось создать список');
     } finally {
       setLoading(false);

@@ -10,7 +10,7 @@ export const plansRouter = Router();
 plansRouter.use(authenticate);
 
 const planSchema = z.object({
-  title: z.string().min(1, 'Название обязательно'),
+  title: z.string().trim().min(1, 'Название обязательно').max(300),
   description: optionalText(),
   targetAmount: optionalAmount(0, 'Сумма не может быть отрицательной'),
   deadline: optionalText(),

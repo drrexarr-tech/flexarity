@@ -9,7 +9,7 @@ export const notesRouter = Router();
 notesRouter.use(authenticate);
 
 const noteSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().trim().min(1).max(300),
   content: optionalText(),
   images: z.string().nullable().optional(),
   audio: z.string().nullable().optional(),

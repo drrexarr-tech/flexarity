@@ -233,20 +233,17 @@ tasksRouter.put('/:id', async (req: AuthRequest, res: Response) => {
   });
   if (!existing) throw new AppError(404, 'Задача не найдена');
 
-  const data = taskSchema.partial().parse(req.body);
-  // An assignee is a recipient of the task, not its owner: letting them rewrite
-  // columnId/assigneeId/visibility/familyId meant an assignee could move the task
-  // onto another board, hand it to someone else, or publish it.
-  const isOwner = existing.userId === req.userId;
-  if (!isOwner) {
-    delete data.columnId;
-    delete data.assigneeId;
-    delete data.visibility;
-    delete data.familyId;
-  } else {
+const data = taskSchema.partial().parse(req.body);
+    // An assignee is a recipient of the task, not its author. The card renders
+    // no edit control for them, but the route still matched on assigneeId and
+    // accepted the whole payload, so anyone a task was delegated to could
+    // rewrite its title, description, priority and deadline. Silently dropping
+    // those fields left a "200 OK" on a write that never happened; refusing is
+    // what the UI already implies.
+    const isOwner = existing.userId === req.userId;
+    if (!isOwner) throw new AppError(403, 'Редактировать задачу может только автор');
     if (data.columnId) await assertOwnColumn(req.userId!, data.columnId);
     if (data.assigneeId !== undefined) await assertShareable(req.userId!, data.assigneeId);
-  }
 
   const patch: Record<string, unknown> = { ...data };
   if (data.familyId !== undefined) {

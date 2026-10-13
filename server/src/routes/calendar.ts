@@ -10,9 +10,9 @@ export const calendarRouter = Router();
 calendarRouter.use(authenticate);
 
 const eventSchema = z.object({
-  title: z.string().min(1, 'Название обязательно'),
+  title: z.string().trim().min(1, 'Название обязательно').max(300),
   description: optionalText(),
-  date: z.string().min(1, 'Дата обязательна'),
+  date: z.string().trim().min(1, 'Дата обязательна').max(300),
   time: optionalText(),
   color: optionalText(),
   visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),

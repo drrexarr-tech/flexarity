@@ -10,14 +10,14 @@ export const wishesRouter = Router();
 wishesRouter.use(authenticate);
 
 const wishlistSchema = z.object({
-  title: z.string().min(1, 'Название обязательно'),
+  title: z.string().trim().min(1, 'Название обязательно').max(300),
   description: optionalText(),
   visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),
   familyId: optionalText(),
 });
 
 const itemSchema = z.object({
-  title: z.string().min(1, 'Название обязательно'),
+  title: z.string().trim().min(1, 'Название обязательно').max(300),
   price: optionalAmount(0, 'Цена не может быть отрицательной'),
   url: httpUrl(),
   note: optionalText(),

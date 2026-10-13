@@ -9,7 +9,7 @@ export const shoppingRouter = Router();
 shoppingRouter.use(authenticate);
 
 const itemSchema = z.object({
-  title: z.string().min(1, 'Название обязательно'),
+  title: z.string().trim().min(1, 'Название обязательно').max(300),
   quantity: optionalNumber().refine((v) => v === null || v === undefined || v > 0, {
     message: 'Количество должно быть больше нуля',
   }),

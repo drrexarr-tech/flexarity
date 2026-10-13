@@ -12,7 +12,7 @@ export const recipesRouter = Router();
 recipesRouter.use(authenticate);
 
 const recipeSchema = z.object({
-  title: z.string().min(1, 'Название обязательно'),
+  title: z.string().trim().min(1, 'Название обязательно').max(300),
   url: httpUrl(),
   ingredients: z.string().default('[]'),
   instructions: z.string().default('[]'),
@@ -100,7 +100,7 @@ recipesRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
  * no route conflict.
  */
 recipesRouter.post('/import', async (req: AuthRequest, res: Response) => {
-  const { url } = z.object({ url: z.string().min(1, 'Ссылка обязательна') }).parse(req.body);
+  const { url } = z.object({ url: z.string().trim().min(1, 'Ссылка обязательна').max(300) }).parse(req.body);
 
   let page: { html: string; charset: string; guessed: boolean };
   try {
