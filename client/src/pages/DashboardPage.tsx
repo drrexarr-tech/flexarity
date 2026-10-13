@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -72,25 +72,66 @@ export function DashboardPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [shopping, setShopping] = useState<ShoppingItem[]>([]);
   const [unread, setUnread] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [busyItem, setBusyItem] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    // One failing endpoint must not blank the whole page, so settle them all.
-    const [tasksRes, datesRes, plansRes, shoppingRes, unreadRes] = await Promise.allSettled([
-      api.tasks.getAll() as Promise<Task[]>,
-      api.calendar.getUpcoming(60),
-      api.plans.getAll(),
-      api.shopping.getAll(),
-      api.notifications.getUnreadCount(),
-    ]);
+  // One pending flag per card, plus whether this is the very first load.
+  const [pending, setPending] = useState({ tasks: true, dates: true, plans: true, shopping: true });
+  const loadedOnce = useRef(false);
 
-    if (tasksRes.status === 'fulfilled' && Array.isArray(tasksRes.value)) setTasks(tasksRes.value);
-    if (datesRes.status === 'fulfilled' && Array.isArray(datesRes.value)) setUpcoming(datesRes.value);
-    if (plansRes.status === 'fulfilled' && Array.isArray(plansRes.value)) setPlans(plansRes.value);
-    if (shoppingRes.status === 'fulfilled' && Array.isArray(shoppingRes.value)) setShopping(shoppingRes.value);
-    if (unreadRes.status === 'fulfilled') setUnread(unreadRes.value?.count ?? 0);
-    setLoading(false);
+  const load = useCallback(async () => {
+    // Each card loads on its own. Promise.allSettled waited for the slowest of
+    // five requests before a single thing appeared, so "Ближайшие даты" sat on a
+    // spinner for as long as the slowest endpoint - about two seconds - even
+    // though its own request was already back. A refresh must not re-show
+    // spinners either: the data is still on screen and is about to be replaced.
+    const first = !loadedOnce.current;
+    if (first) setPending({ tasks: true, dates: true, plans: true, shopping: true });
+
+    const guard =
+      (key: 'tasks' | 'dates' | 'plans' | 'shopping') =>
+      () => {
+        if (first) setPending((p) => ({ ...p, [key]: false }));
+      };
+
+    void api.tasks
+      .getAll()
+      .then((v) => {
+        if (Array.isArray(v)) setTasks(v);
+      })
+      .catch(() => {})
+      .finally(guard('tasks'));
+
+    void api.calendar
+      .getUpcoming(60)
+      .then((v) => {
+        if (Array.isArray(v)) setUpcoming(v);
+      })
+      .catch(() => {})
+      .finally(guard('dates'));
+
+    void api.plans
+      .getAll()
+      .then((v) => {
+        if (Array.isArray(v)) setPlans(v);
+      })
+      .catch(() => {})
+      .finally(guard('plans'));
+
+    void api.shopping
+      .getAll()
+      .then((v) => {
+        if (Array.isArray(v)) setShopping(v);
+      })
+      .catch(() => {})
+      .finally(guard('shopping'));
+
+    // The badge is not worth blocking on and has no card of its own.
+    void api.notifications
+      .getUnreadCount()
+      .then((v) => setUnread(v?.count ?? 0))
+      .catch(() => {});
+
+    loadedOnce.current = true;
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -208,7 +249,7 @@ export function DashboardPage() {
             icon={<ListTodo className="h-4 w-4 text-muted-foreground" />}
           />
           <CardContent className="px-4 pb-4">
-            {loading ? (
+            {pending.tasks ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
             ) : !dueTasks.length ? (
               <Empty>Ничего не запланировано на сегодня.</Empty>
@@ -253,7 +294,7 @@ export function DashboardPage() {
             icon={<Cake className="h-4 w-4 text-muted-foreground" />}
           />
           <CardContent className="px-4 pb-4">
-            {loading ? (
+            {pending.dates ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
             ) : !upcoming.length ? (
               <Empty>В ближайшие два месяца пусто.</Empty>
@@ -291,7 +332,7 @@ export function DashboardPage() {
             icon={<PiggyBank className="h-4 w-4 text-muted-foreground" />}
           />
           <CardContent className="space-y-3 px-4 pb-4">
-            {loading ? (
+            {pending.plans ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
             ) : !activePlans.length ? (
               <Empty>Все цели достигнуты или планов нет.</Empty>
@@ -330,7 +371,7 @@ export function DashboardPage() {
             icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
           />
           <CardContent className="px-4 pb-4">
-            {loading ? (
+            {pending.shopping ? (
               <p className="py-3 text-xs text-muted-foreground">Загрузка...</p>
             ) : !pendingShopping.length ? (
               <Empty>Список покупок пуст.</Empty>

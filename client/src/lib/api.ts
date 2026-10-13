@@ -108,7 +108,12 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Ошибка запроса' }));
-    throw new Error(error.error || `HTTP ${res.status}`);
+    // Carry the status. A delete of something already gone answers 404, and
+    // that is not a failure the user should be shown an error for - but the
+    // message alone cannot tell 404 apart from a real rejection.
+    const err = new Error(error.error || `HTTP ${res.status}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
 
   return res.json();

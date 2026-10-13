@@ -60,6 +60,13 @@ export function TaskCard({
       ref={setNodeRef}
       style={style}
       className={cn('relative', isDragging && 'opacity-50')}
+      // The whole card is the drag surface. It was only the little grip, which
+      // is a 20px target you have to find deliberately before you can move a
+      // card - and on a phone the rest of the card is the natural place to
+      // press. Safe because PointerSensor needs 8px of movement to activate: a
+      // tap on the checkbox or on edit still reaches the button underneath.
+      {...attributes}
+      {...listeners}
       onDoubleClick={() => {
         const editBtn = document.querySelector(`[data-task-id="${task.id}"]`);
         if (editBtn) (editBtn as HTMLButtonElement).click();
@@ -68,7 +75,7 @@ export function TaskCard({
       <CardContent className="p-3">
         <div className="flex items-start gap-2">
           <button
-            className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-primary/60 hover:border-primary transition-colors"
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-primary/60 transition-colors hover:border-primary"
             onClick={(e) => {
               e.stopPropagation();
               const doneCol = columns.find((c) => c.title === 'Готово');
@@ -87,21 +94,20 @@ export function TaskCard({
           >
             {task.columnId === columns.find((c) => c.title === 'Готово')?.id && (<Check className="h-3 w-3 text-primary" />)}
           </button>
-          <button
-            className="mt-0.5 cursor-grab touch-none text-muted-foreground hover:text-foreground"
-            {...attributes}
-            {...listeners}
-          >
+          {/* Now decorative: the card itself drags. Kept as a hint of where a
+              card is grabbable, and still a drag handle for anyone who looks
+              for one. */}
+          <span className="mt-0.5 shrink-0 cursor-grab text-muted-foreground" aria-hidden>
             <GripVertical className="h-4 w-4" />
-          </button>
+          </span>
           <div className="flex-1 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-medium">{task.title}</p>
               <div className="flex gap-1 shrink-0">
                 <Dialog open={editing} onOpenChange={setEditing}>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" data-task-id={task.id}>
-                      <Edit3 className="h-3 w-3" />
+                    <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Редактировать задачу" data-task-id={task.id} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                      <Edit3 className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -122,8 +128,10 @@ export function TaskCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-destructive"
-                  onClick={() => onDelete(task.id)}
+                  className="h-11 w-11 text-destructive"
+                  aria-label="Удалить задачу"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

@@ -59,26 +59,24 @@ export function TasksPage() {
 
   async function handleDeleteTask(id: string) {
     // No confirmation step: the tap deletes. run() is the double-tap guard.
-    // This had no catch, so a rejected request became an unhandled promise and
-    // the tap looked like it did nothing at all - no error, no change.
     try {
       await run(id, async () => {
-        // Drop it from the list first so the tap is visibly answered even if
-        // the refetch is slow, then let load() settle the truth.
-        setColumns((prev) =>
-          prev.map((col) => ({
-            ...col,
-            tasks: (col.tasks || []).filter((t: any) => t.id !== id),
-          }))
-        );
-        setAssignedTasks((prev) => prev.filter((t: any) => t.id !== id));
-
         await api.tasks.delete(id);
         toast.success('Задача удалена');
-        await load();
       });
     } catch (err: any) {
-      toast.error(err?.message || 'Не удалось удалить задачу');
+      // 404 means it is already gone, which is the outcome that was asked for.
+      // Showing "Задача не найдена" for that is noise, and a stale list kept a
+      // row that had in fact been removed - which is where the confusing
+      // "deleted, came back, error" report came from.
+      if (err?.status === 404) {
+        toast.success('Задача удалена');
+      } else {
+        toast.error(err?.message || 'Не удалось удалить задачу');
+      }
+    } finally {
+      // Exactly one refresh, whatever happened. Refreshing before the request
+      // and again in the catch made the row jump out and back.
       await load();
     }
   }

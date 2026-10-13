@@ -261,10 +261,15 @@ tasksRouter.put('/:id', async (req: AuthRequest, res: Response) => {
 });
 
 tasksRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
-  const existing = await prisma.task.findFirst({
-    where: { id: String(req.params.id), userId: req.userId },
-  });
+  const existing = await prisma.task.findFirst({ where: { id: String(req.params.id) } });
+  // Answer 403 rather than 404 when the task is there but belongs to someone
+  // else. A 404 read as "задача не найдена" sent the user hunting for a row
+  // that was simply not theirs to remove, and every delete of a task created in
+  // a shared column produced it.
   if (!existing) throw new AppError(404, 'Задача не найдена');
+  if (existing.userId !== req.userId) {
+    throw new AppError(403, 'Эту задачу создали не вы — удалить её нельзя');
+  }
 
   await prisma.task.delete({ where: { id: String(req.params.id) } });
   res.json({ message: 'Задача удалена' });
