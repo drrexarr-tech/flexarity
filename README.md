@@ -124,6 +124,3 @@ client/
 ### Сервер
 - `DATABASE_URL` — подключение к PostgreSQL
 - `JWT_SECRET` — секрет для JWT
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — для отправки писем (опционально)
-- `TELEGRAM_BOT_TOKEN` — токен Telegram бота (для OAuth)
-- `VK_SERVICE_KEY`, `VK_PROTECTED_KEY` — ключи VK API
