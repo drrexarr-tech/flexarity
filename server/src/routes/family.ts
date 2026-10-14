@@ -2,8 +2,8 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
+import { sendPush } from '../lib/push';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { sendEmail, esc } from '../lib/email';
 
 export const familyRouter = Router();
 familyRouter.use(authenticate);
@@ -51,19 +51,23 @@ familyRouter.post('/:id/invite', async (req: AuthRequest, res: Response) => {
   });
   if (!membership) return res.status(403).json({ error: 'Вы не участник семьи' });
   // Membership alone was enough, so any ordinary member could invite arbitrary
-  // addresses and turn the SMTP credentials into a spam relay. Member removal
-  // below already requires an admin.
+  // addresses. Member removal below already requires an admin.
   if (membership.role !== 'admin') {
     return res.status(403).json({ error: 'Приглашать может только администратор семьи' });
   }
 
+  // There is no mail any more: the invite reaches the person as an in-app
+  // notification and a push. An address with no account has nowhere to receive
+  // either, so it used to create a row nobody could ever redeem.
   const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    const already = await prisma.familyMember.findFirst({
-      where: { familyId, userId: existingUser.id },
-    });
-    if (already) return res.status(400).json({ error: 'Пользователь уже в семье' });
+  if (!existingUser) {
+    return res.status(400).json({ error: 'Этот человек ещё не зарегистрирован в Flex' });
   }
+
+  const already = await prisma.familyMember.findFirst({
+    where: { familyId, userId: existingUser.id },
+  });
+  if (already) return res.status(400).json({ error: 'Пользователь уже в семье' });
 
   const existingInvite = await prisma.familyInvite.findFirst({
     where: { email, familyId, status: 'pending' },
@@ -71,39 +75,32 @@ familyRouter.post('/:id/invite', async (req: AuthRequest, res: Response) => {
   if (existingInvite) return res.status(400).json({ error: 'Приглашение уже отправлено' });
 
   const token = crypto.randomBytes(32).toString('hex');
-  const invite = await prisma.familyInvite.create({
+  await prisma.familyInvite.create({
     data: { email, token, familyId, inviterId: req.userId! },
   });
 
   const family = await prisma.family.findUnique({ where: { id: familyId } });
-
-  if (existingUser) {
-    await prisma.notification.create({
-      data: {
-        type: 'family_invite',
-        title: `Приглашение в семью`,
-        message: `Вас приглашают присоединиться к семье "${family?.name}"`,
-        data: JSON.stringify({ familyId, token }),
-        link: `/family/invite?token=${token}`,
-        userId: existingUser.id,
-      },
-    });
-  }
-
   const inviter = await prisma.user.findUnique({ where: { id: req.userId } });
-  // The token is a credential, not a diagnostic: it was logged verbatim and
-  // returned in the response body on top of being emailed.
-  console.log(`[INVITE] ${inviter?.name} пригласил ${email} в семью "${family?.name}"`);
+
+  await prisma.notification.create({
+    data: {
+      type: 'family_invite',
+      title: `Приглашение в семью`,
+      message: `${inviter?.name || 'Вас'} приглашает${inviter?.name ? 'ит' : ''} в семью «${family?.name}»`,
+      data: JSON.stringify({ familyId, token }),
+      link: `/family/invite?token=${token}`,
+      userId: existingUser.id,
+    },
+  });
 
   const inviteLink = `https://veheys.online/family/invite?token=${token}`;
-  await sendEmail(
-    email,
-    `Приглашение в семью "${family?.name}"`,
-    `<h2>Приглашение в семью</h2>
-     <p>${esc(inviter?.name)} приглашает вас присоединиться к семье "${esc(family?.name)}" в Flex.</p>
-     <p><a href="${esc(inviteLink)}">Принять приглашение</a></p>
-     <p>Или используйте токен: <b>${esc(token)}</b></p>`
-  );
+  console.log(`[INVITE] ${inviter?.name} пригласил ${email} в семью "${family?.name}"`);
+  void sendPush(existingUser.id, {
+    title: 'Приглашение в семью',
+    body: `${inviter?.name || 'Кто-то'} приглашает${inviter?.name ? 'ит' : ''} в семью «${family?.name}»`,
+    link: `/family/invite?token=${token}`,
+    tag: `family-invite-${familyId}`,
+  });
 
   res.json({ message: 'Приглашение отправлено' });
 });

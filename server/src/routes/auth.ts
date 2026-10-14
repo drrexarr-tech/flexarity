@@ -29,7 +29,7 @@ const loginSchema = z.object({
 });
 
 const USER_SELECT = {
-  id: true, email: true, name: true, telegramId: true, vkId: true,
+  id: true, email: true, name: true, telegramId: true,
   avatarUrl: true, dateOfBirth: true, publicKey: true, totpEnabled: true,
 } as const;
 
@@ -395,7 +395,7 @@ authRouter.post('/logout-all', authenticate, async (req: AuthRequest, res: Respo
 });
 
 const oauthSchema = z.object({
-  provider: z.enum(['telegram', 'vk']),
+  provider: z.enum(['telegram']),
   data: z.record(z.any()),
 });
 
@@ -449,15 +449,6 @@ function verifyTelegramLogin(data: Record<string, any>): { id: string; name: str
 authRouter.post('/oauth', async (req: Request, res: Response) => {
   const { provider, data } = oauthSchema.parse(req.body);
 
-  if (provider === 'vk') {
-    // A VK login cannot be trusted without a server-side code exchange, and the
-    // app id / service key are not configured. The previous implementation
-    // looked accounts up by the client-supplied data.email, which let anyone
-    // take over any registered address:
-    //   POST /api/auth/oauth {"provider":"vk","data":{"id":"1","email":"victim@x"}}
-    throw new AppError(503, 'Вход через VK пока не настроен на сервере');
-  }
-
   if (provider === 'telegram') {
     const { id: telegramId, name } = verifyTelegramLogin(data);
 
@@ -481,9 +472,9 @@ authRouter.post('/oauth', async (req: Request, res: Response) => {
   throw new AppError(400, 'Неподдерживаемый провайдер');
 });
 
-// Link Telegram/VK to existing account
+// Link Telegram to the existing account
 const linkSchema = z.object({
-  provider: z.enum(['telegram', 'vk']),
+  provider: z.enum(['telegram']),
   data: z.record(z.any()),
 });
 
@@ -493,8 +484,8 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
   if (data.id === 'undefined' || data.id === 'null') {
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data: { [provider === 'telegram' ? 'telegramId' : 'vkId']: null },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+      data: { telegramId: null },
+      select: { id: true, email: true, name: true, telegramId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
     return res.json(user);
   }
@@ -502,17 +493,13 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
   if (data.remove) {
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data: { [provider === 'telegram' ? 'telegramId' : 'vkId']: null },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+      data: { telegramId: null },
+      select: { id: true, email: true, name: true, telegramId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
     return res.json(user);
   }
 
-  if (provider === 'vk') {
-    throw new AppError(503, 'Вход через VK пока не настроен на сервере');
-  }
-
-  if (provider === 'telegram') {
+if (provider === 'telegram') {
     // Binding was previously authenticated but unverified: any logged-in user
     // could claim any Telegram id, and the real owner would then be logged into
     // the attacker's account. The same signature check as /oauth applies here.
@@ -524,7 +511,7 @@ authRouter.post('/link', authenticate, async (req: AuthRequest, res: Response) =
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { telegramId },
-      select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+      select: { id: true, email: true, name: true, telegramId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
     });
     return res.json(user);
   }
@@ -579,7 +566,7 @@ authRouter.put('/profile', authenticate, async (req: AuthRequest, res: Response)
   const user = await prisma.user.update({
     where: { id: req.userId },
     data: updateData,
-    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    select: { id: true, email: true, name: true, telegramId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
   });
   res.json(user);
 });

@@ -13,7 +13,6 @@ model User {
   name        String
   password    String
   telegramId  String?      @unique
-  vkId        String?      @unique
   avatarUrl   String?
   dateOfBirth DateTime?
   publicKey   String?
@@ -56,6 +55,7 @@ model User {
   events        CalendarEvent[]
   shoppingItems ShoppingItem[] @relation("ShoppingOwner")
   boughtItems   ShoppingItem[] @relation("ShoppingBuyer")
+  pushSubscriptions PushSubscription[]
 }
 
 model Family {
@@ -307,10 +307,27 @@ model CalendarEvent {
   color       String?
   visibility  String   @default("private")
   familyId    String?
+  // Set when the "today" reminder went out, so the daily sweep cannot send the
+  // same event twice on a restart or on a second pass.
+  remindedAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id         String    @id @default(uuid())
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSentAt DateTime?
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model ShoppingItem {

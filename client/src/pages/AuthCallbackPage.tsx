@@ -23,7 +23,6 @@ export function AuthCallbackPage() {
         try { data = JSON.parse(decodeURIComponent(params.get('tgAuthResult')!)); }
         catch { setStatus('Ошибка обработки Telegram'); return; }
       } else if (params.has('payload')) {
-        provider = 'vk';
         const payload = params.get('payload');
         if (payload) {
           try { data = JSON.parse(decodeURIComponent(payload)); }

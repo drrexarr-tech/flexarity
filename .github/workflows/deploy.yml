@@ -93,7 +93,31 @@ jobs:
               echo "JWT_SECRET is ${#current_secret} chars, left as is"
             fi
 
-            echo "=== Loading secrets from server/.env ==="
+            echo "=== Checking the push keys ==="
+              # VAPID is a signing key pair like JWT_SECRET: the private half must
+              # be stable across deploys, because a new pair invalidates every
+              # subscription the browsers already hold. Generated once, then left
+              # alone, and never echoed.
+              if [ -z "$(grep -E '^VAPID_PRIVATE_KEY=' server/.env | head -1 | cut -d= -f2- || true)" ]; then
+                vapid=$(npx web-push generate-vapid-keys --json 2>/dev/null)
+                vapid_public=$(printf '%s' "$vapid" | sed -n 's/.*"publicKey":"\([^"]*\)".*/\1/p')
+                vapid_private=$(printf '%s' "$vapid" | sed -n 's/.*"privateKey":"\([^"]*\)".*/\1/p')
+                if [ -z "$vapid_public" ] || [ -z "$vapid_private" ]; then
+                  echo "ERROR: could not generate VAPID keys"
+                  exit 1
+                fi
+                {
+                  grep -qE '^VAPID_PUBLIC_KEY=' server/.env && sed -i "s|^VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${vapid_public}|" server/.env || printf 'VAPID_PUBLIC_KEY=%s\n' "$vapid_public" >> server/.env
+                  grep -qE '^VAPID_PRIVATE_KEY=' server/.env && sed -i "s|^VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${vapid_private}|" server/.env || printf 'VAPID_PRIVATE_KEY=%s\n' "$vapid_private" >> server/.env
+                  grep -qE '^VAPID_SUBJECT=' server/.env || printf 'VAPID_SUBJECT=mailto:admin@veheys.online\n' >> server/.env
+                }
+                chmod 600 server/.env
+                echo "VAPID keys generated"
+              else
+                echo "VAPID keys present, left as is"
+              fi
+
+              echo "=== Loading secrets from server/.env ==="
             set -a
             . /opt/flex/server/.env
             set +a

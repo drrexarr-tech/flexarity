@@ -3,7 +3,6 @@ export interface User {
   email: string;
   name: string;
   telegramId?: string | null;
-  vkId?: string | null;
   avatarUrl?: string | null;
   dateOfBirth?: string | null;
   totpEnabled?: boolean;

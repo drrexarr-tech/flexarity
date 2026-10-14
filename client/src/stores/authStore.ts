@@ -22,7 +22,6 @@ function persistUser(user: User, store: Storage): void {
 /** Older sessions stored the string "undefined" instead of null. */
 function normalizeUser(user: User): User {
   if (user.telegramId === ('undefined' as unknown)) user.telegramId = null;
-  if (user.vkId === ('undefined' as unknown)) user.vkId = null;
   return user;
 }
 

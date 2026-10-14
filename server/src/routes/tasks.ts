@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import { sendPush } from '../lib/push';
 import { optionalText } from '../lib/validation';
 import { familyIdsOf, resolveFamilyId } from '../lib/access';
 import { authenticate, AuthRequest } from '../middleware/auth';
@@ -17,6 +18,19 @@ tasksRouter.use(authenticate);
  * due date appeared to work and then reappeared on reload - Prisma reads
  * undefined as "do not touch this field".
  */
+function formatDueDate(value: Date): string {
+  const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  const day = value.getDate();
+  const month = months[value.getMonth()];
+  const today = new Date();
+  const sameDay = today.toDateString() === value.toDateString();
+  if (sameDay) return 'сегодня';
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  if (tomorrow.toDateString() === value.toDateString()) return 'завтра';
+  return `${day} ${month}`;
+}
+
 function parseDueDate(value: string | null | undefined): Date | null | undefined {
   if (value === null) return null;
   if (value === undefined) return undefined;
@@ -237,6 +251,37 @@ tasksRouter.post('/', async (req: AuthRequest, res: Response) => {
     },
     include: { assignee: { select: { id: true, name: true, email: true } } },
   });
+
+  // Being handed a task is the one event the recipient did not cause, so it is
+  // the one they cannot notice by looking at the app later. Until now it
+  // appeared nowhere outside the board.
+  if (data.assigneeId && data.assigneeId !== req.userId) {
+    const owner = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { name: true },
+    });
+    const due = task.dueDate ? formatDueDate(task.dueDate) : '';
+    const message = `${owner?.name || 'Кто-то'} поставил${owner?.name ? '' : ' вам'} задачу «${task.title}»${due ? `, срок ${due}` : ''}`;
+
+    await prisma.notification.create({
+      data: {
+        type: 'task_assigned',
+        title: 'Новая задача',
+        message,
+        data: JSON.stringify({ taskId: task.id, columnId: task.columnId }),
+        link: '/tasks',
+        userId: data.assigneeId,
+      },
+    });
+
+    void sendPush(data.assigneeId, {
+      title: 'Вам поставили задачу',
+      body: message,
+      link: '/tasks',
+      tag: `task-assigned-${task.id}`,
+    });
+  }
+
   res.status(201).json(task);
 });
 

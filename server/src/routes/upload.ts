@@ -129,7 +129,7 @@ uploadRouter.post('/avatar', authenticate, upload.single('avatar'), async (req: 
   const user = await prisma.user.update({
     where: { id: req.userId },
     data: { avatarUrl },
-    select: { id: true, email: true, name: true, telegramId: true, vkId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
+    select: { id: true, email: true, name: true, telegramId: true, avatarUrl: true, dateOfBirth: true, publicKey: true },
   });
 
   res.json(user);

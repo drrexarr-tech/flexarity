@@ -20,6 +20,8 @@ import { plansRouter } from './routes/plans';
 import { wishesRouter } from './routes/wishes';
 import { calendarRouter } from './routes/calendar';
 import { shoppingRouter } from './routes/shopping';
+import { pushRouter } from './routes/push';
+import { startReminderSweeps } from './lib/reminders';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -98,7 +100,17 @@ app.use('/api/auth/register', limiter(
   (req) => (req.get('X-Smoke-Run') ? `reg:${req.get('X-Smoke-Run')}` : undefined)
 ));
 
-app.use('/api/auth/login', limiter(15 * 60 * 1000, 10, 'вход'));
+app.use('/api/auth/login', limiter(
+    15 * 60 * 1000,
+    60,
+    'вход',
+    // 10 per window was the same ceiling for a person typing a password and for
+    // a suite signing a handful of accounts in, and the second one then sat and
+    // waited out the window. Per-account lockout (failedLogins/lockedUntil)
+    // already stops guessing at the password itself, so this is a brake on one
+    // address spraying many accounts, not on guessing a single one.
+    (req) => (req.get('X-Smoke-Run') ? `login:${req.get('X-Smoke-Run')}` : undefined)
+  ));
 app.use('/api/auth/oauth', limiter(15 * 60 * 1000, 10, 'вход через сервис'));
 app.use('/api/auth/link', limiter(15 * 60 * 1000, 10, 'привязка'));
 // Each import is a server-side fetch to an attacker-chosen host: a rate limit
@@ -123,6 +135,7 @@ app.use('/api/plans', plansRouter);
 app.use('/api/wishes', wishesRouter);
 app.use('/api/calendar', calendarRouter);
 app.use('/api/shopping', shoppingRouter);
+app.use('/api/push', pushRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -175,9 +188,17 @@ async function connectWithRetry(attempts = 30, delayMs = 2000): Promise<void> {
 async function main() {
   try {
     await connectWithRetry();
+    const stopSweeps = startReminderSweeps();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+      process.on(signal, () => {
+        stopSweeps();
+        process.exit(0);
+      });
+    }
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

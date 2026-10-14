@@ -157,11 +157,11 @@ export const api = {
     changePassword: (data: { currentPassword: string; newPassword: string }) =>
       request<any>('/auth/password', { method: 'PUT', body: JSON.stringify(data) }),
     me: () => request<{ id: string; email: string; name: string; totpEnabled: boolean }>('/auth/me'),
-    oauth: (provider: 'telegram' | 'vk', data: any) =>
+    oauth: (provider: 'telegram', data: any) =>
       request<AuthResult>('/auth/oauth', {
         method: 'POST', body: JSON.stringify({ provider, data }),
       }),
-    link: (provider: 'telegram' | 'vk', data: any) =>
+    link: (provider: 'telegram', data: any) =>
       request<any>('/auth/link', { method: 'POST', body: JSON.stringify({ provider, data }) }),
     updateProfile: (data: any) =>
       request<any>('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
@@ -321,5 +321,19 @@ export const api = {
     getUnreadCount: () => request<{ count: number }>('/notifications/unread-count'),
     markRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: 'PUT' }),
     markAllRead: () => request<any>('/notifications/read-all', { method: 'PUT' }),
+  },
+  push: {
+    publicKey: () => request<{ key: string; enabled: boolean }>('/push/public-key'),
+    subscribe: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+      request<{ ok: boolean; id: string }>('/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify(sub),
+      }),
+    unsubscribe: (endpoint: string) =>
+      request<{ ok: boolean }>('/push/subscribe', {
+        method: 'DELETE',
+        body: JSON.stringify({ endpoint }),
+      }),
+    sendTest: () => request<{ delivered: number }>('/push/test', { method: 'POST' }),
   },
 };

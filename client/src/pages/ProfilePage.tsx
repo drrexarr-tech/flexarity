@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSingleFlight } from '@/lib/useSingleFlight';
 import { useAuthStore } from '@/stores/authStore';
+import { pushPermission, isPushActive, enablePush, disablePush } from '@/lib/push';
 import { api } from '@/lib/api';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { Camera, CheckCheck, ShieldCheck, Unlink, X } from 'lucide-react';
+import { Bell, Camera, CheckCheck, ShieldCheck, Unlink, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 
@@ -27,7 +29,69 @@ export function ProfilePage() {
   const [cropDataUrl, setCropDataUrl] = useState('');
   const [cropPos, setCropPos] = useState({ x: 0.5, y: 0.5 });
   const [cropR, setCropR] = useState(72);
-  const [unlinkTarget, setUnlinkTarget] = useState<'telegram' | 'vk' | null>(null);
+  const [unlinkTarget, setUnlinkTarget] = useState<'telegram' | null>(null);
+  // Push cannot be switched on from here on an iPhone that has not been added to
+  // the home screen, so the switch explains that instead of failing silently.
+  const [pushActive, setPushActive] = useState(false);
+  const [pushUnavailable, setPushUnavailable] = useState(false);
+  const [pushHint, setPushHint] = useState('Проверяем поддержку уведомлений...');
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const permission = await pushPermission();
+      const active = await isPushActive();
+      if (cancelled) return;
+
+      if (permission === 'unsupported') {
+        setPushUnavailable(true);
+        setPushHint('Браузер не поддерживает уведомления');
+        return;
+      }
+      setPushUnavailable(permission === 'denied');
+      setPushActive(active);
+      setPushHint(
+        active
+          ? 'Приходят на это устройство'
+          : permission === 'denied'
+            ? 'Запрещены в настройках браузера'
+            : 'Напоминания о событиях и новых задачах',
+      );
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function handlePushToggle(next: boolean) {
+    setPushHint('Подключаем...');
+    try {
+      if (!next) {
+        await disablePush();
+        setPushActive(false);
+        setPushHint('Напоминания о событиях и новых задачах');
+        return;
+      }
+      const state = await enablePush();
+      if (state === 'subscribed') {
+        setPushActive(true);
+        setPushHint('Приходят на это устройство');
+        toast.success('Уведомления включены');
+      } else if (state === 'denied') {
+        setPushUnavailable(true);
+        setPushHint('Запрещены в настройках браузера');
+        toast.error('Разрешение на уведомления запрещено');
+      } else if (state === 'granted') {
+        // Permission is fine but the server has no keys, so a subscription would
+        // never be delivered. Say that rather than pretending it is on.
+        setPushHint('Сервер не настроен на отправку');
+        toast.error('Сервер пока не может отправлять уведомления');
+      } else {
+        setPushHint('Уведомления недоступны на этом устройстве');
+      }
+    } catch (err: any) {
+      setPushHint('Не удалось подключить уведомления');
+      toast.error(err?.message || 'Не удалось подключить уведомления');
+    }
+  }
   const [deleteAvatarDialog, setDeleteAvatarDialog] = useState(false);
   const [totpEnabled, setTotpEnabled] = useState(!!user?.totpEnabled);
   const [setupDialog, setSetupDialog] = useState(false);
@@ -288,7 +352,7 @@ export function ProfilePage() {
     }
   }
 
-  async function handleUnlink(provider: 'telegram' | 'vk') {
+  async function handleUnlink(provider: 'telegram') {
     setUnlinkTarget(provider);
   }
 
@@ -299,7 +363,7 @@ export function ProfilePage() {
     try {
       const updated = await api.auth.link(provider, { remove: true });
       setUser(updated);
-      toast.success(`${provider === 'telegram' ? 'Telegram' : 'VK'} отвязан`);
+      toast.success('Telegram отвязан');
     } catch (err: any) { toast.error(err.message); }
   }
 
@@ -582,33 +646,30 @@ export function ProfilePage() {
             )}
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
-            <div className="flex items-center gap-3">
-              <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor"><path d="M15.684 0H8.316C3.731 0 0 3.731 0 8.316v7.368C0 20.269 3.731 24 8.316 24h7.368C20.269 24 24 20.269 24 15.684V8.316C24 3.731 20.269 0 15.684 0zm3.366 16.742h-1.564c-.607 0-.801-.505-1.923-1.661-.967-.992-1.387-1.12-1.624-1.12-.33 0-.426.127-.426.5v1.323c0 .36-.122.567-1.077.567-1.584 0-3.34-.979-4.584-2.807-1.706-2.189-2.163-3.823-2.163-4.161 0-.19.075-.361.553-.361h1.575c.416 0 .569.19.727.657.619 2.014 1.649 3.781 2.07 3.781.162 0 .242-.08.242-.521v-2.004c-.07-1.036-.626-1.122-.626-1.493 0-.19.153-.361.38-.361H12.1c.332 0 .437.166.437.525V10.66c0 .35.127.473.22.473.177 0 .331-.123.65-.442 1.089-1.238 1.863-3.147 1.863-3.147.093-.198.233-.294.445-.294h1.564c.443 0 .546.233.443.563-.166.555-1.84 3.315-1.84 3.315-.148.26-.206.39 0 .691.15.242.993.973 1.494 1.566.566.673.995 1.244.995 1.692.004.637-.332.955-.835.955z"/></svg>
-              <div>
-                <p className="text-sm font-medium">VK</p>
-                {user?.vkId ? (
-                  <p className="text-xs text-green-600 flex items-center gap-1"><CheckCheck className="h-3 w-3" /> ID: {user.vkId === 'undefined' ? 'ошибка' : user.vkId}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Не привязан</p>
-                )}
-              </div>
-            </div>
-            {user?.vkId ? (
-              <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleUnlink('vk')}>
-                <Unlink className="h-3 w-3 mr-1" /> Отвязать
-              </Button>
-            ) : (
-              <p className="text-xs text-muted-foreground">Нет VK приложения</p>
-            )}
-          </div>
-
           <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
             <div className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[10px] font-bold">@</div>
             <div>
               <p className="text-sm font-medium">Email</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted">
+                <Bell className="h-3 w-3" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Уведомления</p>
+                <p className="text-xs text-muted-foreground">{pushHint}</p>
+              </div>
+            </div>
+            <Switch
+              checked={pushActive}
+              disabled={pushUnavailable}
+              onCheckedChange={handlePushToggle}
+              aria-label="Уведомления"
+            />
           </div>
         </CardContent>
       </Card>

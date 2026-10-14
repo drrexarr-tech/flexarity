@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { useVisualViewportInsets } from '@/lib/useVisualViewport';
+import { isPushActive, enablePush } from '@/lib/push';
 import { useThemeStore } from '@/stores/themeStore';
 import { useNavStore } from '@/stores/navStore';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -42,6 +43,56 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
+}
+
+/**
+ * A tap on a push notification asks the worker to focus an open window and then
+ * sends it a route. The worker cannot navigate a client it does not own, so the
+ * handler lives here where the router is.
+ *
+ * Re-registering after every load is deliberate: permission can be granted on a
+ * second device while this one already had it, and a subscription that is not
+ * re-sent to the server is one the server has never heard of.
+ */
+function usePushNavigation() {
+  const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'navigate' && typeof event.data.link === 'string') {
+        navigate(event.data.link);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    void (async () => {
+      if (await isPushActive()) {
+        // Already subscribed: make sure the server still has this endpoint under
+        // the account that is signed in now.
+        try {
+          const { currentSubscription } = await import('@/lib/push');
+          const sub = await currentSubscription();
+          const json = sub?.toJSON() as any;
+          if (json?.endpoint && json?.keys && !cancelled) {
+            const { api } = await import('@/lib/api');
+            await api.push.subscribe({ endpoint: json.endpoint, keys: json.keys });
+          }
+        } catch {
+          /* a failed re-register must not surface on the home screen */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 }
 
 function AnimatedRoutes() {
@@ -95,6 +146,8 @@ export default function App() {
   // Publishes the keyboard inset once, so every sheet in the app can sit above
   // it rather than underneath.
   useVisualViewportInsets();
+
+  usePushNavigation();
 
   useEffect(() => {
     initAuth();
