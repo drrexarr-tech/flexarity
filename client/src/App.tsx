@@ -54,7 +54,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
  * second device while this one already had it, and a subscription that is not
  * re-sent to the server is one the server has never heard of.
  */
-function usePushNavigation() {
+function PushNavigation() {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -93,6 +93,8 @@ function usePushNavigation() {
       cancelled = true;
     };
   }, [isAuthenticated]);
+
+  return null;
 }
 
 function AnimatedRoutes() {
@@ -147,8 +149,6 @@ export default function App() {
   // it rather than underneath.
   useVisualViewportInsets();
 
-  usePushNavigation();
-
   useEffect(() => {
     initAuth();
     initTheme();
@@ -165,6 +165,10 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        {/* Must live inside the Router: useNavigate throws when it runs above
+            the context, and a throw during App's own render is not something
+            ErrorBoundary below can catch - it would white-screen the app. */}
+        <PushNavigation />
         <OfflineBanner />
         <OAuthHandler />
         <Toaster
