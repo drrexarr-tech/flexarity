@@ -56,7 +56,16 @@ async function refreshAccessToken(): Promise<RefreshOutcome> {
   return 'unavailable';
 }
 
-async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
+  /** fetch rejects with an English TypeError when the network is down. */
+  function networkError() {
+    return new Error(
+      typeof navigator !== 'undefined' && navigator.onLine === false
+        ? 'Нет подключения к сети'
+        : 'Сервер недоступен, попробуйте позже'
+    );
+  }
+
+  async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -68,37 +77,40 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
   }
 
   let res: Response;
+  const method = (options.method || 'GET').toUpperCase();
+  const isRead = method === 'GET' || method === 'HEAD';
+
   try {
     res = await fetch(`${API_URL}${path}`, { ...options, headers });
   } catch {
     // A pooled connection the server has already closed fails this way, and so
     // does a phone losing signal for a moment - both are ordinary on mobile
     // data, and both look identical to the user: the list came back empty.
-    // Worth one more try for a read. A write is left alone, because repeating
-    // it could create the same row twice.
-    const method = (options.method || 'GET').toUpperCase();
-    const safeToRepeat = method === 'GET' || method === 'HEAD';
-    if (safeToRepeat && retry) {
+    // Worth one more try for a read.
+    if (isRead && retry) {
       await new Promise((r) => setTimeout(r, 250));
       try {
         res = await fetch(`${API_URL}${path}`, { ...options, headers });
       } catch {
-        throw new Error(
-          typeof navigator !== 'undefined' && navigator.onLine === false
-            ? 'Нет подключения к сети'
-            : 'Сервер недоступен, попробуйте позже'
-        );
+        throw networkError();
+      }
+    } else if (method === 'DELETE' && retry) {
+      // This one needs more care, because the outcome is genuinely unknown: the
+      // server may have deleted the row and lost the reply on the way back. A
+      // second DELETE settles it either way - it either removes it, or answers
+      // 404 because the first one already did. Without this the row is deleted
+      // and the user is shown a red toast.
+      await new Promise((r) => setTimeout(r, 250));
+      try {
+        res = await fetch(`${API_URL}${path}`, { ...options, headers });
+      } catch {
+        throw networkError();
+      }
+      if (res.status === 404) {
+        return { message: 'Уже удалено' } as T;
       }
     } else {
-      // fetch rejects with an English TypeError ("Failed to fetch") when the
-      // network is down, which surfaced as a raw English string in an
-      // all-Russian UI. Offline is a normal state for an installed PWA, so
-      // name it.
-      throw new Error(
-        typeof navigator !== 'undefined' && navigator.onLine === false
-          ? 'Нет подключения к сети'
-          : 'Сервер недоступен, попробуйте позже'
-      );
+      throw networkError();
     }
   }
 
@@ -106,8 +118,7 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
   // being replaced during a deploy. Both are brief and both are worth a second
   // try for a read, rather than an empty list and a toast.
   if (res.status === 502 || res.status === 503 || res.status === 504) {
-    const method = (options.method || 'GET').toUpperCase();
-    if ((method === 'GET' || method === 'HEAD') && retry) {
+    if (isRead && retry) {
       await new Promise((r) => setTimeout(r, 400));
       return request<T>(path, options, false);
     }
