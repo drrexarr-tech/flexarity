@@ -117,12 +117,31 @@ export function TaskCard({
           <div className="flex-1 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-medium">{task.title}</p>
-              <div className="flex gap-1 shrink-0">
-                {/* Both actions are owner-only. Deleting someone else's task
-                    is refused by the server, and editing one silently drops
-                    half the fields, so offering the buttons invites a red toast
-                    for a delete and a silent no-op for an edit. */}
-                {isOwnTask && (
+                <div className="flex gap-1 shrink-0">
+                  {/* The assignee has no board of their own to drag onto, so the
+                      one thing they are allowed to do - finish the task - gets
+                      a button. The column comes from the server, because the
+                      caller's own board is not the one it lands on. */}
+                  {!isOwnTask && (task as any).doneColumnId && !(task as any).alreadyDone && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11"
+                      aria-label="Отметить выполненной"
+                      data-task-id={task.id}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await onUpdate(task.id, { columnId: (task as any).doneColumnId });
+                      }}
+                    >
+                      <Check className="h-4 w-4 text-emerald-600" />
+                    </Button>
+                  )}
+                  {/* Both actions are owner-only. Deleting someone else's task
+                      is refused by the server, and editing one is refused too -
+                      the assignee may only move it. */}
+                  {isOwnTask && (
                   <>
                     <Dialog open={editing} onOpenChange={setEditing}>
                       <DialogTrigger asChild>

@@ -314,6 +314,11 @@ model CalendarEvent {
   // "HH:MM", so without this a reminder written as 19:46 in Moscow would fire
   // at 19:46 UTC, three hours after the user thinks it should.
   tzOffset    Int?
+  // Which of the three reminders have already gone out: 0 none, 1 the day
+  // before, 2 the hour before, 3 five minutes before. A single flag could only
+  // remember one, and re-sending the day-before text at five minutes out would
+  // be the kind of thing that makes people turn notifications off.
+  reminderStage Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   userId      String

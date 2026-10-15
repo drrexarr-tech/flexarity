@@ -10,6 +10,65 @@ import { AppError } from '../middleware/errorHandler';
 export const tasksRouter = Router();
 tasksRouter.use(authenticate);
 
+  /**
+   * What counts as the finished column.
+   *
+   * A column carries no kind, only a title, and the board this ships with
+   * names its last column "Готово". Matching that and the handful of words a
+   * person would actually type is the difference between the assignee being told
+   * the task is done and nothing happening at all.
+   */
+  const DONE_TITLE = /^(готово|done|выполнено|завершено|завершена)/i;
+
+  function isDoneColumn(title: string | null | undefined): boolean {
+    return !!title && DONE_TITLE.test(title.trim());
+  }
+
+  /** The owner's finished column, when they have one. */
+  async function findDoneColumn(userId: string) {
+    const columns = await prisma.taskColumn.findMany({
+      where: { userId },
+      select: { id: true, title: true },
+    });
+    return columns.find((c) => isDoneColumn(c.title)) || null;
+  }
+
+  /**
+   * Tell the author that a task was finished.
+   *
+   * Being handed a task is one half of the loop; without this the author had
+   * no way of learning it had been done unless they went and looked at the
+   * board themselves.
+   */
+  async function notifyTaskDone(taskId: string, movedBy: string) {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, title: true, userId: true, assignee: { select: { name: true } } },
+    });
+    if (!task || task.userId === movedBy) return;
+
+    const name = task.assignee?.name || 'Исполнитель';
+    const message = `«${task.title}» — выполнил ${name}`;
+
+    await prisma.notification.create({
+      data: {
+        type: 'task_done',
+        title: 'Задача готова',
+        message,
+        data: JSON.stringify({ taskId: task.id }),
+        link: '/tasks',
+        userId: task.userId,
+      },
+    });
+
+    void sendPush(task.userId, {
+      title: 'Задача готова',
+      body: message,
+      link: '/tasks',
+      tag: `task-done-${task.id}`,
+    });
+  }
+
 /**
  * A due date has three states and they must not collapse into two.
  * optionalText() already distinguishes them: absent means "leave unchanged",
@@ -128,6 +187,21 @@ const columns = await prisma.taskColumn.findMany({
       },
     });
 
+    // Whether the assignee has anywhere to put a finished task. The board is
+    // the author's, so the caller cannot see their columns and would otherwise
+    // be offered a button that fails.
+    const assignerBoards = new Map<string, string | null>();
+    for (const authorId of new Set(assignedTasks.map((t) => t.userId))) {
+      if (!assignerBoards.has(authorId)) {
+        assignerBoards.set(authorId, (await findDoneColumn(authorId))?.id ?? null);
+      }
+    }
+    const decoratedAssigned = assignedTasks.map((task) => ({
+      ...task,
+      doneColumnId: assignerBoards.get(task.userId) ?? null,
+      alreadyDone: isDoneColumn(task.column?.title),
+    }));
+
     // A task published to a family sits in the owner's column, and the query
     // above only reads the caller's own columns, so the visibility filter that
     // used to sit inside include.tasks could never match anything: the form
@@ -148,7 +222,7 @@ const columns = await prisma.taskColumn.findMany({
       },
     });
 
-    res.json({ columns, assignedTasks, familyTasks });
+    res.json({ columns, assignedTasks: decoratedAssigned, familyTasks });
 });
 
 tasksRouter.post('/columns', async (req: AuthRequest, res: Response) => {
@@ -194,35 +268,50 @@ tasksRouter.put('/reorder/all', async (req: AuthRequest, res: Response) => {
   }).parse(req.body);
 
   // Every other :id route here resolves the task against the caller first. This
-  // one only validated shape, so any authenticated user could reorder or
-  // relocate any task in the system by id. Skip what is not theirs rather than
-  // failing the whole batch, so a stale drag does not break the board.
-  const myColumns = await prisma.taskColumn.findMany({
-    where: { userId: req.userId },
-    select: { id: true },
-  });
-  const myColumnIds = new Set(myColumns.map((c) => c.id));
+    // one only validated shape, so any authenticated user could reorder or
+    // relocate any task in the system by id. Skip what is not theirs rather than
+    // failing the whole batch, so a stale drag does not break the board.
+    for (const item of items.slice(0, 200)) {
+      const target = await prisma.task.findFirst({
+        where: { id: item.id },
+        select: { id: true, userId: true, assigneeId: true, columnId: true },
+      });
+      if (!target) continue;
 
-  for (const item of items.slice(0, 200)) {
-    // Checking only the task still let a user move their own task onto someone
-    // else's board, which then rendered there.
-    if (!myColumnIds.has(item.columnId)) continue;
+      const owns = target.userId === req.userId;
+      const delegated = !owns && target.assigneeId === req.userId;
+      if (!owns && !delegated) continue;
 
-    // Ownership, not assignment. An assignee is shown someone else's task in
-    // "Назначено мне" and could use this to relocate it out of the owner's
-    // board, where it then stopped rendering for them at all. DELETE is
-    // owner-only too, so this matches it.
-    const owned = await prisma.task.findFirst({
-      where: { id: item.id, userId: req.userId },
-      select: { id: true },
-    });
-    if (!owned) continue;
+      // The board a task may be dropped on is the one it lives on: the author's
+      // for their own task, and the author's for a task delegated to the caller.
+      // An assignee shown the task in "Назначено мне" could otherwise use this
+      // to relocate it off a board that is not theirs.
+      let allowed: { id: string; title: string }[];
+      if (owns) {
+        allowed = await prisma.taskColumn.findMany({
+          where: { userId: req.userId },
+          select: { id: true, title: true },
+        });
+      } else {
+        allowed = await prisma.taskColumn.findMany({
+          where: { userId: target.userId },
+          select: { id: true, title: true },
+        });
+      }
+      const destination = allowed.find((c) => c.id === item.columnId);
+      if (!destination) continue;
 
-    await prisma.task.update({
-      where: { id: item.id },
-      data: { order: item.order, columnId: item.columnId },
-    });
-  }
+      await prisma.task.update({
+        where: { id: item.id },
+        data: { order: item.order, columnId: item.columnId },
+      });
+
+      // Landing in the finished column, by somebody other than the author, is
+      // the moment the author wants to hear about.
+      if (delegated && item.columnId !== target.columnId && isDoneColumn(destination.title)) {
+        void notifyTaskDone(item.id, req.userId!);
+      }
+    }
 
   res.json({ message: 'Порядок обновлён' });
 });
@@ -260,14 +349,14 @@ tasksRouter.post('/', async (req: AuthRequest, res: Response) => {
       where: { id: req.userId! },
       select: { name: true },
     });
+    const who = owner?.name || 'Кто-то';
     const due = task.dueDate ? formatDueDate(task.dueDate) : '';
-    const message = `${owner?.name || 'Кто-то'} поставил${owner?.name ? '' : ' вам'} задачу «${task.title}»${due ? `, срок ${due}` : ''}`;
 
     await prisma.notification.create({
       data: {
         type: 'task_assigned',
-        title: 'Новая задача',
-        message,
+        title: `Вам поставили задачу от ${who}`,
+        message: due ? `${task.title} · срок ${due}` : task.title,
         data: JSON.stringify({ taskId: task.id, columnId: task.columnId }),
         link: '/tasks',
         userId: data.assigneeId,
@@ -275,8 +364,8 @@ tasksRouter.post('/', async (req: AuthRequest, res: Response) => {
     });
 
     void sendPush(data.assigneeId, {
-      title: 'Вам поставили задачу',
-      body: message,
+      title: `Вам поставили задачу от ${who}`,
+      body: due ? `${task.title} · срок ${due}` : task.title,
       link: '/tasks',
       tag: `task-assigned-${task.id}`,
     });
@@ -298,29 +387,62 @@ tasksRouter.put('/:id', async (req: AuthRequest, res: Response) => {
   if (!existing) throw new AppError(404, 'Задача не найдена');
 
 const data = taskSchema.partial().parse(req.body);
-    // An assignee is a recipient of the task, not its author. The card renders
-    // no edit control for them, but the route still matched on assigneeId and
-    // accepted the whole payload, so anyone a task was delegated to could
-    // rewrite its title, description, priority and deadline. Silently dropping
-    // those fields left a "200 OK" on a write that never happened; refusing is
-    // what the UI already implies.
+    // An assignee works the task, they do not author it. Letting them rewrite
+    // the title, description, priority and deadline was how anyone a task was
+    // delegated to could take it over; letting them do nothing at all was how
+    // they could never report it finished. So: position is theirs, content is
+    // the author's.
     const isOwner = existing.userId === req.userId;
-    if (!isOwner) throw new AppError(403, 'Редактировать задачу может только автор');
-    if (data.columnId) await assertOwnColumn(req.userId!, data.columnId);
-    if (data.assigneeId !== undefined) await assertShareable(req.userId!, data.assigneeId);
+    if (!isOwner) {
+      if (existing.assigneeId !== req.userId) {
+        throw new AppError(403, 'Редактировать задачу может только автор');
+      }
+      const forbidden = Object.keys(data).filter(
+        (key) => key !== 'columnId' && key !== 'order',
+      );
+      if (forbidden.length > 0) {
+        throw new AppError(403, 'Исполнитель может только перемещать задачу');
+      }
+      if (data.columnId) {
+        // The target must be a column of the author's board, not the mover's:
+        // that was the hole the earlier version opened.
+        const ownerColumn = await prisma.taskColumn.findFirst({
+          where: { id: data.columnId, userId: existing.userId },
+          select: { id: true, title: true },
+        });
+        if (!ownerColumn) throw new AppError(403, 'Нельзя переместить задачу на чужую доску');
+      }
+    } else {
+      if (data.columnId) await assertOwnColumn(req.userId!, data.columnId);
+      if (data.assigneeId !== undefined) await assertShareable(req.userId!, data.assigneeId);
+    }
 
   const patch: Record<string, unknown> = { ...data };
   if (data.familyId !== undefined) {
     patch.familyId = await resolveFamilyId(req.userId!, data.familyId);
   }
 
-  const task = await prisma.task.update({
-    where: { id: String(req.params.id) },
-    data: { ...patch, dueDate: parseDueDate(data.dueDate) } as any,
-    include: { assignee: { select: { id: true, name: true, email: true } } },
+const task = await prisma.task.update({
+      where: { id: String(req.params.id) },
+      data: { ...patch, dueDate: parseDueDate(data.dueDate) } as any,
+      include: { assignee: { select: { id: true, name: true, email: true } } },
+    });
+
+    // Landing in the finished column is the signal, and only when somebody else
+    // moved it: an author tidying their own board is not news to them.
+    if (!isOwner && data.columnId) {
+      const target = await prisma.taskColumn.findFirst({
+        where: { id: data.columnId, userId: existing.userId },
+        select: { title: true },
+      });
+      const wasDone = existing.columnId === data.columnId;
+      if (isDoneColumn(target?.title) && !wasDone) {
+        void notifyTaskDone(task.id, req.userId!);
+      }
+    }
+
+    res.json(task);
   });
-  res.json(task);
-});
 
 tasksRouter.delete('/:id', async (req: AuthRequest, res: Response) => {
   const existing = await prisma.task.findFirst({ where: { id: String(req.params.id) } });

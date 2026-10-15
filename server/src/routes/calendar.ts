@@ -226,10 +226,12 @@ calendarRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       ...(data.time !== undefined ? { time: data.time || null } : {}),
     ...(data.tzOffset !== undefined ? { tzOffset: data.tzOffset } : {}),
       ...(data.color !== undefined ? { color: data.color || null } : {}),
-    // Moving an event has to arm its reminder again. The flag is what stops the
-    // sweep repeating itself, and a time that changed after the notification
-    // already went out would otherwise stay silent at the new hour.
-    ...(data.date !== undefined || data.time !== undefined ? { remindedAt: null } : {}),
+    // Moving an event has to arm its reminders again. The stage is what stops
+    // the sweep repeating itself, and a time that changed after the day-before
+    // text already went out would otherwise stay silent at the new hour.
+    ...(data.date !== undefined || data.time !== undefined
+      ? { remindedAt: null, reminderStage: 0 }
+      : {}),
       ...(data.visibility !== undefined ? { visibility: data.visibility } : {}),
       ...(data.familyId !== undefined || data.visibility !== undefined
         ? { familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null) }
