@@ -1,4 +1,4 @@
-﻿// Runs the deployed bundle for real in a DOM and checks the app mounts.
+// Runs the deployed bundle for real in a DOM and checks the app mounts.
 //
 // Everything else in the suite fetched files and statuses. That is exactly how a
 // white screen reached production: 200, correct hashed name, healthy API, and a

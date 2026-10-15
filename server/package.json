@@ -3,12 +3,13 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js && node scripts/check-recipe-parser.js && node scripts/check-auth.mjs && node scripts/check-ssrf.js",
+    "build": "node scripts/check-encoding.js && tsc && node scripts/check-validation.js && node scripts/check-recipe-parser.js && node scripts/check-auth.mjs && node scripts/check-ssrf.js && vitest run",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "tsx src/seed.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -35,6 +36,7 @@
     "@types/web-push": "^3.6.4",
     "prisma": "^5.22.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^5.0.4"
   }
 }
