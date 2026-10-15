@@ -185,6 +185,20 @@ async function connectWithRetry(attempts = 30, delayMs = 2000): Promise<void> {
   }
 }
 
+/**
+ * A stray rejection must not take the site down.
+ *
+ * Node ends the process on an unhandled rejection, and every route here is
+ * inside the site rather than next to it: an API that restarts every minute is
+ * a stream of reset connections for whoever is using it. express-async-errors
+ * covers the handlers, so anything arriving here is something running in the
+ * background - a timer, a sweep - and the right response is to say so loudly and
+ * keep serving.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL-GUARD] unhandled rejection, server kept running:', reason);
+});
+
 async function main() {
   try {
     await connectWithRetry();

@@ -59,6 +59,19 @@ export type PushPayload = {
  * a push that cannot be delivered must not fail the request that caused it.
  */
 export async function sendPush(userId: string, payload: PushPayload): Promise<number> {
+  // This is called as `void sendPush(...)` from request handlers and from the
+  // reminder sweep, which means a rejection here is an unhandled one - and an
+  // unhandled rejection ends the process. A push that cannot be looked up or
+  // sent must cost the notification nothing.
+  try {
+    return await deliver(userId, payload);
+  } catch (err) {
+    console.error('[PUSH] delivery aborted:', err);
+    return 0;
+  }
+}
+
+async function deliver(userId: string, payload: PushPayload): Promise<number> {
   if (!configure()) return 0;
 
   const subs = await prisma.pushSubscription.findMany({ where: { userId } });

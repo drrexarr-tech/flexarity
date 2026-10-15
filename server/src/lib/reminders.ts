@@ -218,10 +218,21 @@ async function sweep(recovering = false) {
 }
 
 export function startReminderSweeps() {
-  // Once at boot, to catch whatever the restart may have swallowed, then every
-  // minute so the lead time is accurate rather than rounded to a tick.
-  const kickoff = setTimeout(() => void sweep(true), 15_000);
-  const timer = setInterval(() => void sweep(false), SWEEP_INTERVAL_MS);
+  /**
+   * The guard is load-bearing, not decoration. `void sweep()` does not catch a
+   * rejection: in Node an unhandled rejection ends the process, so a single bad
+   * row would have taken the whole API down and `restart: unless-stopped` would
+   * have brought it straight back, once a minute, as a stream of reset
+   * connections. A reminder that fails is worth a log line and nothing more.
+   */
+  const run = (recovering: boolean) => {
+    void sweep(recovering).catch((err) => {
+      console.error('[REMINDERS] sweep failed:', err);
+    });
+  };
+
+  const kickoff = setTimeout(() => run(true), 15_000);
+  const timer = setInterval(() => run(false), SWEEP_INTERVAL_MS);
 
   return () => {
     clearTimeout(kickoff);
