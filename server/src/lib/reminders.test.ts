@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { composeReminder, selectDue } from './reminders';
 
 // The wording is what a lock screen shows first, and "Сегодня, (19:46)" came
@@ -75,14 +75,19 @@ describe("when a reminder is due", () => {
   // The complaint that produced this: an event at 19:46 produced a notification
   // at 19:50, because the sweep ran every ten minutes and said whatever the day
   // held. A reminder after the event has begun is worse than no reminder.
-  const today = new Date();
-  const event = (time: string | null) => ({ id: "e", title: "Тест", time, userId: "u", date: today });
+  const today = new Date(Date.UTC(2026, 5, 15));
+  const event = (time: string | null, tzOffset: number | null = null) => ({
+    id: "e",
+    title: "Тест",
+    time,
+    userId: "u",
+    date: today,
+    tzOffset,
+  });
 
-  const atLocal = (h: number, m: number) => {
-    const d = new Date();
-    d.setHours(h, m, 0, 0);
-    return d;
-  };
+  const day = new Date(Date.UTC(2026, 5, 15));
+  const atUtc = (h: number, m: number) => new Date(Date.UTC(2026, 5, 15, h, m));
+  const atLocal = atUtc;
 
   it("speaks up fifteen minutes before", () => {
     expect(selectDue([event("19:46")], atLocal(19, 31), false).length).toBe(1);
@@ -119,5 +124,58 @@ describe("when a reminder is due", () => {
   it("ignores a malformed time instead of sending nothing at all", () => {
     expect(selectDue([event("не время")], atLocal(23, 59), false).length).toBe(0);
     expect(selectDue([event("25:99")], atLocal(23, 59), false).length).toBe(0);
+  });
+});
+
+describe("the user's own clock, not the server's", () => {
+  const today = new Date(Date.UTC(2026, 5, 15));
+  const utc = (h: number, m: number) => new Date(Date.UTC(2026, 5, 15, h, m));
+  const event = (time: string | null, tzOffset: number | null) => ({
+    id: "e", title: "Тест", time, userId: "u", date: today, tzOffset,
+  });
+
+  // 19:46 entered in Moscow is 16:46 UTC. Taking the wall clock at face value
+  // would remind three hours late - the bug right after "arrived after the
+  // event".
+  const moscow = 180;
+
+  it("fires a Moscow evening event at the right moment in UTC", () => {
+    expect(selectDue([event("19:46", moscow)], utc(16, 31), false).length).toBe(1);
+    expect(selectDue([event("19:46", moscow)], utc(16, 30), false).length).toBe(0);
+  });
+
+  it("does not fire it three hours late", () => {
+    expect(selectDue([event("19:46", moscow)], utc(19, 46), false).length).toBe(0);
+  });
+
+it("says nothing about a morning event before its time in UTC", () => {
+    // 08:00 in Moscow is 05:00 UTC, so the lead time opens at 04:45 UTC.
+    expect(selectDue([event("08:00", moscow)], utc(4, 44), false).length).toBe(0);
+    expect(selectDue([event("08:00", moscow)], utc(4, 45), false).length).toBe(1);
+    expect(selectDue([event("08:00", moscow)], utc(4, 50), false).length).toBe(1);
+  });
+
+  it("handles a zone behind UTC", () => {
+    // 08:00 in New York is 13:00 UTC.
+    expect(selectDue([event("08:00", -300)], utc(12, 50), false).length).toBe(1);
+    expect(selectDue([event("08:00", -300)], utc(12, 40), false).length).toBe(0);
+  });
+
+  it("is quiet about a day that is still tomorrow over there", () => {
+    const tokyo = 540;
+    const tomorrow = new Date(Date.UTC(2026, 5, 16));
+    expect(selectDue([{ ...event("08:00", tokyo), date: tomorrow }], utc(20, 0), false).length).toBe(0);
+  });
+
+  it("keeps the old behaviour for events saved before the offset existed", () => {
+    expect(selectDue([event("19:46", null)], utc(19, 31), false).length).toBe(1);
+    expect(selectDue([event("19:46", null)], utc(19, 46), false).length).toBe(0);
+  });
+
+  it("reads the stored date as UTC midnight, not local midnight", () => {
+    // A column written at UTC midnight must not slide to the previous day just
+    // because the process happens to run west of Greenwich.
+    const row = { ...event("12:00", null), date: new Date(Date.UTC(2026, 5, 15)) };
+    expect(selectDue([row], utc(11, 45), false).length).toBe(1);
   });
 });

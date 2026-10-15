@@ -27,22 +27,39 @@ function startOfDay(date: Date): Date {
 }
 
 /**
- * When the event actually begins.
+ * When the event actually begins, as an instant.
  *
- * `date` is stored at midnight and `time` is a separate "HH:MM" string, so the
- * two have to be combined in the server's own timezone - the same one the
- * calendar page draws in.
+ * `date` is stored at UTC midnight and `time` is a bare "HH:MM" written on the
+ * user's own clock, so the two are put back together in that user's zone and
+ * then shifted to UTC. An event entered as 19:46 in Moscow is 16:46 UTC; taking
+ * the wall clock at face value would remind three hours late. Events saved
+ * before this field existed have no offset and fall back to the server's clock,
+ * which is what they always used.
  */
-function eventStart(date: Date, time: string | null): Date {
-  const start = startOfDay(date);
-  if (!time) return start;
+function eventStart(date: Date, time: string | null, tzOffset: number | null): Date {
+  // The date parts are read in UTC because that is how the column is written:
+  // UTC midnight. Reading them in local time silently shifts the event by a day
+  // for half the planet.
+  const y = date.getUTCFullYear();
+  const mo = date.getUTCMonth();
+  const d = date.getUTCDate();
+
+  if (!time) return new Date(Date.UTC(y, mo, d, 0, 0, 0, 0) - (tzOffset ?? 0) * 60_000);
   const match = /^(\d{1,2}):(\d{2})/.exec(time.trim());
-  if (!match) return start;
+  if (!match) return new Date(Date.UTC(y, mo, d, 0, 0, 0, 0) - (tzOffset ?? 0) * 60_000);
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return start;
-  start.setHours(hours, minutes, 0, 0);
-  return start;
+  if (hours > 23 || minutes > 59) {
+    return new Date(Date.UTC(y, mo, d, 0, 0, 0, 0) - (tzOffset ?? 0) * 60_000);
+  }
+
+  return new Date(Date.UTC(y, mo, d, hours, minutes, 0, 0) - (tzOffset ?? 0) * 60_000);
+}
+
+/** The calendar day it belongs to on the user's own clock. */
+function localDayKey(date: Date, tzOffset: number | null): string {
+  const shifted = new Date(date.getTime() + (tzOffset ?? 0) * 60_000);
+  return `${shifted.getUTCFullYear()}-${shifted.getUTCMonth() + 1}-${shifted.getUTCDate()}`;
 }
 
 /** "19:46", and an empty string when the event has no time. */
@@ -70,6 +87,7 @@ type DueEvent = {
   time: string | null;
   userId: string;
   date: Date;
+  tzOffset: number | null;
 };
 
 /**
@@ -111,16 +129,17 @@ export function composeReminder(list: DueEvent[]): { title: string; body: string
  */
 export function selectDue(events: DueEvent[], now: Date, recovering: boolean): DueEvent[] {
   const lead = LEAD_MINUTES * 60 * 1000;
-  const morning = startOfDay(now);
-  morning.setHours(MORNING_HOUR, 0, 0, 0);
 
   return events.filter((event) => {
-    // An event with no time spans the day. Its stored date is midnight, so the
-    // "already started" test below would discard it every morning - which is
-    // exactly when it is meant to be mentioned.
-    if (!event.time) return now >= morning;
+    // An event with no time spans the user's whole day. Its stored date is
+    // midnight, so the "already started" test below would discard it every
+    // morning - exactly when it is meant to be mentioned.
+    if (!event.time) {
+      const morning = new Date(eventStart(event.date, '00:00', event.tzOffset).getTime() + MORNING_HOUR * 3600_000);
+      return now >= morning && localDayKey(now, event.tzOffset) === localDayKey(event.date, event.tzOffset);
+    }
 
-    const starts = eventStart(new Date(event.date), event.time);
+    const starts = eventStart(event.date, event.time, event.tzOffset);
     if (now >= starts) return false; // already begun, or past: saying nothing
     const remindAt = new Date(starts.getTime() - lead);
     if (now >= remindAt) return true;
@@ -130,15 +149,18 @@ export function selectDue(events: DueEvent[], now: Date, recovering: boolean): D
 
 async function sweep(recovering = false) {
   const now = new Date();
-  const start = startOfDay(now);
-  const end = new Date(start.getTime() + 86400000);
+
+  // A wide window rather than "today" in the server's zone: an event can belong
+  // to tomorrow for someone in Tokyo while it is still today here.
+  const from = startOfDay(new Date(now.getTime() - 86400_000));
+  const to = startOfDay(new Date(now.getTime() + 2 * 86400_000));
 
   const events = await prisma.calendarEvent.findMany({
     where: {
-      date: { gte: start, lt: end },
+      date: { gte: from, lt: to },
       remindedAt: null,
     },
-    select: { id: true, title: true, time: true, userId: true, date: true },
+    select: { id: true, title: true, time: true, userId: true, date: true, tzOffset: true },
     orderBy: { date: 'asc' },
   });
 
@@ -153,6 +175,7 @@ async function sweep(recovering = false) {
       time: event.time,
       userId: event.userId,
       date: new Date(event.date),
+      tzOffset: event.tzOffset ?? null,
     });
     byUser.set(event.userId, list);
   }

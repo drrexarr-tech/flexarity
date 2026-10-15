@@ -110,6 +110,10 @@ export function CalendarEventForm({ event, defaultDate, onSuccess }: Props) {
         description: data.description || null,
         time: data.time || null,
         color,
+        // Minutes east of UTC on this device. The time field is a bare "HH:MM",
+        // so without this the server would read it on its own clock and remind
+        // a Moscow event three hours late.
+        tzOffset: -new Date().getTimezoneOffset(),
       };
       if (data.visibility !== 'family') delete payload.familyId;
 

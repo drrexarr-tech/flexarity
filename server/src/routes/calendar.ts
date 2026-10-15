@@ -13,7 +13,11 @@ const eventSchema = z.object({
   title: z.string().trim().min(1, 'Название обязательно').max(300),
   description: optionalText(),
   date: z.string().trim().min(1, 'Дата обязательна').max(300),
-  time: optionalText(),
+    time: optionalText(),
+    // Minutes east of UTC where this event was entered. `time` is a bare
+    // "HH:MM", so without this a reminder written as 19:46 in Moscow would fire
+    // at 19:46 UTC - three hours after the user thinks it should.
+    tzOffset: z.number().int().min(-840).max(840).optional(),
   color: optionalText(),
   visibility: z.preprocess((v) => (v === 'public' ? 'private' : v), z.enum(['private', 'family']).default('private')),
   familyId: optionalText(),
@@ -195,6 +199,7 @@ calendarRouter.post('/', async (req: AuthRequest, res: Response) => {
       description: data.description || null,
       date: startOfDay(new Date(data.date)),
       time: data.time || null,
+      tzOffset: data.tzOffset ?? null,
       color: data.color || null,
       visibility: data.visibility,
       familyId: await resolveFamilyId(req.userId!, data.visibility === 'family' ? data.familyId : null),
@@ -219,6 +224,7 @@ calendarRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       ...(data.description !== undefined ? { description: data.description || null } : {}),
       ...(data.date !== undefined ? { date: startOfDay(new Date(data.date)) } : {}),
       ...(data.time !== undefined ? { time: data.time || null } : {}),
+    ...(data.tzOffset !== undefined ? { tzOffset: data.tzOffset } : {}),
       ...(data.color !== undefined ? { color: data.color || null } : {}),
     // Moving an event has to arm its reminder again. The flag is what stops the
     // sweep repeating itself, and a time that changed after the notification

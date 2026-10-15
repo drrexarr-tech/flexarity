@@ -310,6 +310,10 @@ model CalendarEvent {
   // Set when the "today" reminder went out, so the daily sweep cannot send the
   // same event twice on a restart or on a second pass.
   remindedAt  DateTime?
+  // Minutes east of UTC where this event was entered. `time` is a bare
+  // "HH:MM", so without this a reminder written as 19:46 in Moscow would fire
+  // at 19:46 UTC, three hours after the user thinks it should.
+  tzOffset    Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   userId      String
