@@ -311,14 +311,24 @@ export function ProfilePage() {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth?.slice(0, 10) || '');
+  // Only asked for when the address actually changes: the server will not move
+  // an account to a new address on a session alone.
+  const [emailPassword, setEmailPassword] = useState('');
+  const emailChanged = email.trim().toLowerCase() !== (user?.email || '').toLowerCase();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   async function handleSave() {
     setSaving(true);
     try {
-      const updated = await api.auth.updateProfile({ name, email: email || undefined, dateOfBirth: dateOfBirth || undefined });
+      const updated = await api.auth.updateProfile({
+        name,
+        email: email || undefined,
+        dateOfBirth: dateOfBirth || undefined,
+        ...(emailChanged ? { currentPassword: emailPassword } : {}),
+      });
       setUser(updated);
+      setEmailPassword('');
       toast.success('Профиль обновлён');
     } catch (err: any) {
       toast.error(err.message);
@@ -464,6 +474,20 @@ export function ProfilePage() {
             <Label>Email</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
+          {emailChanged && (
+            <div className="space-y-2">
+              <Label>Текущий пароль — для смены почты</Label>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={emailPassword}
+                onChange={(e) => setEmailPassword(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Почту можно поменять только вместе с паролем от этого аккаунта.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Дата рождения</Label>
             <DatePicker value={dateOfBirth} onChange={setDateOfBirth} />

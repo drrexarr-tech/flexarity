@@ -549,19 +549,44 @@ authRouter.get('/public-key/:userId', authenticate, async (req: AuthRequest, res
 
 // Update profile
 const updateProfileSchema = z.object({
-    name: z.string().min(2).optional(),
-    email: z.string().email().optional(),
-    avatarUrl: optionalText(),
-    dateOfBirth: optionalText(),
-  });
+  // Changing the address is not a cosmetic edit. Family invites are addressed
+  // by email and a pending invite can be accepted by whoever holds that
+  // address, so anyone with a session could rewrite their own to a victim's and
+  // join their family. The current password is what proves the account is
+  // really yours.
+  currentPassword: z.string().optional(),
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  avatarUrl: optionalText(),
+  dateOfBirth: optionalText(),
+});
 
 authRouter.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
   const data = updateProfileSchema.parse(req.body);
   const updateData: any = {};
   if (data.name) updateData.name = data.name;
-  if (data.email) updateData.email = data.email;
   if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
   if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth);
+
+  if (data.email) {
+    const current = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { email: true, password: true },
+    });
+    if (!current) throw new AppError(404, 'Пользователь не найден');
+
+    if (current.email.toLowerCase() !== data.email.toLowerCase()) {
+      if (!data.currentPassword || !(await bcrypt.compare(data.currentPassword, current.password))) {
+        throw new AppError(403, 'Для смены почты нужен текущий пароль');
+      }
+      const taken = await prisma.user.findFirst({
+        where: { email: data.email, NOT: { id: req.userId } },
+        select: { id: true },
+      });
+      if (taken) throw new AppError(409, 'Эта почта уже занята');
+      updateData.email = data.email;
+    }
+  }
 
   const user = await prisma.user.update({
     where: { id: req.userId },

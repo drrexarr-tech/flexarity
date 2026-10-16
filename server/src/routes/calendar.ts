@@ -12,7 +12,17 @@ calendarRouter.use(authenticate);
 const eventSchema = z.object({
   title: z.string().trim().min(1, 'Название обязательно').max(300),
   description: optionalText(),
-  date: z.string().trim().min(1, 'Дата обязательна').max(300),
+  // Any string up to 300 characters was accepted here and only discovered to be
+  // unparseable further down, where new Date() produced an Invalid Date and the
+  // write answered 500. A mistyped date is a bad request, not a server fault.
+  date: z
+    .string()
+    .trim()
+    .min(1, 'Дата обязательна')
+    .max(300)
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), {
+      message: 'Дата не распознана',
+    }),
     time: optionalText(),
     // Minutes east of UTC where this event was entered. `time` is a bare
     // "HH:MM", so without this a reminder written as 19:46 in Moscow would fire
