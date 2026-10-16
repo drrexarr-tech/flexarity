@@ -17,6 +17,5 @@
 
 ssl
 server/uploads
-electron
 nginx
 README.md
