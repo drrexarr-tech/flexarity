@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { precache, cleanupOutdatedCaches } from 'workbox-precaching';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
+import { createHandlerBoundToURL } from 'workbox-precaching';
 
 /**
  * The service worker also delivers push.
@@ -22,8 +24,34 @@ self.skipWaiting();
 clientsClaim();
 
 // The app shell. Anything under /api is deliberately absent: see above.
-precacheAndRoute(self.__WB_MANIFEST as any);
+//
+// `precache` and not `precacheAndRoute`, because the second one also installs a
+// navigation fallback that serves index.html straight out of the cache. Every
+// build renames the hashed bundles and the deploy deletes the ones it replaced,
+// so a cached index.html is a list of URLs that no longer exist: the script
+// 404s and the phone gets a blank page. That is what a stale shell looks like,
+// and it is why the navigations below go to the network first.
+precache(self.__WB_MANIFEST as any);
 cleanupOutdatedCaches();
+
+const shellFromCache = createHandlerBoundToURL('/index.html');
+
+registerRoute(
+  new NavigationRoute(
+    async ({ request }) => {
+      try {
+        const fresh = await fetch(request);
+        if (fresh && fresh.ok) return fresh;
+        throw new Error('bad status');
+      } catch {
+        // Offline, or the network is refusing: the precached shell is better
+        // than nothing, and it is the version that goes with these assets.
+        return shellFromCache({ request } as any);
+      }
+    },
+    { denylist: [/^\/api\//] },
+  ),
+);
 
 
 /** Shown when the payload has no icon of its own. */
