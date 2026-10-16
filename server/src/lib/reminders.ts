@@ -113,9 +113,20 @@ type DueEvent = {
 export function composeReminder(
   list: DueEvent[],
   stage: number,
+  now: Date = new Date(),
 ): { title: string; body: string } {
   if (list.length === 0) return { title: '', body: '' };
   const config = STAGES.find((s) => s.stage === stage) ?? STAGES[0];
+
+  // The day-before stage opens as soon as an event is within 24 hours, which
+  // includes something happening this evening. Calling that "Завтра" is simply
+  // untrue and is the sort of thing that teaches someone to ignore the app.
+  const lead = (list: DueEvent[]): string => {
+    if (list.some((e) => localDayKey(e.date, e.tzOffset) !== localDayKey(now, e.tzOffset))) {
+      return 'Завтра';
+    }
+    return 'Сегодня';
+  };
 
   if (list.length === 1) {
     const only = list[0];
@@ -123,8 +134,9 @@ export function composeReminder(
     if (stage === 3) {
       return { title: `${only.title} — ${time || 'скоро'}`, body: 'Пора начинаться' };
     }
+    const word = stage === 1 ? lead([only]) : config.title;
     return {
-      title: `${config.title}${time ? `, ${time}` : ''}`,
+      title: `${word}${time ? `, ${time}` : ''}`,
       body: only.title,
     };
   }
@@ -255,9 +267,10 @@ async function sweep(recovering = false) {
       if (group.length === 0) continue;
 
       const { title, body } = composeReminder(
-        group.map((g) => g.event),
-        stage.stage,
-      );
+group.map((g) => g.event),
+            stage.stage,
+            now,
+          );
 
       await prisma.notification.create({
         data: {

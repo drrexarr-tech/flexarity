@@ -61,6 +61,55 @@ export function ProfilePage() {
     return () => { cancelled = true; };
   }, []);
 
+  /**
+   * What the server believes, which is the half the browser cannot see.
+   *
+   * "Notifications are on" in this browser and "the server knows this device"
+   * are different facts, and when only the first is true nothing ever arrives
+   * with no way to tell why.
+   */
+  async function checkPushStatus() {
+    try {
+      const status = await api.push.status();
+      if (!status.configured) {
+        setPushHint('Сервер не настроен на отправку');
+        return;
+      }
+      if (status.devices === 0) {
+        setPushHint('Сервер не знает об этом устройстве');
+        return;
+      }
+      if (status.devices > 1) {
+        setPushHint(`Устройств: ${status.devices}`);
+        return;
+      }
+      setPushHint(
+        status.lastSentAt
+          ? `Последняя отправка: ${new Date(status.lastSentAt).toLocaleString('ru-RU')}`
+          : 'Подписка есть, отправок ещё не было',
+      );
+    } catch {
+      setPushHint('Не удалось проверить состояние');
+    }
+  }
+
+  /** Sends a real notification and asks whether the phone actually showed it. */
+  async function sendPushTest() {
+    setPushHint('Отправляем проверку...');
+    try {
+      const result = await api.push.sendTest();
+      if (result.known === 0) {
+        setPushHint('Подписка не зарегистрирована, попробуйте выключить и включить');
+        return;
+      }
+      setPushHint('Отправлено. Если ничего не пришло — нажмите ещё раз');
+      toast.success('Проверка отправлена');
+    } catch (err: any) {
+      setPushHint('Не удалось отправить проверку');
+      toast.error(err?.message || 'Не удалось отправить проверку');
+    }
+  }
+
   async function handlePushToggle(next: boolean) {
     setPushHint('Подключаем...');
     try {
@@ -671,6 +720,20 @@ export function ProfilePage() {
               aria-label="Уведомления"
             />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={!pushActive}
+            onClick={sendPushTest}
+          >
+            Проверить доставку
+          </Button>
+          {pushActive && (
+            <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={checkPushStatus}>
+              Состояние доставки
+            </Button>
+          )}
         </CardContent>
       </Card>
 

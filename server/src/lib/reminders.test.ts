@@ -26,22 +26,38 @@ const event = (
 });
 
 describe('reminder wording, per stage', () => {
-  it('says tomorrow a day ahead', () => {
-    expect(composeReminder([event('19:46')], 1)).toEqual({
+  it('says tomorrow for an event that is on the next day', () => {
+    const tomorrow = new Date(Date.UTC(2026, 5, 16));
+    expect(composeReminder([{ ...event('19:46'), date: tomorrow }], 1, utc(10, 0))).toEqual({
       title: 'Завтра, 19:46',
       body: 'Встреча',
     });
   });
 
+  it('says today for something happening this evening', () => {
+    // The day-before window opens as soon as an event is within 24 hours, which
+    // includes one an hour out. Calling that "Завтра" was untrue and it is what
+    // a person sees on a lock screen.
+    expect(composeReminder([event('19:46')], 1, utc(10, 0)).title).toBe('Сегодня, 19:46');
+    expect(composeReminder([event('23:30')], 1, utc(10, 0)).title).toBe('Сегодня, 23:30');
+  });
+
+  it('splits a mixed group by day instead of claiming all of it is tomorrow', () => {
+    const tomorrow = new Date(Date.UTC(2026, 5, 16));
+    const out = composeReminder([event('20:00'), { ...event('09:00'), date: tomorrow }], 1, utc(10, 0));
+    expect(out.title.startsWith('Завтра')).toBe(true);
+    expect(out.body).toContain('20:00 · Встреча');
+  });
+
   it('says an hour ahead differently', () => {
-    expect(composeReminder([event('19:46')], 2)).toEqual({
+    expect(composeReminder([event('19:46')], 2, utc(10, 0))).toEqual({
       title: 'Через час, 19:46',
       body: 'Встреча',
     });
   });
 
   it('puts the five-minute one the other way round, name first', () => {
-    const five = composeReminder([event('19:46')], 3);
+    const five = composeReminder([event('19:46')], 3, utc(10, 0));
     expect(five.title).toBe('Встреча — 19:46');
     expect(five.body).toBe('Пора начинаться');
   });
@@ -49,29 +65,29 @@ describe('reminder wording, per stage', () => {
   it('never leaves a bracket in a title', () => {
     for (const stage of [1, 2, 3]) {
       for (const time of ['00:05', '9:05', '19:46', '23:59']) {
-        expect(composeReminder([event(time)], stage).title).not.toMatch(/[()[\]]/);
+        expect(composeReminder([event(time)], stage, utc(10, 0)).title).not.toMatch(/[()[\]]/);
       }
     }
   });
 
   it('counts several events in Russian', () => {
     const many = [event('10:00'), event('11:00'), event('12:00'), event('13:00'), event('14:00')];
-    expect(composeReminder(many, 1).title).toBe('Завтра: 5 событий');
-    expect(composeReminder([event('10:00'), event('11:00')], 2).title).toBe('Через час: 2 события');
-    expect(composeReminder(many, 3).title).toBe('Через 5 минут: 5 событий');
-    expect(composeReminder(Array.from({ length: 11 }, () => event('10:00')), 1).title).toBe(
+    expect(composeReminder(many, 1, utc(10, 0)).title).toBe('Завтра: 5 событий');
+    expect(composeReminder([event('10:00'), event('11:00')], 2, utc(10, 0)).title).toBe('Через час: 2 события');
+    expect(composeReminder(many, 3, utc(10, 0)).title).toBe('Через 5 минут: 5 событий');
+    expect(composeReminder(Array.from({ length: 11 }, () => event('10:00')), 1, utc(10, 0)).title).toBe(
       'Завтра: 11 событий',
     );
   });
 
   it('pairs times with titles only when every event has one', () => {
-    expect(composeReminder([event('10:00'), event('18:30')], 1).body).toContain('10:00 · Встреча');
-    const mixed = composeReminder([event(null), event('18:30')], 1).body;
+    expect(composeReminder([event('10:00'), event('18:30')], 1, utc(10, 0)).body).toContain('10:00 · Встреча');
+    const mixed = composeReminder([event(null), event('18:30')], 1, utc(10, 0)).body;
     expect(mixed).not.toMatch(/\d{2}:\d{2} · /);
   });
 
   it('says nothing about nothing', () => {
-    expect(composeReminder([], 1)).toEqual({ title: '', body: '' });
+    expect(composeReminder([], 1, utc(10, 0))).toEqual({ title: '', body: '' });
   });
 });
 

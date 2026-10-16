@@ -15,6 +15,34 @@ pushRouter.get('/public-key', (_req: Request, res: Response) => {
   res.json({ key, enabled: isPushConfigured() && !!key });
 });
 
+/**
+ * What the server thinks of this browser.
+ *
+ * Without this there is no way to tell "nothing to send" from "your
+ * subscription is gone": both look identical from the phone, and a dead
+ * subscription is deleted silently, so it can stay dead for weeks.
+ */
+pushRouter.get('/status', authenticate, async (req: AuthRequest, res: Response) => {
+  const rows = await prisma.pushSubscription.findMany({
+    where: { userId: req.userId },
+    select: { id: true, createdAt: true, lastSentAt: true, userAgent: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({
+    configured: isPushConfigured() && !!vapidPublicKey(),
+    devices: rows.length,
+    lastSentAt: rows.map((r) => r.lastSentAt).filter(Boolean).sort().pop() || null,
+    registeredAt: rows[0]?.createdAt || null,
+    // A device whose last send failed with 404 or 410 was already removed, so
+    // this only ever describes devices that are still believed to work.
+    devices_: rows.map((r) => ({
+      registeredAt: r.createdAt,
+      lastSentAt: r.lastSentAt,
+      looksLikePhone: /iphone|android|mobile/i.test(r.userAgent || ''),
+    })),
+  });
+});
+
 const subscriptionSchema = z.object({
   endpoint: z.string().url().max(2048),
   keys: z.object({
@@ -71,11 +99,15 @@ pushRouter.delete('/subscribe', authenticate, async (req: AuthRequest, res: Resp
 
 /** Used by the settings screen to prove the subscription actually works. */
 pushRouter.post('/test', authenticate, async (req: AuthRequest, res: Response) => {
+  const rows = await prisma.pushSubscription.count({ where: { userId: req.userId } });
   const delivered = await sendPush(req.userId!, {
-    title: 'Уведомления работают',
-    body: 'Так будет выглядеть напоминание.',
+    title: 'Проверка уведомлений',
+    body: 'Если вы это видите — доставка работает.',
     link: '/',
     tag: 'push-test',
   });
-  res.json({ delivered });
+  // The count alone is not enough: the push service accepts a request and then
+  // drops it if the subscription no longer matches our keys. The browser knows
+  // whether it was shown, so the caller asks the user.
+  res.json({ delivered, known: rows });
 });

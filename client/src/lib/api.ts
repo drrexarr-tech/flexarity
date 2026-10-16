@@ -377,6 +377,14 @@ export const api = {
         method: 'DELETE',
         body: JSON.stringify({ endpoint }),
       }),
-    sendTest: () => request<{ delivered: number }>('/push/test', { method: 'POST' }),
+    sendTest: () =>
+      request<{ delivered: number; known: number }>('/push/test', { method: 'POST' }),
+    status: () =>
+      request<{
+        configured: boolean;
+        devices: number;
+        lastSentAt: string | null;
+        registeredAt: string | null;
+      }>('/push/status'),
   },
 };
